@@ -1,0 +1,180 @@
+# ================================
+# 📦 Setup and Download from Kaggle
+# ================================
+print("📁 Starting setup and Kaggle configuration...")
+import os
+import json
+import pandas as pd
+import numpy as np
+
+kaggle_token = {"username":"tomwood6666","key":"4ae9279d450f7ee03553f135b7457033"}
+
+os.makedirs("/root/.kaggle", exist_ok=True)
+with open("/root/.kaggle/kaggle.json", "w") as f:
+    json.dump(kaggle_token, f)
+os.chmod("/root/.kaggle/kaggle.json", 0o600)
+
+print("🧩 Installing Kaggle CLI...")
+!pip install -q kaggle
+
+# Download dataset only if not present
+if not os.path.exists("ieee-fraud-detection.zip"):
+    print("⬇️ Downloading IEEE-CIS dataset from Kaggle...")
+    !kaggle competitions download -c ieee-fraud-detection
+else:
+    print("✅ Found existing zip, skipping download.")
+
+# Unzip only if needed
+if not os.path.exists("ieee_cis/train_transaction.csv"):
+    print("📦 Unzipping dataset...")
+    import zipfile
+    with zipfile.ZipFile("ieee-fraud-detection.zip", "r") as zip_ref:
+        zip_ref.extractall("ieee_cis")
+else:
+    print("✅ Data already unzipped, skipping extraction.")
+
+# ================================
+# 📥 Load and Merge Data
+# ================================
+print("📄 Loading and merging transaction + identity data...")
+trans = pd.read_csv("ieee_cis/train_transaction.csv")
+iden  = pd.read_csv("ieee_cis/train_identity.csv")
+
+df = trans.merge(iden, on="TransactionID", how="left")
+print(f"✅ Data loaded. Shape after merge: {df.shape}")
+print(df["isFraud"].value_counts())
+
+# ================================
+# 🧽 Data Cleaning and Feature Selection
+# ================================
+print("🧹 Cleaning and preprocessing data...")
+drop_cols = [
+    "TransactionID", "TransactionDT", "ProductCD", "DeviceType", "DeviceInfo",
+    "id_30", "id_31", "id_33", "id_34", "id_35", "id_36", "id_37", "id_38"
+]
+df = df.drop(columns=drop_cols, errors='ignore')
+df = df.dropna(thresh=df.shape[0]*0.5, axis=1)
+df = df.fillna(0)
+
+from sklearn.preprocessing import LabelEncoder
+for col in df.select_dtypes(include="object").columns:
+    df[col] = LabelEncoder().fit_transform(df[col].astype(str))
+print(f"🧼 Preprocessing complete. Final shape: {df.shape}")
+
+X = df.drop(columns=["isFraud"])
+y = df["isFraud"]
+
+# ================================
+# ⚖️ Scaling and Splitting
+# ================================
+print("🧪 Scaling features and splitting train/test sets...")
+from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import train_test_split
+
+scaler = StandardScaler()
+X_scaled = scaler.fit_transform(X)
+
+X_train, X_test, y_train, y_test = train_test_split(
+    X_scaled, y, test_size=0.2, stratify=y, random_state=42
+)
+X_train_ae = X_train[y_train == 0]
+print(f"✅ Split complete. Training AE on {X_train_ae.shape[0]} non-fraud rows.")
+
+# ================================
+# 🧠 Autoencoder Model Definition
+# ================================
+print("🧠 Building autoencoder model...")
+import torch
+import torch.nn as nn
+from torch.utils.data import DataLoader, TensorDataset
+
+class Autoencoder(nn.Module):
+    def __init__(self, input_dim):
+        super().__init__()
+        self.encoder = nn.Sequential(
+            nn.Linear(input_dim, 64),
+            nn.ReLU(),
+            nn.Linear(64, 32)
+        )
+        self.decoder = nn.Sequential(
+            nn.Linear(32, 64),
+            nn.ReLU(),
+            nn.Linear(64, input_dim)
+        )
+    def forward(self, x):
+        return self.decoder(self.encoder(x))
+
+# ================================
+# 🏋️ Training Autoencoder
+# ================================
+print("🏋️ Starting training (CPU only)...")
+device = torch.device("cpu")
+model = Autoencoder(X_train_ae.shape[1]).to(device)
+optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
+criterion = nn.MSELoss()
+
+train_dataset = TensorDataset(torch.tensor(X_train_ae, dtype=torch.float32))
+train_loader = DataLoader(train_dataset, batch_size=256, shuffle=True)
+
+model.train()
+for epoch in range(20):
+    total_loss = 0
+    for batch in train_loader:
+        x_batch = batch[0].to(device)
+        optimizer.zero_grad()
+        output = model(x_batch)
+        loss = criterion(output, x_batch)
+        loss.backward()
+        optimizer.step()
+        total_loss += loss.item()
+    print(f"📉 Epoch {epoch+1} - Loss: {total_loss:.2f}")
+
+# ================================
+# 🔍 Evaluate + Anomaly Detection
+# ================================
+print("🔎 Performing anomaly detection via reconstruction error...")
+model.eval()
+with torch.no_grad():
+    x_test_tensor = torch.tensor(X_test, dtype=torch.float32).to(device)
+    x_reconstructed = model(x_test_tensor).cpu().numpy()
+
+recon_errors = ((X_test - x_reconstructed) ** 2).mean(axis=1)
+
+with torch.no_grad():
+    recon_train = model(torch.tensor(X_train_ae, dtype=torch.float32)).cpu().numpy()
+threshold = np.percentile(((X_train_ae - recon_train) ** 2).mean(axis=1), 90)
+y_pred = (recon_errors > threshold).astype(int)
+print(f"📏 Threshold (95th percentile): {threshold:.4f}")
+
+# ================================
+# 📊 Evaluation
+# ================================
+print("📊 Evaluating model performance...")
+from sklearn.metrics import classification_report, confusion_matrix, roc_auc_score
+import seaborn as sns
+import matplotlib.pyplot as plt
+
+print("\n📄 Classification Report (Autoencoder):")
+print(classification_report(y_test, y_pred))
+print(f"ROC-AUC Score: {roc_auc_score(y_test, recon_errors):.4f}")
+
+conf_matrix = confusion_matrix(y_test, y_pred)
+sns.heatmap(conf_matrix, annot=True, fmt='d', cmap='Blues')
+plt.title("Confusion Matrix")
+plt.xlabel("Predicted")
+plt.ylabel("Actual")
+plt.show()
+
+# ================================
+# 📈 Error Distribution
+# ================================
+print("📈 Plotting error distribution...")
+plt.figure(figsize=(10, 5))
+plt.hist(recon_errors[y_test == 0], bins=100, alpha=0.5, label="Normal")
+plt.hist(recon_errors[y_test == 1], bins=100, alpha=0.5, label="Fraud")
+plt.axvline(threshold, color='red', linestyle='--', label="Threshold")
+plt.legend()
+plt.title("Reconstruction Error Distribution")
+plt.xlabel("Error")
+plt.ylabel("Frequency")
+plt.show()
