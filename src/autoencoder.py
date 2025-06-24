@@ -1,6 +1,5 @@
 """
 Autoencoder model for fraud detection.
-Based on working code from notebook2.
 """
 
 import torch
@@ -17,13 +16,6 @@ class Autoencoder(nn.Module):
     """Autoencoder neural network for anomaly detection."""
     
     def __init__(self, input_dim, hidden_dims=[64, 32]):
-        """
-        Initialize autoencoder.
-        
-        Args:
-            input_dim: Number of input features
-            hidden_dims: List of hidden layer dimensions
-        """
         super().__init__()
         
         # Encoder layers
@@ -65,14 +57,6 @@ class AutoencoderTrainer:
     """Trainer for autoencoder model."""
     
     def __init__(self, model, device='cpu', lr=1e-3):
-        """
-        Initialize trainer.
-        
-        Args:
-            model: Autoencoder model
-            device: Device to train on ('cpu' or 'cuda')
-            lr: Learning rate
-        """
         self.model = model.to(device)
         self.device = device
         self.optimizer = optim.Adam(model.parameters(), lr=lr)
@@ -101,15 +85,7 @@ class AutoencoderTrainer:
         return total_loss
     
     def train(self, X_train_ae, epochs=20, batch_size=256, verbose=True):
-        """
-        Train the autoencoder.
-        
-        Args:
-            X_train_ae: Training data (non-fraudulent only)
-            epochs: Number of training epochs
-            batch_size: Batch size for training
-            verbose: Whether to print progress
-        """
+        """Train the autoencoder."""
         logger.info(f"Starting training on {self.device}...")
         
         # Create data loader
@@ -138,20 +114,8 @@ class AutoencoderTrainer:
         recon_errors = ((X - x_reconstructed) ** 2).mean(axis=1)
         return recon_errors
     
-    def detect_anomalies(self, X_test, X_train_ae, percentile=95):
-        """
-        Detect anomalies using reconstruction error.
-        
-        Args:
-            X_test: Test data
-            X_train_ae: Training data (for threshold calculation)
-            percentile: Percentile for threshold calculation
-            
-        Returns:
-            y_pred: Predicted labels (0=normal, 1=anomaly)
-            threshold: Calculated threshold
-            recon_errors: Reconstruction errors
-        """
+    def detect_anomalies(self, X_test, X_train_ae, percentile=90):
+        """Detect anomalies using reconstruction error."""
         logger.info("Performing anomaly detection...")
         
         # Get reconstruction errors for test data

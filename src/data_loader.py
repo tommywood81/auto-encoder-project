@@ -1,6 +1,5 @@
 """
 Data loader for IEEE-CIS Fraud Detection dataset.
-Updated to work with the new pipeline structure.
 """
 
 import os
@@ -12,8 +11,6 @@ from sklearn.model_selection import train_test_split
 import logging
 from src.config import DATA_RAW, DATA_CLEANED, DATA_ENGINEERED, DATA_PROCESSED, RANDOM_STATE, TEST_SIZE
 
-# Set up logging
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
@@ -21,12 +18,6 @@ class FraudDataLoader:
     """Data loader for IEEE-CIS Fraud Detection dataset."""
     
     def __init__(self, use_pipeline=True):
-        """
-        Initialize the data loader.
-        
-        Args:
-            use_pipeline (bool): Whether to use the new pipeline structure or legacy approach
-        """
         self.use_pipeline = use_pipeline
         self.scaler = StandardScaler()
         self.label_encoders = {}
@@ -35,15 +26,14 @@ class FraudDataLoader:
         """Load raw transaction + identity data."""
         logger.info("Loading raw transaction + identity data...")
         
-        # Load transaction data
         trans_path = os.path.join(DATA_RAW, "train_transaction.csv")
-        trans = pd.read_csv(trans_path)
-        logger.info(f"Transaction data shape: {trans.shape}")
-        
-        # Load identity data
         iden_path = os.path.join(DATA_RAW, "train_identity.csv")
+        
+        trans = pd.read_csv(trans_path)
         iden = pd.read_csv(iden_path)
-        logger.info(f"Identity data shape: {iden.shape}")
+        
+        logger.info(f"Transaction data: {trans.shape}")
+        logger.info(f"Identity data: {iden.shape}")
         
         # Merge on TransactionID
         df = trans.merge(iden, on="TransactionID", how="left")
@@ -61,7 +51,7 @@ class FraudDataLoader:
             raise FileNotFoundError(f"Cleaned data not found at {cleaned_file}. Run data cleaning first.")
         
         df = pd.read_csv(cleaned_file)
-        logger.info(f"Cleaned data shape: {df.shape}")
+        logger.info(f"Cleaned data: {df.shape}")
         
         return df
     
@@ -74,7 +64,7 @@ class FraudDataLoader:
             raise FileNotFoundError(f"Engineered data not found at {engineered_file}. Run feature engineering first.")
         
         df = pd.read_csv(engineered_file)
-        logger.info(f"Engineered data shape: {df.shape}")
+        logger.info(f"Engineered data: {df.shape}")
         
         return df
     
@@ -142,7 +132,6 @@ class FraudDataLoader:
         """Save processed data to the processed directory."""
         logger.info("Saving processed data...")
         
-        # Create processed directory if it doesn't exist
         os.makedirs(DATA_PROCESSED, exist_ok=True)
         
         # Save numpy arrays
@@ -172,7 +161,7 @@ class FraudDataLoader:
         X = df.drop(columns=["isFraud"])
         y = df["isFraud"]
         
-        logger.info(f"Features shape: {X.shape}")
+        logger.info(f"Features: {X.shape}")
         logger.info(f"Target distribution: {y.value_counts()}")
         
         # Scale features
@@ -207,10 +196,7 @@ class FraudDataLoader:
         }
     
     def load_processed_data(self):
-        """
-        Complete data loading pipeline.
-        Tries to load from processed directory first, falls back to processing from engineered data.
-        """
+        """Complete data loading pipeline."""
         try:
             # Try to load from processed directory
             return self.load_processed_data_from_disk()

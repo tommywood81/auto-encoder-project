@@ -16,30 +16,30 @@ class DataCleaner:
         
     def load_raw_data(self):
         """Load raw transaction and identity data."""
-        print("📂 Loading raw data...")
+        print("Loading raw data...")
         
         # Load transaction and identity data
         trans = pd.read_csv(os.path.join(DATA_RAW, "train_transaction.csv"))
         iden = pd.read_csv(os.path.join(DATA_RAW, "train_identity.csv"))
         
-        print(f"📊 Transaction data shape: {trans.shape}")
-        print(f"📊 Identity data shape: {iden.shape}")
+        print(f"Transaction data: {trans.shape}")
+        print(f"Identity data: {iden.shape}")
         
         return trans, iden
     
     def merge_data(self, trans, iden):
         """Merge transaction and identity data."""
-        print("🔗 Merging transaction and identity data...")
+        print("Merging data...")
         
         # Merge on TransactionID
         df = trans.merge(iden, on="TransactionID", how="left")
         
-        print(f"📊 Merged data shape: {df.shape}")
+        print(f"Merged data: {df.shape}")
         return df
     
     def remove_unnecessary_columns(self, df):
         """Remove columns that are not useful for modeling."""
-        print("🗑️ Removing unnecessary columns...")
+        print("Removing unnecessary columns...")
         
         # Columns to drop (not useful for modeling)
         drop_cols = [
@@ -53,13 +53,13 @@ class DataCleaner:
         df = df.drop(columns=existing_drop_cols)
         
         self.cleaning_stats['dropped_columns'] = existing_drop_cols
-        print(f"🗑️ Dropped {len(existing_drop_cols)} columns")
+        print(f"Dropped {len(existing_drop_cols)} columns")
         
         return df
     
     def handle_missing_values(self, df):
         """Handle missing values in the dataset."""
-        print("🔍 Handling missing values...")
+        print("Handling missing values...")
         
         # Calculate missing value percentages
         missing_pct = (df.isnull().sum() / len(df)) * 100
@@ -85,14 +85,14 @@ class DataCleaner:
             'categorical_mode': len(categorical_cols)
         }
         
-        print(f"🔍 Removed {len(high_missing_cols)} columns with >50% missing values")
-        print(f"🔍 Filled missing values in {len(numeric_cols)} numeric and {len(categorical_cols)} categorical columns")
+        print(f"Removed {len(high_missing_cols)} columns with >50% missing values")
+        print(f"Filled missing values in {len(numeric_cols)} numeric and {len(categorical_cols)} categorical columns")
         
         return df
     
     def handle_outliers(self, df):
         """Handle outliers in numeric columns using IQR method."""
-        print("📊 Handling outliers...")
+        print("Handling outliers...")
         
         numeric_cols = df.select_dtypes(include=[np.number]).columns
         outlier_stats = {}
@@ -120,13 +120,13 @@ class DataCleaner:
                 }
         
         self.cleaning_stats['outliers_handled'] = outlier_stats
-        print(f"📊 Handled outliers in {len(outlier_stats)} columns")
+        print(f"Handled outliers in {len(outlier_stats)} columns")
         
         return df
     
     def encode_categorical_variables(self, df):
         """Encode categorical variables using LabelEncoder."""
-        print("🔤 Encoding categorical variables...")
+        print("Encoding categorical variables...")
         
         categorical_cols = df.select_dtypes(include=['object']).columns
         
@@ -136,13 +136,13 @@ class DataCleaner:
             self.label_encoders[col] = le
         
         self.cleaning_stats['categorical_columns_encoded'] = list(categorical_cols)
-        print(f"🔤 Encoded {len(categorical_cols)} categorical columns")
+        print(f"Encoded {len(categorical_cols)} categorical columns")
         
         return df
     
     def save_cleaned_data(self, df, suffix=""):
         """Save cleaned data to the cleaned directory."""
-        print("💾 Saving cleaned data...")
+        print("Saving cleaned data...")
         
         # Create cleaned directory if it doesn't exist
         os.makedirs(DATA_CLEANED, exist_ok=True)
@@ -183,9 +183,9 @@ class DataCleaner:
         with open(encoders_file, 'w') as f:
             json.dump(encoders_dict, f, indent=2)
         
-        print(f"💾 Saved cleaned data to {output_file}")
-        print(f"💾 Saved cleaning stats to {stats_file}")
-        print(f"💾 Saved label encoders to {encoders_file}")
+        print(f"Saved cleaned data to {output_file}")
+        print(f"Saved cleaning stats to {stats_file}")
+        print(f"Saved label encoders to {encoders_file}")
         
         return output_file
     
@@ -199,7 +199,7 @@ class DataCleaner:
         Returns:
             pd.DataFrame: Cleaned dataset
         """
-        print("🧼 Starting data cleaning pipeline...")
+        print("Starting data cleaning pipeline...")
         
         # Load raw data
         trans, iden = self.load_raw_data()
@@ -213,7 +213,7 @@ class DataCleaner:
         df = self.handle_outliers(df)
         df = self.encode_categorical_variables(df)
         
-        print(f"✅ Final cleaned shape: {df.shape}")
+        print(f"Final cleaned shape: {df.shape}")
         
         # Save cleaned data if requested
         if save_output:

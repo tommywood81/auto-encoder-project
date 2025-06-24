@@ -1,173 +1,49 @@
-# Fraud Detection Autoencoder
+# Fraud Detection with Autoencoders (Unsupervised Learning)
 
-A comprehensive fraud detection system using autoencoders for anomaly detection on the IEEE-CIS Fraud Detection dataset.
+This project explores how unsupervised learning — specifically autoencoders — can be used to detect fraudulent transactions without relying on labeled data.
 
-## Overview
+In many real-world settings (like the one simulated here), fraud labels are often **delayed**, **missing**, or **incomplete**, which makes supervised models unreliable. The approach here assumes that fraud is rare, and trains the model to learn what "normal" behavior looks like — then flags deviations as suspicious.
 
-This project implements an autoencoder-based anomaly detection system for identifying fraudulent transactions. The autoencoder is trained only on legitimate transactions and learns to reconstruct them with minimal error. Fraudulent transactions, being anomalies, will have higher reconstruction errors, allowing us to detect them.
+I used the **IEEE-CIS Fraud Detection dataset** from Kaggle as a stand-in for a company's internal transaction stream. The column structure, size, and fraud rate are close to what many real payment systems experience, making it a good testbed.
 
-## Features
+---
 
-- **Modular Design**: Clean, maintainable code structure
-- **IEEE-CIS Dataset**: Uses the comprehensive IEEE-CIS Fraud Detection dataset with interpretable features
-- **Autoencoder Model**: PyTorch-based autoencoder with configurable architecture
-- **Comprehensive Evaluation**: Multiple evaluation metrics and visualizations
-- **Production Ready**: Includes model saving/loading and preprocessing pipeline
+## Project Scenario
 
-## Project Structure
+> *"You're working for a fraud analytics team that wants to test autoencoders for fraud detection. Labels in production are often missing, so unsupervised methods are preferred. You're given a dataset that mimics the company's schema and asked to build a prototype pipeline — including baseline evaluation, feature engineering, and deployment to a test server."*
 
-```
-auto-encoder-project/
-├── data/
-│   └── raw/                    # Raw dataset files
-│       ├── train_transaction.csv
-│       ├── train_identity.csv
-│       ├── test_transaction.csv
-│       └── test_identity.csv
-├── src/
-│   ├── data_loader.py          # Data loading and preprocessing
-│   ├── autoencoder.py          # Autoencoder model and trainer
-│   └── evaluator.py            # Model evaluation utilities
-├── results/                    # Generated results and plots
-├── models/                     # Saved models
-├── notebooks/
-│   └── notebook2               # Original working notebook
-├── main.py                     # Main execution script
-├── requirements.txt            # Python dependencies
-└── README.md                   # This file
-```
+---
 
-## Installation
+## What I Built
 
-1. **Clone the repository**:
-   ```bash
-   git clone <repository-url>
-   cd auto-encoder-project
-   ```
+- **Baseline model** using only raw numeric features and a time-aware train/test split
+- **Feature factory** with a config system to control feature sets
+- **Feature engineering** for:
+- Behavioral drift (rolling averages)
+- Temporal patterns (hour, time gaps)
+- Entity frequency/novelty (rarity of card/email/etc.)
+- **Model selection** based on ROC AUC using W&B for tracking
+- **Deployment** to a DigitalOcean droplet using FastAPI
+- **Sample inference endpoint** that returns anomaly scores and fraud flags
 
-2. **Create a virtual environment**:
-   ```bash
-   python -m venv env
-   source env/bin/activate  # On Windows: env\Scripts\activate
-   ```
+---
 
-3. **Install dependencies**:
-   ```bash
-   pip install -r requirements.txt
-   ```
+## Metric of Interest
+The primary evaluation metric is **ROC AUC**, which reflects how well the model separates normal vs. anomalous transactions.
 
-4. **Set up Kaggle credentials**:
-   - Create a Kaggle account and download your API credentials
-   - Place `kaggle.json` in `~/.kaggle/` (Linux/Mac) or `C:\Users\<username>\.kaggle\` (Windows)
+---
 
-## Usage
+## Stack
+- Python, Pandas, Scikit-learn
+- Pytorch (autoencoder)
+- Weights & Biases for experiment tracking
+- Docker + FastAPI for deployment
 
-### Quick Start
+---
 
-Run the complete pipeline:
+## Next Steps
+I'm continuing to iterate on feature sets and thresholding logic, and plan to test ensemble models next.
 
-```bash
-python main.py
-```
+---
 
-This will:
-1. Load and preprocess the IEEE-CIS dataset
-2. Train an autoencoder on legitimate transactions
-3. Evaluate the model's fraud detection performance
-4. Save results and visualizations to `results/`
-5. Save the trained model to `models/`
-
-### Data Loading
-
-The `FraudDataLoader` class handles:
-- Loading transaction and identity data
-- Merging datasets
-- Cleaning and preprocessing
-- Feature encoding
-- Data scaling and splitting
-
-### Model Training
-
-The `AutoencoderTrainer` class provides:
-- Configurable autoencoder architecture
-- Training with progress monitoring
-- Anomaly detection using reconstruction error
-- Threshold calculation
-
-### Evaluation
-
-The `FraudEvaluator` class generates:
-- Classification reports
-- Confusion matrices
-- ROC and PR curves
-- Error distribution plots
-- Performance metrics
-
-## Model Architecture
-
-The autoencoder uses:
-- **Encoder**: Input → 64 → 32 (hidden layers)
-- **Decoder**: 32 → 64 → Input
-- **Activation**: ReLU
-- **Loss**: Mean Squared Error
-- **Optimizer**: Adam
-
-## Results
-
-The pipeline generates:
-- `results/metrics.json`: Performance metrics
-- `results/training_losses.npy`: Training loss history
-- `results/confusion_matrix.png`: Confusion matrix plot
-- `results/error_distribution.png`: Reconstruction error distribution
-- `results/roc_curve.png`: ROC curve
-- `results/pr_curve.png`: Precision-Recall curve
-- `models/autoencoder_fraud_detection.pth`: Saved model
-
-## Configuration
-
-Key parameters can be modified in `main.py`:
-- `hidden_dims`: Autoencoder architecture
-- `epochs`: Training epochs
-- `batch_size`: Training batch size
-- `learning_rate`: Learning rate
-- `percentile`: Threshold percentile for anomaly detection
-
-## Dataset
-
-The IEEE-CIS Fraud Detection dataset contains:
-- **Transaction data**: Amount, card type, merchant info, etc.
-- **Identity data**: Device info, browser, OS, etc.
-- **Target**: `isFraud` (0=legitimate, 1=fraudulent)
-
-Features are interpretable and include:
-- Transaction amount and type
-- Card information
-- Merchant details
-- Device and browser information
-- Geographic location data
-
-## Performance
-
-Typical performance metrics:
-- **ROC-AUC**: ~0.85-0.90
-- **Precision**: ~0.70-0.80
-- **Recall**: ~0.60-0.75
-- **F1-Score**: ~0.65-0.75
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
-
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## Acknowledgments
-
-- IEEE-CIS for providing the fraud detection dataset
-- Kaggle for hosting the competition
-- PyTorch team for the deep learning framework 
+> This project is a simulation — but it's built to reflect the types of problems real fraud detection teams face, including deployment readiness, model reproducibility, and production constraints.

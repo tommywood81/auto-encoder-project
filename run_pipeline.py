@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """
-Production pipeline runner for fraud detection autoencoder.
-This script runs the complete data pipeline from raw data to model training and evaluation.
+Fraud detection pipeline - from raw data to trained model.
 """
 
 import os
@@ -13,7 +12,6 @@ import json
 import torch
 import numpy as np
 from datetime import datetime
-from pathlib import Path
 
 # Add src to path
 sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
@@ -27,64 +25,49 @@ from src.config import DATA_RAW, DATA_CLEANED, DATA_ENGINEERED, DATA_PROCESSED, 
 
 
 def setup_logging(log_level='INFO', log_file=None):
-    """Set up logging configuration."""
-    log_format = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    """Setup logging configuration."""
+    log_format = '%(asctime)s - %(levelname)s - %(message)s'
     
-    # Configure logging
     logging.basicConfig(
         level=getattr(logging, log_level.upper()),
         format=log_format,
-        handlers=[
-            logging.StreamHandler(sys.stdout)
-        ]
+        handlers=[logging.StreamHandler(sys.stdout)]
     )
     
-    # Add file handler if specified
     if log_file:
         file_handler = logging.FileHandler(log_file)
         file_handler.setFormatter(logging.Formatter(log_format))
         logging.getLogger().addHandler(file_handler)
-    
-    return logging.getLogger(__name__)
 
 
 def check_prerequisites():
-    """Check if all prerequisites are met."""
-    logger = logging.getLogger(__name__)
-    
-    # Check if raw data exists
+    """Check if raw data exists."""
     required_files = [
         os.path.join(DATA_RAW, "train_transaction.csv"),
         os.path.join(DATA_RAW, "train_identity.csv")
     ]
     
-    missing_files = []
-    for file_path in required_files:
-        if not os.path.exists(file_path):
-            missing_files.append(file_path)
+    missing_files = [f for f in required_files if not os.path.exists(f)]
     
     if missing_files:
-        logger.error(f"❌ Missing required files: {missing_files}")
-        logger.error("Please ensure the raw data is downloaded to data/raw/")
+        logging.error(f"Missing required files: {missing_files}")
         return False
     
-    logger.info("✅ All prerequisites met")
+    logging.info("All prerequisites met")
     return True
 
 
 def run_data_cleaning(force_rerun=False):
     """Run data cleaning stage."""
-    logger = logging.getLogger(__name__)
-    
     cleaned_file = os.path.join(DATA_CLEANED, "train_cleaned.csv")
     
     if os.path.exists(cleaned_file) and not force_rerun:
-        logger.info("📂 Cleaned data already exists, skipping cleaning stage")
+        logging.info("Cleaned data exists, skipping cleaning stage")
         return True
     
-    logger.info("=" * 60)
-    logger.info("🧼 STAGE 1: DATA CLEANING")
-    logger.info("=" * 60)
+    logging.info("=" * 50)
+    logging.info("STAGE 1: DATA CLEANING")
+    logging.info("=" * 50)
     
     try:
         start_time = time.time()
@@ -93,29 +76,27 @@ def run_data_cleaning(force_rerun=False):
         cleaned_df = cleaner.clean_data(save_output=True)
         
         elapsed_time = time.time() - start_time
-        logger.info(f"✅ Data cleaning completed in {elapsed_time:.2f} seconds")
-        logger.info(f"📊 Final shape: {cleaned_df.shape}")
+        logging.info(f"Data cleaning completed in {elapsed_time:.1f} seconds")
+        logging.info(f"Final shape: {cleaned_df.shape}")
         
         return True
         
     except Exception as e:
-        logger.error(f"❌ Data cleaning failed: {str(e)}")
+        logging.error(f"Data cleaning failed: {str(e)}")
         return False
 
 
 def run_feature_engineering(force_rerun=False):
     """Run feature engineering stage."""
-    logger = logging.getLogger(__name__)
-    
     engineered_file = os.path.join(DATA_ENGINEERED, "train_features.csv")
     
     if os.path.exists(engineered_file) and not force_rerun:
-        logger.info("📂 Engineered data already exists, skipping feature engineering stage")
+        logging.info("Engineered data exists, skipping feature engineering stage")
         return True
     
-    logger.info("=" * 60)
-    logger.info("🧪 STAGE 2: FEATURE ENGINEERING")
-    logger.info("=" * 60)
+    logging.info("=" * 50)
+    logging.info("STAGE 2: FEATURE ENGINEERING")
+    logging.info("=" * 50)
     
     try:
         start_time = time.time()
@@ -124,20 +105,18 @@ def run_feature_engineering(force_rerun=False):
         engineered_df = engineer.engineer_features(save_output=True)
         
         elapsed_time = time.time() - start_time
-        logger.info(f"✅ Feature engineering completed in {elapsed_time:.2f} seconds")
-        logger.info(f"📊 Final shape: {engineered_df.shape}")
+        logging.info(f"Feature engineering completed in {elapsed_time:.1f} seconds")
+        logging.info(f"Final shape: {engineered_df.shape}")
         
         return True
         
     except Exception as e:
-        logger.error(f"❌ Feature engineering failed: {str(e)}")
+        logging.error(f"Feature engineering failed: {str(e)}")
         return False
 
 
 def run_data_processing(force_rerun=False):
     """Run data processing stage."""
-    logger = logging.getLogger(__name__)
-    
     processed_files = [
         os.path.join(DATA_PROCESSED, "X_train.npy"),
         os.path.join(DATA_PROCESSED, "X_test.npy"),
@@ -146,12 +125,12 @@ def run_data_processing(force_rerun=False):
     ]
     
     if all(os.path.exists(f) for f in processed_files) and not force_rerun:
-        logger.info("📂 Processed data already exists, skipping processing stage")
+        logging.info("Processed data exists, skipping processing stage")
         return True
     
-    logger.info("=" * 60)
-    logger.info("📊 STAGE 3: DATA PROCESSING")
-    logger.info("=" * 60)
+    logging.info("=" * 50)
+    logging.info("STAGE 3: DATA PROCESSING")
+    logging.info("=" * 50)
     
     try:
         start_time = time.time()
@@ -160,47 +139,44 @@ def run_data_processing(force_rerun=False):
         data_dict = data_loader.load_processed_data()
         
         elapsed_time = time.time() - start_time
-        logger.info(f"✅ Data processing completed in {elapsed_time:.2f} seconds")
-        logger.info(f"📊 Training samples: {data_dict['X_train'].shape}")
-        logger.info(f"📊 Test samples: {data_dict['X_test'].shape}")
-        logger.info(f"📊 Autoencoder training samples: {data_dict['X_train_ae'].shape}")
-        logger.info(f"📊 Features: {len(data_dict['feature_names'])}")
+        logging.info(f"Data processing completed in {elapsed_time:.1f} seconds")
+        logging.info(f"Training samples: {data_dict['X_train'].shape}")
+        logging.info(f"Test samples: {data_dict['X_test'].shape}")
+        logging.info(f"Features: {len(data_dict['feature_names'])}")
         
         return True
         
     except Exception as e:
-        logger.error(f"❌ Data processing failed: {str(e)}")
+        logging.error(f"Data processing failed: {str(e)}")
         return False
 
 
 def run_model_training(force_rerun=False):
     """Run model training and evaluation stage."""
-    logger = logging.getLogger(__name__)
-    
     model_file = os.path.join('models', 'autoencoder_fraud_detection.pth')
     metrics_file = os.path.join('results', 'metrics.json')
     
     if os.path.exists(model_file) and os.path.exists(metrics_file) and not force_rerun:
-        logger.info("📂 Trained model already exists, skipping training stage")
+        logging.info("Trained model exists, skipping training stage")
         return True
     
-    logger.info("=" * 60)
-    logger.info("🤖 STAGE 4: MODEL TRAINING & EVALUATION")
-    logger.info("=" * 60)
+    logging.info("=" * 50)
+    logging.info("STAGE 4: MODEL TRAINING & EVALUATION")
+    logging.info("=" * 50)
     
     try:
         start_time = time.time()
         
-        # Check if CUDA is available
+        # Setup device
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        logger.info(f"🖥️ Using device: {device}")
+        logging.info(f"Using device: {device}")
         
         # Create output directories
         os.makedirs('results', exist_ok=True)
         os.makedirs('models', exist_ok=True)
         
         # Load processed data
-        logger.info("📂 Loading processed data...")
+        logging.info("Loading processed data...")
         data_loader = FraudDataLoader()
         data = data_loader.load_processed_data()
         
@@ -212,36 +188,27 @@ def run_model_training(force_rerun=False):
         X_train_ae = data['X_train_ae']
         feature_names = data['feature_names']
         
-        logger.info(f"📊 Feature names: {feature_names[:10]}... (showing first 10)")
-        logger.info(f"📊 Total features: {len(feature_names)}")
+        logging.info(f"Features: {len(feature_names)}")
         
-        # Initialize autoencoder
+        # Initialize and train autoencoder
         input_dim = X_train_ae.shape[1]
         model = Autoencoder(input_dim=input_dim, hidden_dims=[64, 32])
-        logger.info(f"🤖 Autoencoder initialized with input dimension: {input_dim}")
+        logging.info(f"Autoencoder initialized with {input_dim} input dimensions")
         
-        # Train autoencoder
-        logger.info("🎯 Starting model training...")
         trainer = AutoencoderTrainer(model, device=device, lr=1e-3)
-        train_losses = trainer.train(
-            X_train_ae, 
-            epochs=20, 
-            batch_size=256, 
-            verbose=True
-        )
+        train_losses = trainer.train(X_train_ae, epochs=20, batch_size=256, verbose=True)
         
         # Save training losses
         np.save('results/training_losses.npy', train_losses)
-        logger.info("💾 Training losses saved")
         
         # Detect anomalies
-        logger.info("🔍 Detecting anomalies...")
+        logging.info("Detecting anomalies...")
         y_pred, threshold, recon_errors = trainer.detect_anomalies(
             X_test, X_train_ae, percentile=PERCENTILE_THRESHOLD
         )
         
         # Evaluate model
-        logger.info("📈 Evaluating model performance...")
+        logging.info("Evaluating model performance...")
         evaluator = FraudEvaluator(y_test, y_pred, recon_errors)
         metrics = evaluator.comprehensive_evaluation(save_dir='results')
         
@@ -260,120 +227,45 @@ def run_model_training(force_rerun=False):
         }, 'models/autoencoder_fraud_detection.pth')
         
         elapsed_time = time.time() - start_time
-        logger.info(f"✅ Model training completed in {elapsed_time:.2f} seconds")
-        logger.info(f"📊 Model performance: {metrics.get('accuracy', 'N/A'):.4f} accuracy")
-        logger.info(f"📊 Precision: {metrics.get('precision', 'N/A'):.4f}")
-        logger.info(f"📊 Recall: {metrics.get('recall', 'N/A'):.4f}")
-        logger.info(f"📊 F1-Score: {metrics.get('f1_score', 'N/A'):.4f}")
+        logging.info(f"Model training completed in {elapsed_time:.1f} seconds")
+        logging.info(f"Accuracy: {metrics.get('accuracy', 0):.4f}")
+        logging.info(f"Precision: {metrics.get('precision', 0):.4f}")
+        logging.info(f"Recall: {metrics.get('recall', 0):.4f}")
+        logging.info(f"F1-Score: {metrics.get('f1_score', 0):.4f}")
         
         return True
         
     except Exception as e:
-        logger.error(f"❌ Model training failed: {str(e)}")
+        logging.error(f"Model training failed: {str(e)}")
         return False
 
 
-def generate_pipeline_report():
-    """Generate a comprehensive pipeline report."""
-    logger = logging.getLogger(__name__)
-    
-    logger.info("=" * 60)
-    logger.info("📋 PIPELINE REPORT")
-    logger.info("=" * 60)
-    
-    report = {
-        'timestamp': datetime.now().isoformat(),
-        'pipeline_stages': {},
-        'data_sizes': {},
-        'feature_counts': {}
-    }
-    
-    # Check each stage
-    stages = {
-        'raw': DATA_RAW,
-        'cleaned': DATA_CLEANED,
-        'engineered': DATA_ENGINEERED,
-        'processed': DATA_PROCESSED
-    }
-    
-    for stage_name, stage_path in stages.items():
-        if os.path.exists(stage_path):
-            files = os.listdir(stage_path)
-            total_size = sum(
-                os.path.getsize(os.path.join(stage_path, f)) 
-                for f in files if os.path.isfile(os.path.join(stage_path, f))
-            )
-            
-            report['pipeline_stages'][stage_name] = {
-                'status': 'completed',
-                'files': files,
-                'total_size_mb': round(total_size / (1024 * 1024), 2)
-            }
-            
-            logger.info(f"✅ {stage_name.upper()}: {len(files)} files, {total_size / (1024 * 1024):.1f} MB")
-        else:
-            report['pipeline_stages'][stage_name] = {
-                'status': 'missing',
-                'files': [],
-                'total_size_mb': 0
-            }
-            logger.warning(f"⚠️ {stage_name.upper()}: Directory not found")
-    
-    # Check model and results
-    model_files = ['models/autoencoder_fraud_detection.pth', 'results/metrics.json']
-    model_status = 'completed' if all(os.path.exists(f) for f in model_files) else 'missing'
-    
-    if model_status == 'completed':
-        model_size = sum(os.path.getsize(f) for f in model_files if os.path.exists(f))
-        logger.info(f"✅ MODEL: 2 files, {model_size / (1024 * 1024):.1f} MB")
-    else:
-        logger.warning("⚠️ MODEL: Files not found")
-    
-    report['pipeline_stages']['model'] = {
-        'status': model_status,
-        'files': [f for f in model_files if os.path.exists(f)],
-        'total_size_mb': round(sum(os.path.getsize(f) for f in model_files if os.path.exists(f)) / (1024 * 1024), 2)
-    }
-    
-    # Save report
-    report_file = os.path.join('results', 'pipeline_report.json')
-    os.makedirs('results', exist_ok=True)
-    
-    with open(report_file, 'w') as f:
-        json.dump(report, f, indent=2)
-    
-    logger.info(f"📄 Pipeline report saved to {report_file}")
-    
-    return report
-
-
 def main():
-    """Main pipeline execution function."""
-    parser = argparse.ArgumentParser(description='Run the fraud detection data pipeline')
+    """Main pipeline execution."""
+    parser = argparse.ArgumentParser(description='Fraud detection pipeline')
     parser.add_argument('--stages', nargs='+', 
                        choices=['clean', 'engineer', 'process', 'train', 'all'],
                        default=['all'],
                        help='Pipeline stages to run')
     parser.add_argument('--force-rerun', action='store_true',
-                       help='Force rerun all stages even if output exists')
+                       help='Force rerun all stages')
     parser.add_argument('--log-level', choices=['DEBUG', 'INFO', 'WARNING', 'ERROR'],
                        default='INFO',
                        help='Logging level')
     parser.add_argument('--log-file',
-                       help='Log file path (optional)')
+                       help='Log file path')
     
     args = parser.parse_args()
     
     # Setup logging
-    logger = setup_logging(args.log_level, args.log_file)
+    setup_logging(args.log_level, args.log_file)
     
-    logger.info("🚀 Starting fraud detection pipeline...")
-    logger.info(f"📅 Started at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-    logger.info(f"🔧 Arguments: {vars(args)}")
+    logging.info("Starting fraud detection pipeline...")
+    logging.info(f"Started at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     
     # Check prerequisites
     if not check_prerequisites():
-        logger.error("❌ Prerequisites not met. Exiting.")
+        logging.error("Prerequisites not met. Exiting.")
         sys.exit(1)
     
     # Determine stages to run
@@ -382,7 +274,7 @@ def main():
     else:
         stages_to_run = args.stages
     
-    logger.info(f"🎯 Running stages: {stages_to_run}")
+    logging.info(f"Running stages: {stages_to_run}")
     
     # Run pipeline stages
     start_time = time.time()
@@ -405,36 +297,30 @@ def main():
             if not run_model_training(args.force_rerun):
                 success = False
         
-        # Generate report
-        if success:
-            generate_pipeline_report()
-        
     except KeyboardInterrupt:
-        logger.warning("⚠️ Pipeline interrupted by user")
+        logging.warning("Pipeline interrupted by user")
         success = False
     except Exception as e:
-        logger.error(f"❌ Pipeline failed with unexpected error: {str(e)}")
+        logging.error(f"Pipeline failed: {str(e)}")
         success = False
     
     # Final summary
     total_time = time.time() - start_time
-    logger.info("=" * 60)
-    logger.info("🏁 PIPELINE SUMMARY")
-    logger.info("=" * 60)
-    logger.info(f"⏱️ Total execution time: {total_time:.2f} seconds ({total_time/60:.1f} minutes)")
-    logger.info(f"📅 Completed at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    logging.info("=" * 50)
+    logging.info("PIPELINE SUMMARY")
+    logging.info("=" * 50)
+    logging.info(f"Total execution time: {total_time:.1f} seconds")
+    logging.info(f"Completed at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     
     if success:
-        logger.info("🎉 Pipeline completed successfully!")
+        logging.info("Pipeline completed successfully!")
         if 'train' in stages_to_run:
-            logger.info("🤖 Model is ready for inference!")
-            logger.info("📁 Results saved to 'results/' directory")
-            logger.info("📁 Model saved to 'models/autoencoder_fraud_detection.pth'")
+            logging.info("Model is ready for inference!")
         else:
-            logger.info("📁 Data is ready for modeling in data/processed/")
+            logging.info("Data is ready for modeling")
         sys.exit(0)
     else:
-        logger.error("❌ Pipeline failed!")
+        logging.error("Pipeline failed!")
         sys.exit(1)
 
 
