@@ -9,10 +9,9 @@ import os
 from typing import List, Optional
 
 from src.config import PipelineConfig
-from src.data_loader import DataLoader
+from src.ingest_data import DataIngestion
 from src.data_cleaning import DataCleaner
 from src.feature_factory import FeatureFactory
-from src.data_preprocessor import DataPreprocessor
 from src.autoencoder import Autoencoder
 from src.evaluator import Evaluator
 
@@ -34,10 +33,9 @@ class PipelineRunner:
     
     def __init__(self, config: Optional[PipelineConfig] = None):
         self.config = config or PipelineConfig()
-        self.data_loader = DataLoader(self.config)
+        self.data_ingestion = DataIngestion(self.config)
         self.data_cleaner = DataCleaner(self.config)
         self.feature_factory = FeatureFactory(self.config)
-        self.data_preprocessor = DataPreprocessor(self.config)
         self.autoencoder = Autoencoder(self.config)
         self.evaluator = Evaluator(self.config)
     
@@ -77,7 +75,8 @@ class PipelineRunner:
     def _run_preprocessing(self):
         """Run data preprocessing stage."""
         logger.info("Starting data preprocessing...")
-        self.data_preprocessor.preprocess_data()
+        # Preprocessing is handled by feature factory
+        self.feature_factory.engineer_features()
         logger.info("Data preprocessing completed")
     
     def _run_training(self):

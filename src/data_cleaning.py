@@ -48,6 +48,10 @@ class DataCleaner:
         # Make a copy to avoid modifying original
         df_clean = df.copy()
         
+        # 0. Clean column names (convert to lowercase with underscores)
+        df_clean.columns = df_clean.columns.str.lower().str.replace(' ', '_')
+        logger.info("Cleaned column names to lowercase with underscores")
+        
         # 1. Handle missing values (EDA showed no missing values, but good practice)
         df_clean = self._handle_missing_values(df_clean)
         
@@ -100,24 +104,25 @@ class DataCleaner:
         logger.info("Cleaning categorical variables...")
         
         # Clean Payment Method (EDA showed 4 payment methods with different fraud rates)
-        if 'Payment Method' in df.columns:
-            df['Payment Method'] = df['Payment Method'].str.lower().str.strip()
-            logger.info(f"Payment methods found: {df['Payment Method'].unique()}")
+        if 'payment_method' in df.columns:
+            df['payment_method'] = df['payment_method'].str.lower().str.strip()
+            logger.info(f"Payment methods found: {df['payment_method'].unique()}")
         
         # Clean Product Category (EDA showed 5 categories with different fraud rates)
-        if 'Product Category' in df.columns:
-            df['Product Category'] = df['Product Category'].str.lower().str.strip()
-            logger.info(f"Product categories found: {df['Product Category'].unique()}")
+        if 'product_category' in df.columns:
+            df['product_category'] = df['product_category'].str.lower().str.strip()
+            logger.info(f"Product categories found: {df['product_category'].unique()}")
         
         # Clean Device Used (EDA showed 3 device types with different fraud rates)
-        if 'Device Used' in df.columns:
-            df['Device Used'] = df['Device Used'].str.lower().str.strip()
-            logger.info(f"Device types found: {df['Device Used'].unique()}")
+        if 'device_used' in df.columns:
+            df['device_used'] = df['device_used'].str.lower().str.strip()
+            logger.info(f"Device types found: {df['device_used'].unique()}")
         
         # Clean Customer Location (EDA showed 14,868 unique locations - use frequency encoding)
-        if 'Customer Location' in df.columns:
-            df['Customer Location'] = df['Customer Location'].str.strip()
-            logger.info(f"Unique locations: {df['Customer Location'].nunique()}")
+        # Note: Customer Location is actually the Customer ID in this dataset (misnamed)
+        if 'customer_location' in df.columns:
+            df['customer_location'] = df['customer_location'].str.strip()
+            logger.info(f"Unique customer locations (actually customer IDs): {df['customer_location'].nunique()}")
         
         return df
     
@@ -126,70 +131,70 @@ class DataCleaner:
         logger.info("Cleaning numeric variables...")
         
         # Clean Transaction Amount (Use robust scaling instead of capping)
-        if 'Transaction Amount' in df.columns:
+        if 'transaction_amount' in df.columns:
             # Remove any negative values (fraud detection context)
-            df['Transaction Amount'] = df['Transaction Amount'].abs()
+            df['transaction_amount'] = df['transaction_amount'].abs()
             
             # Create log transformation for skewed distribution
-            df['Transaction_Amount_Log'] = np.log1p(df['Transaction Amount'])
+            df['transaction_amount_log'] = np.log1p(df['transaction_amount'])
             logger.info("Created log transformation of Transaction Amount")
             
             # Calculate robust statistics for scaling
-            median_amount = df['Transaction Amount'].median()
-            q75 = df['Transaction Amount'].quantile(0.75)
-            q25 = df['Transaction Amount'].quantile(0.25)
+            median_amount = df['transaction_amount'].median()
+            q75 = df['transaction_amount'].quantile(0.75)
+            q25 = df['transaction_amount'].quantile(0.25)
             iqr = q75 - q25
             
             # Create robust scaled amount (median-centered, IQR-scaled)
-            df['Transaction_Amount_Robust_Scaled'] = (df['Transaction Amount'] - median_amount) / iqr
+            df['transaction_amount_robust_scaled'] = (df['transaction_amount'] - median_amount) / iqr
             logger.info(f"Created robust scaled Transaction Amount (median: ${median_amount:.2f}, IQR: ${iqr:.2f})")
             
             # Log the statistics for monitoring
-            logger.info(f"Transaction amount statistics - Mean: ${df['Transaction Amount'].mean():.2f}, Std: ${df['Transaction Amount'].std():.2f}")
-            logger.info(f"Log-transformed amount statistics - Mean: {df['Transaction_Amount_Log'].mean():.2f}, Std: {df['Transaction_Amount_Log'].std():.2f}")
+            logger.info(f"Transaction amount statistics - Mean: ${df['transaction_amount'].mean():.2f}, Std: ${df['transaction_amount'].std():.2f}")
+            logger.info(f"Log-transformed amount statistics - Mean: {df['transaction_amount_log'].mean():.2f}, Std: {df['transaction_amount_log'].std():.2f}")
         
         # Clean Customer Age (EDA: found 331 transactions with unrealistic ages, clip to 18-100)
-        if 'Customer Age' in df.columns:
+        if 'customer_age' in df.columns:
             # Count unrealistic ages before cleaning
-            unrealistic_before = len(df[(df['Customer Age'] < 18) | (df['Customer Age'] > 100)])
+            unrealistic_before = len(df[(df['customer_age'] < 18) | (df['customer_age'] > 100)])
             if unrealistic_before > 0:
                 logger.info(f"Found {unrealistic_before} transactions with unrealistic ages (under 18 or over 100)")
             
             # Filter to only keep customers 18+ years old
-            df = df[df['Customer Age'] >= 18].copy()
+            df = df[df['customer_age'] >= 18].copy()
             logger.info(f"Filtered dataset to customers 18+ years old. Remaining transactions: {len(df)}")
             
             # Clip remaining ages to realistic range (18-100 years)
-            df['Customer Age'] = df['Customer Age'].clip(upper=100)
+            df['customer_age'] = df['customer_age'].clip(upper=100)
             logger.info("Clipped Customer Age to realistic range (18-100 years)")
         
         # Clean Quantity (EDA: max quantity was 5, no extreme outliers found)
-        if 'Quantity' in df.columns:
+        if 'quantity' in df.columns:
             # Remove negative quantities
-            df['Quantity'] = df['Quantity'].abs()
+            df['quantity'] = df['quantity'].abs()
             
             # Cap at 99th percentile (conservative approach)
-            q99 = df['Quantity'].quantile(0.99)
-            df['Quantity'] = df['Quantity'].clip(upper=q99)
+            q99 = df['quantity'].quantile(0.99)
+            df['quantity'] = df['quantity'].clip(upper=q99)
             logger.info(f"Clipped Quantity at 99th percentile: {q99}")
         
         # Clean Account Age Days (EDA: max was 365 days, all accounts < 1 year)
-        if 'Account Age Days' in df.columns:
+        if 'account_age_days' in df.columns:
             # Remove negative values
-            df['Account Age Days'] = df['Account Age Days'].abs()
+            df['account_age_days'] = df['account_age_days'].abs()
             
             # Cap at realistic range (max 10 years = 3650 days)
-            df['Account Age Days'] = df['Account Age Days'].clip(upper=3650)
+            df['account_age_days'] = df['account_age_days'].clip(upper=3650)
             logger.info("Clipped Account Age Days to realistic range (max 10 years)")
         
         # Clean Transaction Hour (EDA: hours 0-23, fraud peaks at hours 0, 1, 3, 4, 5)
-        if 'Transaction Hour' in df.columns:
+        if 'transaction_hour' in df.columns:
             # Ensure hours are in 0-23 range
-            df['Transaction Hour'] = df['Transaction Hour'].clip(lower=0, upper=23)
+            df['transaction_hour'] = df['transaction_hour'].clip(lower=0, upper=23)
             logger.info("Clipped Transaction Hour to 0-23 range")
             
             # Log fraud patterns by hour (for feature engineering insights)
-            hour_fraud = df.groupby('Transaction Hour')['Is Fraudulent'].mean()
+            hour_fraud = df.groupby('transaction_hour')['is_fraudulent'].mean()
             high_fraud_hours = hour_fraud[hour_fraud > 0.08].index.tolist()
             if high_fraud_hours:
                 logger.info(f"High fraud hours (>{8}%): {high_fraud_hours}")
@@ -202,18 +207,18 @@ class DataCleaner:
         
         # Remove columns that are not useful for modeling
         columns_to_remove = [
-            'Transaction ID',      # Unique identifier, not useful for modeling
-            'Customer ID',         # Unique identifier, not useful for modeling
-            'IP Address',          # Privacy concern, too many unique values (14,868+)
-            'Shipping Address',    # Privacy concern, too many unique values
-            'Billing Address',     # Privacy concern, too many unique values
-            'Transaction Date'     # Will be replaced by derived time features
+            'transaction_id',      # ALL UNIQUE (100%) - No predictive value for modeling
+            'customer_id',         # ALL UNIQUE (100%) - No predictive value for modeling  
+            'ip_address',          # ALL UNIQUE (100%) - Privacy concern + no predictive value
+            'shipping_address',    # ALL UNIQUE (100%) - Privacy concern + no predictive value
+            'billing_address',     # ALL UNIQUE (100%) - Privacy concern + no predictive value
+            # Note: transaction_date kept for feature engineering (will extract time-based features)
         ]
         
         for col in columns_to_remove:
             if col in df.columns:
                 df = df.drop(columns=[col])
-                logger.info(f"Removed column: {col}")
+                logger.info(f"Removed column: {col} (100% unique - no predictive value)")
         
         return df
     
@@ -222,7 +227,7 @@ class DataCleaner:
         logger.info("Encoding categorical features...")
         
         # Encode categorical columns based on cardinality
-        categorical_cols = ['Payment Method', 'Product Category', 'Device Used', 'Customer Location']
+        categorical_cols = ['payment_method', 'product_category', 'device_used', 'customer_location']
         
         for col in categorical_cols:
             if col in df.columns:
@@ -255,8 +260,8 @@ class DataCleaner:
         logger.info(f"Columns: {list(df.columns)}")
         
         # Log target distribution
-        if 'Is Fraudulent' in df.columns:
-            fraud_dist = df['Is Fraudulent'].value_counts()
+        if 'is_fraudulent' in df.columns:
+            fraud_dist = df['is_fraudulent'].value_counts()
             logger.info(f"Target distribution: {fraud_dist[0]} legitimate, {fraud_dist[1]} fraudulent")
         
         return output_file 

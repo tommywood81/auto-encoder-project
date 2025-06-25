@@ -41,23 +41,23 @@ class TransactionFeatureBuilder(FeatureBuilder):
         logger.info("Building transaction features...")
         
         # Amount transformations
-        if self.config.enable_amount_features and 'Transaction Amount' in df.columns:
+        if self.config.enable_amount_features and 'transaction_amount' in df.columns:
             if 'log' in self.config.amount_transformations:
-                df['amount_log'] = np.log1p(df['Transaction Amount'])
+                df['amount_log'] = np.log1p(df['transaction_amount'])
                 self.feature_info['amount_log'] = 'Log transformation of transaction amount'
             
             if 'sqrt' in self.config.amount_transformations:
-                df['amount_sqrt'] = np.sqrt(df['Transaction Amount'])
+                df['amount_sqrt'] = np.sqrt(df['transaction_amount'])
                 self.feature_info['amount_sqrt'] = 'Square root transformation of transaction amount'
         
         # Quantity features
-        if 'Quantity' in df.columns:
-            df['quantity_squared'] = df['Quantity'] ** 2
+        if 'quantity' in df.columns:
+            df['quantity_squared'] = df['quantity'] ** 2
             self.feature_info['quantity_squared'] = 'Squared quantity'
             
             # Amount per item
-            if 'Transaction Amount' in df.columns:
-                df['amount_per_item'] = df['Transaction Amount'] / df['Quantity'].replace(0, 1)
+            if 'transaction_amount' in df.columns:
+                df['amount_per_item'] = df['transaction_amount'] / df['quantity'].replace(0, 1)
                 self.feature_info['amount_per_item'] = 'Transaction amount per item'
         
         logger.info(f"Built {len(self.feature_info)} transaction features")
@@ -72,30 +72,30 @@ class CustomerFeatureBuilder(FeatureBuilder):
         logger.info("Building customer features...")
         
         # Age features
-        if 'Customer Age' in df.columns:
+        if 'customer_age' in df.columns:
             # Age bins
-            df['age_bin'] = pd.cut(df['Customer Age'], bins=[0, 25, 35, 50, 100], labels=[0, 1, 2, 3])
+            df['age_bin'] = pd.cut(df['customer_age'], bins=[0, 25, 35, 50, 100], labels=[0, 1, 2, 3])
             df['age_bin'] = df['age_bin'].astype(int)
             self.feature_info['age_bin'] = 'Age bin (0-25, 26-35, 36-50, 50+)'
             
             # Account age features
-            if 'Account Age Days' in df.columns:
-                df['account_age_years'] = df['Account Age Days'] / 365.25
+            if 'account_age_days' in df.columns:
+                df['account_age_years'] = df['account_age_days'] / 365.25
                 self.feature_info['account_age_years'] = 'Account age in years'
                 
                 # Age to account age ratio
-                df['age_account_ratio'] = df['Customer Age'] / df['account_age_years'].replace(0, 1)
+                df['age_account_ratio'] = df['customer_age'] / df['account_age_years'].replace(0, 1)
                 self.feature_info['age_account_ratio'] = 'Customer age to account age ratio'
         
         # Time-based features
-        if 'Transaction Hour' in df.columns:
+        if 'transaction_hour' in df.columns:
             # Hour bins
-            df['hour_bin'] = pd.cut(df['Transaction Hour'], bins=[0, 6, 12, 18, 24], labels=[0, 1, 2, 3])
+            df['hour_bin'] = pd.cut(df['transaction_hour'], bins=[0, 6, 12, 18, 24], labels=[0, 1, 2, 3])
             df['hour_bin'] = df['hour_bin'].astype(int)
             self.feature_info['hour_bin'] = 'Hour bin (0-6, 7-12, 13-18, 19-24)'
             
             # Is night transaction
-            df['is_night'] = ((df['Transaction Hour'] >= 22) | (df['Transaction Hour'] <= 6)).astype(int)
+            df['is_night'] = ((df['transaction_hour'] >= 22) | (df['transaction_hour'] <= 6)).astype(int)
             self.feature_info['is_night'] = 'Night transaction (10 PM - 6 AM)'
         
         logger.info(f"Built {len(self.feature_info)} customer features")
@@ -113,22 +113,22 @@ class InteractionFeatureBuilder(FeatureBuilder):
         logger.info("Building interaction features...")
         
         # Amount interactions
-        if 'Transaction Amount' in df.columns:
-            if 'Customer Age' in df.columns:
-                df['amount_age_interaction'] = df['Transaction Amount'] * df['Customer Age']
+        if 'transaction_amount' in df.columns:
+            if 'customer_age' in df.columns:
+                df['amount_age_interaction'] = df['transaction_amount'] * df['customer_age']
                 self.feature_info['amount_age_interaction'] = 'Transaction amount * customer age'
             
-            if 'Quantity' in df.columns:
-                df['amount_quantity_interaction'] = df['Transaction Amount'] * df['Quantity']
+            if 'quantity' in df.columns:
+                df['amount_quantity_interaction'] = df['transaction_amount'] * df['quantity']
                 self.feature_info['amount_quantity_interaction'] = 'Transaction amount * quantity'
         
         # Payment method interactions
-        if 'Payment Method' in df.columns and 'Transaction Amount' in df.columns:
+        if 'payment_method' in df.columns and 'transaction_amount' in df.columns:
             # Create interaction between payment method and amount
-            payment_methods = df['Payment Method'].unique()
+            payment_methods = df['payment_method'].unique()
             for method in payment_methods:
-                mask = df['Payment Method'] == method
-                df[f'amount_{method}_interaction'] = df['Transaction Amount'] * mask.astype(int)
+                mask = df['payment_method'] == method
+                df[f'amount_{method}_interaction'] = df['transaction_amount'] * mask.astype(int)
                 self.feature_info[f'amount_{method}_interaction'] = f'Amount * {method} payment method'
         
         logger.info(f"Built {len(self.feature_info)} interaction features")
@@ -146,13 +146,13 @@ class StatisticalFeatureBuilder(FeatureBuilder):
         logger.info("Building statistical features...")
         
         # Transaction amount statistics
-        if 'Transaction Amount' in df.columns:
+        if 'transaction_amount' in df.columns:
             for stat in self.config.statistical_features:
                 if stat == 'q25':
-                    df['amount_q25'] = df['Transaction Amount'].quantile(0.25)
+                    df['amount_q25'] = df['transaction_amount'].quantile(0.25)
                     self.feature_info['amount_q25'] = '25th percentile of transaction amount'
                 elif stat == 'q75':
-                    df['amount_q75'] = df['Transaction Amount'].quantile(0.75)
+                    df['amount_q75'] = df['transaction_amount'].quantile(0.75)
                     self.feature_info['amount_q75'] = '75th percentile of transaction amount'
                 elif stat == 'iqr':
                     if 'amount_q75' in df.columns and 'amount_q25' in df.columns:
@@ -313,6 +313,47 @@ class FeatureEngineer:
         print(f"Features: {X_train.shape[1]}")
         
         return X_train_ae, X_test, y_train, y_test, self.scaler
+
+    def _create_time_features(self, df):
+        """Create time-based features from transaction data."""
+        logger.info("Creating time-based features...")
+        
+        # Create time-based features from Transaction Date
+        if 'transaction_date' in df.columns:
+            # Convert to datetime
+            df['transaction_date'] = pd.to_datetime(df['transaction_date'])
+            
+            # Extract time components
+            df['transaction_hour'] = df['transaction_date'].dt.hour
+            df['transaction_day'] = df['transaction_date'].dt.day
+            df['transaction_month'] = df['transaction_date'].dt.month
+            df['transaction_day_of_week'] = df['transaction_date'].dt.dayofweek
+            df['transaction_day_of_year'] = df['transaction_date'].dt.dayofyear
+            
+            # High-risk hours (based on EDA findings)
+            df['is_high_risk_hour'] = df['transaction_hour'].isin([0, 1, 3, 4, 5]).astype(int)
+            
+            # Time of day categories
+            df['time_of_day'] = pd.cut(
+                df['transaction_hour'], 
+                bins=[0, 6, 12, 18, 24], 
+                labels=['night', 'morning', 'afternoon', 'evening'],
+                include_lowest=True
+            )
+            
+            # Convert to numeric for modeling
+            time_mapping = {'night': 0, 'morning': 1, 'afternoon': 2, 'evening': 3}
+            df['time_of_day_encoded'] = df['time_of_day'].map(time_mapping)
+            
+            # Weekend vs weekday
+            df['is_weekend'] = (df['transaction_day_of_week'] >= 5).astype(int)
+            
+            # Remove original date column (keep derived features)
+            df = df.drop(columns=['transaction_date'])
+            
+            logger.info("Created time-based features: hour, day, month, day_of_week, day_of_year, high-risk hours, time of day, weekend")
+        
+        return df
 
 
 def preprocess_data(df):

@@ -137,4 +137,22 @@ class FeatureFactory:
         feature_list = []
         for group_info in self.feature_info.values():
             feature_list.extend(group_info.keys())
-        return feature_list 
+        return feature_list
+    
+    def _get_categorical_columns(self, df: pd.DataFrame) -> List[str]:
+        """Get categorical columns for encoding."""
+        categorical_cols = []
+        
+        # Define expected categorical columns
+        expected_categorical = [
+            'payment_method',
+            'product_category', 
+            'device_used',
+            'customer_location'  # Note: This is actually the Customer ID in this dataset
+        ]
+        
+        for col in expected_categorical:
+            if col in df.columns:
+                categorical_cols.append(col)
+        
+        return categorical_cols 
