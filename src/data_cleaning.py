@@ -125,19 +125,28 @@ class DataCleaner:
         """Clean numeric variables based on EDA findings."""
         logger.info("Cleaning numeric variables...")
         
-        # Clean Transaction Amount (EDA: cap at 99th percentile = $1162.04)
+        # Clean Transaction Amount (Use robust scaling instead of capping)
         if 'Transaction Amount' in df.columns:
             # Remove any negative values (fraud detection context)
             df['Transaction Amount'] = df['Transaction Amount'].abs()
             
-            # Cap at 99th percentile to handle outliers (EDA finding)
-            q99 = df['Transaction Amount'].quantile(0.99)
-            df['Transaction Amount'] = df['Transaction Amount'].clip(upper=q99)
-            logger.info(f"Clipped Transaction Amount at 99th percentile: ${q99:.2f}")
+            # Create log transformation for skewed distribution
+            df['Transaction_Amount_Log'] = np.log1p(df['Transaction Amount'])
+            logger.info("Created log transformation of Transaction Amount")
             
-            # Log the impact
-            original_mean = df['Transaction Amount'].mean()
-            logger.info(f"Transaction amount mean after cleaning: ${original_mean:.2f}")
+            # Calculate robust statistics for scaling
+            median_amount = df['Transaction Amount'].median()
+            q75 = df['Transaction Amount'].quantile(0.75)
+            q25 = df['Transaction Amount'].quantile(0.25)
+            iqr = q75 - q25
+            
+            # Create robust scaled amount (median-centered, IQR-scaled)
+            df['Transaction_Amount_Robust_Scaled'] = (df['Transaction Amount'] - median_amount) / iqr
+            logger.info(f"Created robust scaled Transaction Amount (median: ${median_amount:.2f}, IQR: ${iqr:.2f})")
+            
+            # Log the statistics for monitoring
+            logger.info(f"Transaction amount statistics - Mean: ${df['Transaction Amount'].mean():.2f}, Std: ${df['Transaction Amount'].std():.2f}")
+            logger.info(f"Log-transformed amount statistics - Mean: {df['Transaction_Amount_Log'].mean():.2f}, Std: {df['Transaction_Amount_Log'].std():.2f}")
         
         # Clean Customer Age (EDA: found 331 transactions with unrealistic ages, clip to 18-100)
         if 'Customer Age' in df.columns:

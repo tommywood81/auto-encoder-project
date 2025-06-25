@@ -31,10 +31,23 @@ Fraudulent transactions: Mean $562.08, Median $251.03
 Legitimate transactions: Mean $211.23, Median $148.20
 ```
 
-**Decision**: Cap transaction amounts at 99th percentile ($1,162.04)
-- **Rationale**: Very high amounts could be outliers or data errors
-- **Impact**: Prevents extreme values from skewing models
-- **Business Value**: Maintains model stability while preserving legitimate high-value transactions
+**Decision**: Use robust scaling and normalization instead of capping
+- **Rationale**: Capping at percentiles breaks model generalizability and inference
+- **Impact**: Model can handle new high-value products without retraining
+- **Business Value**: Maintains model performance when business introduces new products
+
+**Logical Approach**: Instead of capping, we implement:
+1. **Log transformation**: `log(amount + 1)` to handle skewed distributions
+2. **Robust scaling**: Use median and IQR instead of mean and std
+3. **Feature engineering**: Create amount-based ratios and interactions
+4. **Domain-specific thresholds**: Set business rules for suspicious amounts
+5. **Model interpretability**: Ensure high-value transactions can be explained
+
+**Why not capping?**: If the business introduces a new $50,000 product, capping would:
+- Flag all legitimate high-value sales as fraud
+- Require immediate model retraining
+- Break inference on new transaction patterns
+- Reduce model generalizability
 
 ![Transaction Amount Analysis](docs/transaction_amount_analysis.png)
 
@@ -148,7 +161,7 @@ Based on our EDA, we implement the following feature engineering approach:
 
 ### Data Quality Improvements
 -  No missing values found
--  Capped transaction amounts at 99th percentile
+-  Robust scaling and log transformation for transaction amounts
 -  Filtered to customers 18+ years old
 -  Capped quantities at 99th percentile
 -  Clipped account ages to max 10 years
