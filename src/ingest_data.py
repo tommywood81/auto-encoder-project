@@ -1,53 +1,164 @@
+"""
+Data ingestion module for loading and preprocessing raw data.
+"""
+
+import logging
+import pandas as pd
 import os
-import json
-import subprocess
-from src.config import DATA_DIR, UNZIP_DIR, KAGGLE_COMPETITION
+from pathlib import Path
+from src.config import PipelineConfig
 
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
-def download_data_if_needed():
+# Define paths
+ROOT_DIR = Path(__file__).parent.parent
+RAW_DATA_DIR = ROOT_DIR / "data" / "raw"
+RAW_DATA_DIR.mkdir(parents=True, exist_ok=True)
+
+def list_available_files() -> list:
     """
-    Download the IEEE-CIS fraud detection dataset from Kaggle if not already present.
-    Requires KAGGLE_USERNAME and KAGGLE_KEY environment variables.
-    
-    NOTE: This function is currently commented out since data is already loaded in data/raw
+    List all available files in the raw data directory.
+    Returns:
+        list: List of filenames in the raw data directory.
     """
-    # Data is already loaded in data/raw, so this function is not needed
-    print("✅ Data already exists in data/raw, skipping download.")
-    return
-    
-    # # Original download code (commented out)
-    # if os.path.exists(os.path.join(DATA_DIR, "train_transaction.csv")):
-    #     print("✅ Data already exists, skipping download.")
-    #     return
+    return [f.name for f in RAW_DATA_DIR.glob("*") if f.is_file()]
 
-    # print("📦 Downloading data from Kaggle...")
+def load_csv_from_raw(filename: str) -> pd.DataFrame:
+    """
+    Load a CSV file from the raw data directory.
+    Args:
+        filename (str): Name of the CSV file to load.
+    Returns:
+        pd.DataFrame: The loaded DataFrame.
+    """
+    file_path = RAW_DATA_DIR / filename
+    if not file_path.exists():
+        raise FileNotFoundError(f"File not found: {file_path}")
     
-    # # Create Kaggle credentials directory
-    # os.makedirs("/root/.kaggle", exist_ok=True)
+    logger.info(f"Loading data from {file_path}")
+    df = pd.read_csv(file_path)
+    logger.info(f"Loaded {len(df)} rows and {len(df.columns)} columns")
     
-    # # Write Kaggle credentials
-    # with open("/root/.kaggle/kaggle.json", "w") as f:
-    #     json.dump({
-    #         "username": os.environ["KAGGLE_USERNAME"],
-    #         "key": os.environ["KAGGLE_KEY"]
-    #     }, f)
-    
-    # # Set proper permissions
-    # os.chmod("/root/.kaggle/kaggle.json", 0o600)
+    return df
 
-    # # Download competition data
-    # subprocess.run([
-    #     "kaggle", "competitions", "download", "-c", KAGGLE_COMPETITION
-    # ], check=True)
+def import_fraudulent_ecommerce_data() -> pd.DataFrame:
+    """
+    Import the 'Fraudulent_E-Commerce_Transaction_Data_2.csv' file from data/raw.
+    Returns:
+        pd.DataFrame: The loaded DataFrame.
+    """
+    filename = "Fraudulent_E-Commerce_Transaction_Data_2.csv"
+    df = load_csv_from_raw(filename)
     
-    # # Unzip the downloaded file
-    # subprocess.run([
-    #     "unzip", "-q", "ieee-fraud-detection.zip", "-d", UNZIP_DIR
-    # ], check=True)
+    # Log basic information about the dataset
+    logger.info(f"E-commerce fraud dataset loaded:")
+    logger.info(f"  Shape: {df.shape}")
+    logger.info(f"  Fraud distribution: {df['Is Fraudulent'].value_counts().to_dict()}")
     
-    # # Create data directory and move files
-    # os.makedirs(DATA_DIR, exist_ok=True)
-    # os.rename(f"{UNZIP_DIR}/train_transaction.csv", f"{DATA_DIR}/train_transaction.csv")
-    # os.rename(f"{UNZIP_DIR}/train_identity.csv", f"{DATA_DIR}/train_identity.csv")
+    return df
+
+def save_interim_data(df: pd.DataFrame, filename: str) -> None:
+    """
+    Save the ingested DataFrame to the data/interim directory.
+    Args:
+        df (pd.DataFrame): The DataFrame to save.
+        filename (str): The name of the output file (e.g., 'raw_ecommerce_data.csv').
+    """
+    interim_dir = ROOT_DIR / "data" / "interim"
+    interim_dir.mkdir(exist_ok=True)
+    output_path = interim_dir / filename
+    df.to_csv(output_path, index=False)
+    logger.info(f"Saved interim data to {output_path}")
+
+def ingest_data(input_file: str = None) -> pd.DataFrame:
+    """
+    Ingest data from a CSV file.
     
-    # print("✅ Data ingested and saved to disk.") 
+    Args:
+        input_file: Path to the input CSV file. If None, uses default e-commerce fraud dataset.
+        
+    Returns:
+        DataFrame containing the ingested data
+    """
+    try:
+        # Use default e-commerce fraud dataset if none provided
+        if input_file is None:
+            df = import_fraudulent_ecommerce_data()
+        else:
+            logger.info(f"Loading data from {input_file}")
+            df = pd.read_csv(input_file)
+        
+        # Create ingested directory if it doesn't exist
+        ingested_dir = Path("data/ingested")
+        ingested_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Save to ingested directory
+        output_file = ingested_dir / "raw_ecommerce_data.csv"
+        df.to_csv(output_file, index=False)
+        logger.info(f"Saved ingested data to {output_file}")
+        
+        return df
+        
+    except Exception as e:
+        logger.error(f"Error ingesting data: {str(e)}")
+        raise
+
+def get_data_info(df: pd.DataFrame) -> dict:
+    """
+    Get basic information about the ingested dataset.
+    
+    Args:
+        df (pd.DataFrame): The DataFrame to analyze.
+        
+    Returns:
+        dict: Dictionary containing dataset information.
+    """
+    info = {
+        'shape': df.shape,
+        'columns': list(df.columns),
+        'data_types': df.dtypes.value_counts().to_dict(),
+        'missing_values': df.isnull().sum().to_dict(),
+        'memory_usage_mb': df.memory_usage(deep=True).sum() / 1024**2
+    }
+    
+    # Add target variable info if present
+    if 'Is Fraudulent' in df.columns:
+        info['fraud_distribution'] = df['Is Fraudulent'].value_counts().to_dict()
+    
+    return info
+
+def main():
+    """Main function to test data ingestion."""
+    try:
+        logger.info("Starting data ingestion pipeline...")
+        
+        # List available files
+        available_files = list_available_files()
+        logger.info(f"Available files in raw data directory: {available_files}")
+        
+        # Ingest the e-commerce fraud dataset
+        df = ingest_data()
+        
+        # Get and log dataset information
+        info = get_data_info(df)
+        logger.info(f"Dataset information:")
+        logger.info(f"  Shape: {info['shape']}")
+        logger.info(f"  Memory usage: {info['memory_usage_mb']:.2f} MB")
+        logger.info(f"  Data types: {info['data_types']}")
+        
+        if 'fraud_distribution' in info:
+            logger.info(f"  Fraud distribution: {info['fraud_distribution']}")
+        
+        logger.info(f"Successfully ingested {len(df)} rows")
+        
+    except Exception as e:
+        logger.error(f"Error in ingestion pipeline: {str(e)}")
+        raise
+
+if __name__ == "__main__":
+    main() 

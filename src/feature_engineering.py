@@ -1,5 +1,5 @@
 """
-Feature engineering logic for fraud detection.
+Feature engineering logic for E-commerce Fraud Detection.
 """
 
 import pandas as pd
@@ -41,73 +41,64 @@ class TransactionFeatureBuilder(FeatureBuilder):
         logger.info("Building transaction features...")
         
         # Amount transformations
-        if self.config.enable_amount_features and 'TransactionAmt' in df.columns:
+        if self.config.enable_amount_features and 'Transaction Amount' in df.columns:
             if 'log' in self.config.amount_transformations:
-                df['amount_log'] = np.log1p(df['TransactionAmt'])
+                df['amount_log'] = np.log1p(df['Transaction Amount'])
                 self.feature_info['amount_log'] = 'Log transformation of transaction amount'
             
             if 'sqrt' in self.config.amount_transformations:
-                df['amount_sqrt'] = np.sqrt(df['TransactionAmt'])
+                df['amount_sqrt'] = np.sqrt(df['Transaction Amount'])
                 self.feature_info['amount_sqrt'] = 'Square root transformation of transaction amount'
         
-        # Card features
-        if self.config.enable_card_features:
-            card_cols = [col for col in df.columns if 'card' in col.lower()]
-            if card_cols:
-                df['card_count'] = df[card_cols].notna().sum(axis=1)
-                self.feature_info['card_count'] = f'Count of card-related fields filled ({len(card_cols)} columns)'
-        
-        # Email features
-        if self.config.enable_email_features:
-            email_cols = [col for col in df.columns if 'email' in col.lower()]
-            if email_cols:
-                df['email_count'] = df[email_cols].notna().sum(axis=1)
-                self.feature_info['email_count'] = f'Count of email-related fields filled ({len(email_cols)} columns)'
-        
-        # Address features
-        if self.config.enable_addr_features:
-            addr_cols = [col for col in df.columns if 'addr' in col.lower()]
-            if addr_cols:
-                df['addr_count'] = df[addr_cols].notna().sum(axis=1)
-                self.feature_info['addr_count'] = f'Count of address-related fields filled ({len(addr_cols)} columns)'
+        # Quantity features
+        if 'Quantity' in df.columns:
+            df['quantity_squared'] = df['Quantity'] ** 2
+            self.feature_info['quantity_squared'] = 'Squared quantity'
+            
+            # Amount per item
+            if 'Transaction Amount' in df.columns:
+                df['amount_per_item'] = df['Transaction Amount'] / df['Quantity'].replace(0, 1)
+                self.feature_info['amount_per_item'] = 'Transaction amount per item'
         
         logger.info(f"Built {len(self.feature_info)} transaction features")
         return df
 
 
-class IdentityFeatureBuilder(FeatureBuilder):
-    """Build identity-related features."""
+class CustomerFeatureBuilder(FeatureBuilder):
+    """Build customer-related features."""
     
     def build(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Build identity features based on configuration."""
-        logger.info("Building identity features...")
+        """Build customer features based on configuration."""
+        logger.info("Building customer features...")
         
-        # V features
-        if self.config.enable_v_features:
-            v_cols = [col for col in df.columns if col.startswith('V')]
-            if v_cols:
-                for agg in self.config.v_feature_aggregations:
-                    if agg == 'count':
-                        df['v_features_count'] = df[v_cols].notna().sum(axis=1)
-                        self.feature_info['v_features_count'] = f'Count of V features filled ({len(v_cols)} columns)'
-                    elif agg == 'mean':
-                        df['v_features_mean'] = df[v_cols].mean(axis=1)
-                        self.feature_info['v_features_mean'] = f'Mean of V features ({len(v_cols)} columns)'
-                    elif agg == 'std':
-                        df['v_features_std'] = df[v_cols].std(axis=1)
-                        self.feature_info['v_features_std'] = f'Standard deviation of V features ({len(v_cols)} columns)'
-                    elif agg == 'sum':
-                        df['v_features_sum'] = df[v_cols].sum(axis=1)
-                        self.feature_info['v_features_sum'] = f'Sum of V features ({len(v_cols)} columns)'
+        # Age features
+        if 'Customer Age' in df.columns:
+            # Age bins
+            df['age_bin'] = pd.cut(df['Customer Age'], bins=[0, 25, 35, 50, 100], labels=[0, 1, 2, 3])
+            df['age_bin'] = df['age_bin'].astype(int)
+            self.feature_info['age_bin'] = 'Age bin (0-25, 26-35, 36-50, 50+)'
+            
+            # Account age features
+            if 'Account Age Days' in df.columns:
+                df['account_age_years'] = df['Account Age Days'] / 365.25
+                self.feature_info['account_age_years'] = 'Account age in years'
+                
+                # Age to account age ratio
+                df['age_account_ratio'] = df['Customer Age'] / df['account_age_years'].replace(0, 1)
+                self.feature_info['age_account_ratio'] = 'Customer age to account age ratio'
         
-        # ID features
-        if self.config.enable_id_features:
-            id_cols = [col for col in df.columns if col.startswith('id_')]
-            if id_cols:
-                df['id_features_count'] = df[id_cols].notna().sum(axis=1)
-                self.feature_info['id_features_count'] = f'Count of ID features filled ({len(id_cols)} columns)'
+        # Time-based features
+        if 'Transaction Hour' in df.columns:
+            # Hour bins
+            df['hour_bin'] = pd.cut(df['Transaction Hour'], bins=[0, 6, 12, 18, 24], labels=[0, 1, 2, 3])
+            df['hour_bin'] = df['hour_bin'].astype(int)
+            self.feature_info['hour_bin'] = 'Hour bin (0-6, 7-12, 13-18, 19-24)'
+            
+            # Is night transaction
+            df['is_night'] = ((df['Transaction Hour'] >= 22) | (df['Transaction Hour'] <= 6)).astype(int)
+            self.feature_info['is_night'] = 'Night transaction (10 PM - 6 AM)'
         
-        logger.info(f"Built {len(self.feature_info)} identity features")
+        logger.info(f"Built {len(self.feature_info)} customer features")
         return df
 
 
@@ -122,19 +113,23 @@ class InteractionFeatureBuilder(FeatureBuilder):
         logger.info("Building interaction features...")
         
         # Amount interactions
-        if 'TransactionAmt' in df.columns:
-            if 'card_count' in df.columns:
-                df['amount_card_interaction'] = df['TransactionAmt'] * df['card_count']
-                self.feature_info['amount_card_interaction'] = 'Transaction amount * card count'
+        if 'Transaction Amount' in df.columns:
+            if 'Customer Age' in df.columns:
+                df['amount_age_interaction'] = df['Transaction Amount'] * df['Customer Age']
+                self.feature_info['amount_age_interaction'] = 'Transaction amount * customer age'
             
-            if 'email_count' in df.columns:
-                df['amount_email_interaction'] = df['TransactionAmt'] * df['email_count']
-                self.feature_info['amount_email_interaction'] = 'Transaction amount * email count'
+            if 'Quantity' in df.columns:
+                df['amount_quantity_interaction'] = df['Transaction Amount'] * df['Quantity']
+                self.feature_info['amount_quantity_interaction'] = 'Transaction amount * quantity'
         
-        # V features interactions
-        if 'v_features_count' in df.columns and 'v_features_mean' in df.columns:
-            df['v_count_mean_interaction'] = df['v_features_count'] * df['v_features_mean']
-            self.feature_info['v_count_mean_interaction'] = 'V features count * V features mean'
+        # Payment method interactions
+        if 'Payment Method' in df.columns and 'Transaction Amount' in df.columns:
+            # Create interaction between payment method and amount
+            payment_methods = df['Payment Method'].unique()
+            for method in payment_methods:
+                mask = df['Payment Method'] == method
+                df[f'amount_{method}_interaction'] = df['Transaction Amount'] * mask.astype(int)
+                self.feature_info[f'amount_{method}_interaction'] = f'Amount * {method} payment method'
         
         logger.info(f"Built {len(self.feature_info)} interaction features")
         return df
@@ -150,23 +145,19 @@ class StatisticalFeatureBuilder(FeatureBuilder):
         
         logger.info("Building statistical features...")
         
-        # V features statistics
-        v_cols = [col for col in df.columns if col.startswith('V')]
-        if v_cols:
+        # Transaction amount statistics
+        if 'Transaction Amount' in df.columns:
             for stat in self.config.statistical_features:
                 if stat == 'q25':
-                    df['v_features_q25'] = df[v_cols].quantile(0.25, axis=1)
-                    self.feature_info['v_features_q25'] = '25th percentile of V features'
+                    df['amount_q25'] = df['Transaction Amount'].quantile(0.25)
+                    self.feature_info['amount_q25'] = '25th percentile of transaction amount'
                 elif stat == 'q75':
-                    df['v_features_q75'] = df[v_cols].quantile(0.75, axis=1)
-                    self.feature_info['v_features_q75'] = '75th percentile of V features'
+                    df['amount_q75'] = df['Transaction Amount'].quantile(0.75)
+                    self.feature_info['amount_q75'] = '75th percentile of transaction amount'
                 elif stat == 'iqr':
-                    if 'v_features_q75' in df.columns and 'v_features_q25' in df.columns:
-                        df['v_features_iqr'] = df['v_features_q75'] - df['v_features_q25']
-                        self.feature_info['v_features_iqr'] = 'Interquartile range of V features'
-                elif stat == 'range':
-                    df['v_features_range'] = df[v_cols].max(axis=1) - df[v_cols].min(axis=1)
-                    self.feature_info['v_features_range'] = 'Range of V features'
+                    if 'amount_q75' in df.columns and 'amount_q25' in df.columns:
+                        df['amount_iqr'] = df['amount_q75'] - df['amount_q25']
+                        self.feature_info['amount_iqr'] = 'Interquartile range of transaction amount'
         
         logger.info(f"Built {len(self.feature_info)} statistical features")
         return df

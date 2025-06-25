@@ -1,5 +1,5 @@
 """
-Feature factory orchestrator for fraud detection.
+Feature factory orchestrator for E-commerce Fraud Detection.
 """
 
 import pandas as pd
@@ -12,12 +12,9 @@ import logging
 from src.config import PipelineConfig
 from src.feature_engineering import (
     TransactionFeatureBuilder,
-    IdentityFeatureBuilder,
+    CustomerFeatureBuilder,
     InteractionFeatureBuilder,
     StatisticalFeatureBuilder,
-    TemporalFeatureBuilder,
-    BehavioralDriftFeatureBuilder,
-    EntityNoveltyFeatureBuilder,
     handle_infinite_values
 )
 
@@ -31,12 +28,9 @@ class FeatureFactory:
         self.config = config or PipelineConfig()
         self.builders = {
             'transaction': TransactionFeatureBuilder(self.config.features),
-            'identity': IdentityFeatureBuilder(self.config.features),
+            'customer': CustomerFeatureBuilder(self.config.features),
             'interaction': InteractionFeatureBuilder(self.config.features),
-            'statistical': StatisticalFeatureBuilder(self.config.features),
-            'temporal': TemporalFeatureBuilder(self.config.features),
-            'behavioral_drift': BehavioralDriftFeatureBuilder(self.config.features),
-            'entity_novelty': EntityNoveltyFeatureBuilder(self.config.features)
+            'statistical': StatisticalFeatureBuilder(self.config.features)
         }
         self.feature_info = {}
     
@@ -44,7 +38,7 @@ class FeatureFactory:
         """Load cleaned data from the cleaned directory."""
         logger.info("Loading cleaned data...")
         
-        cleaned_file = os.path.join(self.config.data.cleaned_dir, "train_cleaned.csv")
+        cleaned_file = os.path.join(self.config.data.cleaned_dir, "ecommerce_cleaned.csv")
         if not os.path.exists(cleaned_file):
             raise FileNotFoundError(f"Cleaned data not found at {cleaned_file}. Run data cleaning first.")
         
@@ -93,7 +87,7 @@ class FeatureFactory:
         os.makedirs(self.config.data.engineered_dir, exist_ok=True)
         
         # Save engineered data
-        output_file = os.path.join(self.config.data.engineered_dir, f"train_features{suffix}.csv")
+        output_file = os.path.join(self.config.data.engineered_dir, f"ecommerce_features{suffix}.csv")
         df.to_csv(output_file, index=False)
         
         # Convert NumPy types to Python native types for JSON serialization
