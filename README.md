@@ -49,6 +49,10 @@ Legitimate transactions: Mean $211.23, Median $148.20
 - Break inference on new transaction patterns
 - Reduce model generalizability
 
+**Skewness Analysis**: The original transaction amount data is highly skewed (skewness: 6.697), with a long right tail. Log transformation reduces skewness to -0.228, making the data more suitable for modeling.
+
+![Transaction Amount Skewness Analysis](docs/transaction_amount_skewness_analysis.png)
+
 ![Transaction Amount Analysis](docs/transaction_amount_analysis.png)
 
 ### 2. Customer Age Analysis
