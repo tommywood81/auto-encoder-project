@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
-Production pipeline runner for fraud detection.
+Baseline pipeline runner for fraud detection.
+Simplified pipeline focusing on essential components.
 """
 
 import logging
@@ -11,9 +12,8 @@ from typing import List, Optional
 from src.config import PipelineConfig
 from src.ingest_data import DataIngestion
 from src.data_cleaning import DataCleaner
-from src.feature_factory import FeatureFactory
-from src.autoencoder import Autoencoder
-from src.evaluator import Evaluator
+from src.feature_factory import BaselineFeatureFactory
+from src.autoencoder import BaselineAutoencoder
 
 # Configure logging
 logging.basicConfig(
@@ -28,27 +28,24 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-class PipelineRunner:
-    """Main pipeline runner for fraud detection."""
+class BaselinePipelineRunner:
+    """Baseline pipeline runner for fraud detection."""
     
     def __init__(self, config: Optional[PipelineConfig] = None):
         self.config = config or PipelineConfig()
         self.data_ingestion = DataIngestion(self.config)
         self.data_cleaner = DataCleaner(self.config)
-        self.feature_factory = FeatureFactory(self.config)
-        self.autoencoder = Autoencoder(self.config)
-        self.evaluator = Evaluator(self.config)
+        self.feature_factory = BaselineFeatureFactory(self.config)
+        self.autoencoder = BaselineAutoencoder(self.config)
     
     def run_stage(self, stage: str):
         """Run a specific pipeline stage."""
-        logger.info(f"Running pipeline stage: {stage}")
+        logger.info(f"Running baseline pipeline stage: {stage}")
         
         if stage == "clean":
             self._run_cleaning()
         elif stage == "engineer":
             self._run_feature_engineering()
-        elif stage == "process":
-            self._run_preprocessing()
         elif stage == "train":
             self._run_training()
         elif stage == "all":
@@ -68,49 +65,43 @@ class PipelineRunner:
     
     def _run_feature_engineering(self):
         """Run feature engineering stage."""
-        logger.info("Starting feature engineering...")
+        logger.info("Starting baseline feature engineering...")
         self.feature_factory.engineer_features()
         logger.info("Feature engineering completed")
     
-    def _run_preprocessing(self):
-        """Run data preprocessing stage."""
-        logger.info("Starting data preprocessing...")
-        # Preprocessing is handled by feature factory
-        self.feature_factory.engineer_features()
-        logger.info("Data preprocessing completed")
-    
     def _run_training(self):
         """Run model training and evaluation stage."""
-        logger.info("Starting model training...")
+        logger.info("Starting baseline model training...")
         
         # Train the autoencoder
-        self.autoencoder.train()
+        results = self.autoencoder.train()
         
-        # Evaluate the model
-        self.evaluator.evaluate()
+        # Log results
+        logger.info(f"Training completed!")
+        logger.info(f"ROC AUC: {results['roc_auc']:.4f}")
+        logger.info(f"Anomaly threshold: {results['threshold']:.6f}")
         
         logger.info("Model training and evaluation completed")
     
     def _run_full_pipeline(self):
-        """Run the complete pipeline."""
-        logger.info("Starting full pipeline...")
+        """Run the complete baseline pipeline."""
+        logger.info("Starting full baseline pipeline...")
         
         self._run_cleaning()
         self._run_feature_engineering()
-        self._run_preprocessing()
         self._run_training()
         
-        logger.info("Full pipeline completed successfully")
+        logger.info("Full baseline pipeline completed successfully")
 
 
 def main():
-    """Main entry point for the pipeline."""
+    """Main entry point for the baseline pipeline."""
     import argparse
     
-    parser = argparse.ArgumentParser(description="Fraud Detection Pipeline")
+    parser = argparse.ArgumentParser(description="Baseline Fraud Detection Pipeline")
     parser.add_argument(
         "stage",
-        choices=["clean", "engineer", "process", "train", "all"],
+        choices=["clean", "engineer", "train", "all"],
         help="Pipeline stage to run"
     )
     parser.add_argument(
@@ -128,20 +119,20 @@ def main():
             # Load custom config if provided
             config = PipelineConfig.from_file(args.config)
         
-        runner = PipelineRunner(config)
+        runner = BaselinePipelineRunner(config)
         
         # Run the specified stage
         success = runner.run_stage(args.stage)
         
         if success:
-            logger.info("Pipeline completed successfully")
+            logger.info("Baseline pipeline completed successfully")
             sys.exit(0)
         else:
-            logger.error("Pipeline failed")
+            logger.error("Baseline pipeline failed")
             sys.exit(1)
             
     except Exception as e:
-        logger.error(f"Pipeline failed with error: {e}")
+        logger.error(f"Baseline pipeline failed with error: {e}")
         sys.exit(1)
 
 

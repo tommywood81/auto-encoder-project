@@ -1,132 +1,95 @@
 """
-Configuration settings for the fraud detection pipeline.
+Configuration for E-commerce Fraud Detection baseline model.
+Simplified configuration focusing on essential settings.
 """
 
+from dataclasses import dataclass
+from typing import List, Optional
 import os
-from dataclasses import dataclass, field
-from typing import List, Dict, Any, Optional
 
 
 @dataclass
 class DataConfig:
-    """Configuration for data paths and processing."""
-    # Data paths
+    """Data configuration for baseline model."""
     raw_dir: str = "data/raw"
     cleaned_dir: str = "data/cleaned"
     engineered_dir: str = "data/engineered"
-    processed_dir: str = "data/processed"
-    intermediate_dir: str = "data/intermediate"
+    models_dir: str = "models"
+    results_dir: str = "results"
     
-    # Data processing
-    random_state: int = 42
+    # Data splitting
     test_size: float = 0.2
-    missing_threshold: float = 0.5  # Remove columns with >50% missing values
+    random_state: int = 42
     
-    def __post_init__(self):
-        """Ensure all directories exist."""
-        for directory in [self.raw_dir, self.cleaned_dir, self.engineered_dir, 
-                         self.processed_dir, self.intermediate_dir]:
-            os.makedirs(directory, exist_ok=True)
+    # Time-based split (for fraud detection)
+    use_time_split: bool = True
+    time_split_date: str = "2024-02-01"  # Split data before this date
 
 
 @dataclass
 class ModelConfig:
-    """Configuration for model parameters."""
-    # Autoencoder architecture
-    hidden_dims: List[int] = field(default_factory=lambda: [64, 32])
-    learning_rate: float = 1e-3
-    epochs: int = 20
-    batch_size: int = 256
+    """Autoencoder model configuration."""
+    # Architecture
+    input_dim: Optional[int] = None  # Will be set automatically
+    hidden_dim: int = 64
+    latent_dim: int = 32
+    
+    # Training
+    epochs: int = 50
+    batch_size: int = 32
+    learning_rate: float = 0.001
+    validation_split: float = 0.2
     
     # Anomaly detection
-    percentile_threshold: float = 90.0  # For anomaly detection threshold
+    threshold_percentile: float = 95.0  # Percentile for anomaly threshold
     
-    # Device
-    device: str = "auto"  # "auto", "cpu", or "cuda"
-    
-    def __post_init__(self):
-        """Set device automatically if not specified."""
-        if self.device == "auto":
-            import torch
-            self.device = "cuda" if torch.cuda.is_available() else "cpu"
-
-
-@dataclass
-class FeatureConfig:
-    """Configuration for feature engineering."""
-    # Transaction features
-    enable_amount_features: bool = True
-    enable_card_features: bool = True
-    enable_email_features: bool = True
-    enable_addr_features: bool = True
-    
-    # Identity features
-    enable_v_features: bool = True
-    enable_id_features: bool = True
-    
-    # Interaction features
-    enable_interaction_features: bool = True
-    
-    # Statistical features
-    enable_statistical_features: bool = True
-    
-    # Advanced features (not yet implemented)
-    enable_temporal_features: bool = False
-    enable_behavioral_drift: bool = False
-    enable_entity_novelty: bool = False
-    
-    # Feature transformations
-    amount_transformations: List[str] = field(default_factory=lambda: ["log", "sqrt"])
-    v_feature_aggregations: List[str] = field(default_factory=lambda: ["count", "mean", "std", "sum"])
-    statistical_features: List[str] = field(default_factory=lambda: ["q25", "q75", "iqr", "range"])
-    
-    # Outlier handling
-    outlier_method: str = "iqr"  # "iqr", "zscore", or "none"
-    outlier_threshold: float = 1.5  # For IQR method
+    # Model saving
+    save_model: bool = True
+    model_name: str = "baseline_autoencoder"
 
 
 @dataclass
 class EvaluationConfig:
-    """Configuration for model evaluation."""
-    # Metrics to calculate
-    metrics: List[str] = field(default_factory=lambda: ["accuracy", "precision", "recall", "f1", "auc"])
+    """Evaluation configuration."""
+    # Metrics
+    primary_metric: str = "roc_auc"
     
-    # Visualization
-    save_plots: bool = True
-    plot_format: str = "png"
-    dpi: int = 300
+    # Threshold optimization
+    optimize_threshold: bool = True
+    threshold_range: List[float] = None  # Will be set automatically
     
-    # Results directory
-    results_dir: str = "results"
+    # Results
+    save_results: bool = True
+    results_name: str = "baseline_results"
 
 
 @dataclass
 class PipelineConfig:
-    """Main configuration class that combines all configs."""
-    data: DataConfig = field(default_factory=DataConfig)
-    model: ModelConfig = field(default_factory=ModelConfig)
-    features: FeatureConfig = field(default_factory=FeatureConfig)
-    evaluation: EvaluationConfig = field(default_factory=EvaluationConfig)
+    """Main pipeline configuration."""
+    data: DataConfig = None
+    model: ModelConfig = None
+    evaluation: EvaluationConfig = None
     
-    # Pipeline control
-    force_rerun: bool = False
-    verbose: bool = True
-    save_intermediate: bool = True
+    def __post_init__(self):
+        if self.data is None:
+            self.data = DataConfig()
+        if self.model is None:
+            self.model = ModelConfig()
+        if self.evaluation is None:
+            self.evaluation = EvaluationConfig()
+    
+    @classmethod
+    def from_file(cls, config_path: str):
+        """Load configuration from file (placeholder for future)."""
+        # For now, return default config
+        return cls()
+    
+    def save_config(self, config_path: str):
+        """Save configuration to file (placeholder for future)."""
+        # For now, just create the directory
+        os.makedirs(os.path.dirname(config_path), exist_ok=True)
+        print(f"Configuration would be saved to {config_path}")
 
 
-# Legacy support (keeping for backward compatibility)
-DATA_RAW = "data/raw"
-DATA_CLEANED = "data/cleaned"
-DATA_ENGINEERED = "data/engineered"
-DATA_PROCESSED = "data/processed"
-DATA_INTERMEDIATE = "data/intermediate"
-RANDOM_STATE = 42
-TEST_SIZE = 0.2
-PERCENTILE_THRESHOLD = 90
-HIDDEN_DIMS = [64, 32]
-LEARNING_RATE = 1e-3
-EPOCHS = 20
-BATCH_SIZE = 256
-DATA_DIR = DATA_RAW
-UNZIP_DIR = "ieee_cis"
-KAGGLE_COMPETITION = "ieee-fraud-detection" 
+# Default configuration instance
+DEFAULT_CONFIG = PipelineConfig() 

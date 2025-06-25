@@ -1,202 +1,119 @@
 """
-Feature engineering logic for E-commerce Fraud Detection.
+Feature engineering for E-commerce Fraud Detection baseline.
+Focus on essential features: temporal patterns and entity frequency.
 """
 
 import pandas as pd
 import numpy as np
-import os
-import json
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import StandardScaler
-from src.config import PipelineConfig, FeatureConfig
-from typing import Dict, List, Any, Optional
-from abc import ABC, abstractmethod
 import logging
+from typing import Dict, Any
 
 logger = logging.getLogger(__name__)
 
 
-class FeatureBuilder(ABC):
-    """Abstract base class for feature builders."""
+class BaselineFeatureEngineer:
+    """Baseline feature engineer focusing on essential features only."""
     
-    def __init__(self, config: FeatureConfig):
-        self.config = config
+    def __init__(self):
         self.feature_info = {}
     
-    @abstractmethod
-    def build(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Build features and return modified dataframe."""
-        pass
+    def engineer_features(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Engineer baseline features for fraud detection."""
+        logger.info("Engineering baseline features...")
+        
+        df_engineered = df.copy()
+        
+        # 1. Temporal features (essential for fraud detection)
+        df_engineered = self._create_temporal_features(df_engineered)
+        
+        # 2. Entity frequency features (customer behavior patterns)
+        df_engineered = self._create_entity_frequency_features(df_engineered)
+        
+        # 3. Simple behavioral features (rolling averages)
+        df_engineered = self._create_behavioral_features(df_engineered)
+        
+        logger.info(f"Engineered {len(self.feature_info)} baseline features")
+        return df_engineered
+    
+    def _create_temporal_features(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Create essential temporal features."""
+        logger.info("Creating temporal features...")
+        
+        if 'transaction_date' in df.columns:
+            # Convert to datetime
+            df['transaction_date'] = pd.to_datetime(df['transaction_date'])
+            
+            # Basic time features
+            df['hour'] = df['transaction_date'].dt.hour
+            df['day_of_week'] = df['transaction_date'].dt.dayofweek
+            df['is_weekend'] = (df['day_of_week'] >= 5).astype(int)
+            df['is_night'] = ((df['hour'] >= 22) | (df['hour'] <= 6)).astype(int)
+            
+            # High-risk hours (based on fraud patterns)
+            df['is_high_risk_hour'] = df['hour'].isin([0, 1, 3, 4, 5]).astype(int)
+            
+            # Remove original date column
+            df = df.drop(columns=['transaction_date'])
+            
+            self.feature_info.update({
+                'hour': 'Hour of day (0-23)',
+                'day_of_week': 'Day of week (0-6)',
+                'is_weekend': 'Weekend transaction flag',
+                'is_night': 'Night transaction flag (10 PM - 6 AM)',
+                'is_high_risk_hour': 'High fraud risk hours flag'
+            })
+        
+        return df
+    
+    def _create_entity_frequency_features(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Create entity frequency features for customer behavior."""
+        logger.info("Creating entity frequency features...")
+        
+        if 'customer_location' in df.columns:
+            # Customer frequency (how often this customer appears)
+            customer_freq = df['customer_location'].value_counts(normalize=True)
+            df['customer_frequency'] = df['customer_location'].map(customer_freq)
+            
+            # Customer novelty (inverse of frequency - rare customers)
+            df['customer_novelty'] = 1 - df['customer_frequency']
+            
+            # Remove original customer_location (keep encoded version)
+            df = df.drop(columns=['customer_location'])
+            
+            self.feature_info.update({
+                'customer_frequency': 'Frequency of customer in dataset',
+                'customer_novelty': 'Novelty score (1 - frequency)'
+            })
+        
+        return df
+    
+    def _create_behavioral_features(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Create simple behavioral features."""
+        logger.info("Creating behavioral features...")
+        
+        if 'transaction_amount' in df.columns:
+            # Amount-based features
+            df['amount_log'] = np.log1p(df['transaction_amount'])
+            df['amount_squared'] = df['transaction_amount'] ** 2
+            
+            # Simple amount categories
+            df['amount_category'] = pd.cut(
+                df['transaction_amount'],
+                bins=[0, 50, 200, 1000, float('inf')],
+                labels=[0, 1, 2, 3]
+            ).astype(int)
+            
+            self.feature_info.update({
+                'amount_log': 'Log-transformed transaction amount',
+                'amount_squared': 'Squared transaction amount',
+                'amount_category': 'Amount category (0-3)'
+            })
+        
+        return df
     
     def get_feature_info(self) -> Dict[str, Any]:
-        """Get information about built features."""
+        """Get information about engineered features."""
         return self.feature_info
-
-
-class TransactionFeatureBuilder(FeatureBuilder):
-    """Build transaction-related features."""
-    
-    def build(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Build transaction features based on configuration."""
-        logger.info("Building transaction features...")
-        
-        # Amount transformations
-        if self.config.enable_amount_features and 'transaction_amount' in df.columns:
-            if 'log' in self.config.amount_transformations:
-                df['amount_log'] = np.log1p(df['transaction_amount'])
-                self.feature_info['amount_log'] = 'Log transformation of transaction amount'
-            
-            if 'sqrt' in self.config.amount_transformations:
-                df['amount_sqrt'] = np.sqrt(df['transaction_amount'])
-                self.feature_info['amount_sqrt'] = 'Square root transformation of transaction amount'
-        
-        # Quantity features
-        if 'quantity' in df.columns:
-            df['quantity_squared'] = df['quantity'] ** 2
-            self.feature_info['quantity_squared'] = 'Squared quantity'
-            
-            # Amount per item
-            if 'transaction_amount' in df.columns:
-                df['amount_per_item'] = df['transaction_amount'] / df['quantity'].replace(0, 1)
-                self.feature_info['amount_per_item'] = 'Transaction amount per item'
-        
-        logger.info(f"Built {len(self.feature_info)} transaction features")
-        return df
-
-
-class CustomerFeatureBuilder(FeatureBuilder):
-    """Build customer-related features."""
-    
-    def build(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Build customer features based on configuration."""
-        logger.info("Building customer features...")
-        
-        # Age features
-        if 'customer_age' in df.columns:
-            # Age bins
-            df['age_bin'] = pd.cut(df['customer_age'], bins=[0, 25, 35, 50, 100], labels=[0, 1, 2, 3])
-            df['age_bin'] = df['age_bin'].astype(int)
-            self.feature_info['age_bin'] = 'Age bin (0-25, 26-35, 36-50, 50+)'
-            
-            # Account age features
-            if 'account_age_days' in df.columns:
-                df['account_age_years'] = df['account_age_days'] / 365.25
-                self.feature_info['account_age_years'] = 'Account age in years'
-                
-                # Age to account age ratio
-                df['age_account_ratio'] = df['customer_age'] / df['account_age_years'].replace(0, 1)
-                self.feature_info['age_account_ratio'] = 'Customer age to account age ratio'
-        
-        # Time-based features
-        if 'transaction_hour' in df.columns:
-            # Hour bins
-            df['hour_bin'] = pd.cut(df['transaction_hour'], bins=[0, 6, 12, 18, 24], labels=[0, 1, 2, 3])
-            df['hour_bin'] = df['hour_bin'].astype(int)
-            self.feature_info['hour_bin'] = 'Hour bin (0-6, 7-12, 13-18, 19-24)'
-            
-            # Is night transaction
-            df['is_night'] = ((df['transaction_hour'] >= 22) | (df['transaction_hour'] <= 6)).astype(int)
-            self.feature_info['is_night'] = 'Night transaction (10 PM - 6 AM)'
-        
-        logger.info(f"Built {len(self.feature_info)} customer features")
-        return df
-
-
-class InteractionFeatureBuilder(FeatureBuilder):
-    """Build interaction features between different feature groups."""
-    
-    def build(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Build interaction features based on configuration."""
-        if not self.config.enable_interaction_features:
-            return df
-        
-        logger.info("Building interaction features...")
-        
-        # Amount interactions
-        if 'transaction_amount' in df.columns:
-            if 'customer_age' in df.columns:
-                df['amount_age_interaction'] = df['transaction_amount'] * df['customer_age']
-                self.feature_info['amount_age_interaction'] = 'Transaction amount * customer age'
-            
-            if 'quantity' in df.columns:
-                df['amount_quantity_interaction'] = df['transaction_amount'] * df['quantity']
-                self.feature_info['amount_quantity_interaction'] = 'Transaction amount * quantity'
-        
-        # Payment method interactions
-        if 'payment_method' in df.columns and 'transaction_amount' in df.columns:
-            # Create interaction between payment method and amount
-            payment_methods = df['payment_method'].unique()
-            for method in payment_methods:
-                mask = df['payment_method'] == method
-                df[f'amount_{method}_interaction'] = df['transaction_amount'] * mask.astype(int)
-                self.feature_info[f'amount_{method}_interaction'] = f'Amount * {method} payment method'
-        
-        logger.info(f"Built {len(self.feature_info)} interaction features")
-        return df
-
-
-class StatisticalFeatureBuilder(FeatureBuilder):
-    """Build statistical features."""
-    
-    def build(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Build statistical features based on configuration."""
-        if not self.config.enable_statistical_features:
-            return df
-        
-        logger.info("Building statistical features...")
-        
-        # Transaction amount statistics
-        if 'transaction_amount' in df.columns:
-            for stat in self.config.statistical_features:
-                if stat == 'q25':
-                    df['amount_q25'] = df['transaction_amount'].quantile(0.25)
-                    self.feature_info['amount_q25'] = '25th percentile of transaction amount'
-                elif stat == 'q75':
-                    df['amount_q75'] = df['transaction_amount'].quantile(0.75)
-                    self.feature_info['amount_q75'] = '75th percentile of transaction amount'
-                elif stat == 'iqr':
-                    if 'amount_q75' in df.columns and 'amount_q25' in df.columns:
-                        df['amount_iqr'] = df['amount_q75'] - df['amount_q25']
-                        self.feature_info['amount_iqr'] = 'Interquartile range of transaction amount'
-        
-        logger.info(f"Built {len(self.feature_info)} statistical features")
-        return df
-
-
-class TemporalFeatureBuilder(FeatureBuilder):
-    """Build temporal features (placeholder for future implementation)."""
-    
-    def build(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Build temporal features (not yet implemented)."""
-        if not self.config.enable_temporal_features:
-            return df
-        
-        logger.warning("Temporal features not yet implemented")
-        return df
-
-
-class BehavioralDriftFeatureBuilder(FeatureBuilder):
-    """Build behavioral drift features (placeholder for future implementation)."""
-    
-    def build(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Build behavioral drift features (not yet implemented)."""
-        if not self.config.enable_behavioral_drift:
-            return df
-        
-        logger.warning("Behavioral drift features not yet implemented")
-        return df
-
-
-class EntityNoveltyFeatureBuilder(FeatureBuilder):
-    """Build entity novelty features (placeholder for future implementation)."""
-    
-    def build(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Build entity novelty features (not yet implemented)."""
-        if not self.config.enable_entity_novelty:
-            return df
-        
-        logger.warning("Entity novelty features not yet implemented")
-        return df
 
 
 def handle_infinite_values(df: pd.DataFrame) -> pd.DataFrame:
@@ -208,155 +125,29 @@ def handle_infinite_values(df: pd.DataFrame) -> pd.DataFrame:
     
     # Fill NaN with median for numeric columns
     numeric_cols = df.select_dtypes(include=[np.number]).columns
-    df[numeric_cols] = df[numeric_cols].fillna(df[numeric_cols].median())
+    for col in numeric_cols:
+        if df[col].isnull().sum() > 0:
+            median_val = df[col].median()
+            df[col] = df[col].fillna(median_val)
+            logger.info(f"Filled infinite values in {col} with median: {median_val}")
     
-    logger.info(f"Handled infinite values in {len(numeric_cols)} numeric columns")
     return df
 
 
-class FeatureEngineer:
-    """Feature engineering pipeline for fraud detection dataset."""
+def preprocess_data(df: pd.DataFrame) -> pd.DataFrame:
+    """Preprocess data for modeling."""
+    logger.info("Preprocessing data for modeling...")
     
-    def __init__(self, config: PipelineConfig = None):
-        self.config = config or PipelineConfig()
-        self.scaler = None
-        
-    def load_cleaned_data(self):
-        """Load cleaned data from the cleaned directory."""
-        print("Loading cleaned data...")
-        
-        cleaned_file = os.path.join(self.config.data.cleaned_dir, "train_cleaned.csv")
-        if not os.path.exists(cleaned_file):
-            raise FileNotFoundError(f"Cleaned data not found at {cleaned_file}. Run data cleaning first.")
-        
-        df = pd.read_csv(cleaned_file)
-        print(f"Cleaned data: {df.shape}")
-        
-        return df
+    # Engineer features
+    engineer = BaselineFeatureEngineer()
+    df = engineer.engineer_features(df)
     
-    def engineer_features(self, save_output=True):
-        """Complete feature engineering pipeline using feature factory."""
-        print("Starting feature engineering pipeline...")
-        
-        # Load cleaned data
-        df = self.load_cleaned_data()
-        
-        # Use feature factory to build features
-        df = self.feature_factory.build_features(df)
-        
-        print(f"Final engineered shape: {df.shape}")
-        
-        # Save engineered data if requested
-        if save_output:
-            self.save_engineered_data(df)
-        
-        return df
+    # Handle infinite values
+    df = handle_infinite_values(df)
     
-    def save_engineered_data(self, df, suffix=""):
-        """Save engineered data to the engineered directory."""
-        print("Saving engineered data...")
-        
-        os.makedirs(self.config.data.engineered_dir, exist_ok=True)
-        
-        # Save engineered data
-        output_file = os.path.join(self.config.data.engineered_dir, f"train_features{suffix}.csv")
-        df.to_csv(output_file, index=False)
-        
-        # Convert NumPy types to Python native types for JSON serialization
-        def convert_numpy_types(obj):
-            if isinstance(obj, dict):
-                return {k: convert_numpy_types(v) for k, v in obj.items()}
-            elif isinstance(obj, list):
-                return [convert_numpy_types(v) for v in obj]
-            elif isinstance(obj, np.integer):
-                return int(obj)
-            elif isinstance(obj, np.floating):
-                return float(obj)
-            elif isinstance(obj, np.ndarray):
-                return obj.tolist()
-            else:
-                return obj
-        
-        # Save feature information from factory
-        feature_summary = self.feature_factory.get_feature_summary()
-        info_file = os.path.join(self.config.data.engineered_dir, f"feature_info{suffix}.json")
-        with open(info_file, 'w') as f:
-            json.dump(convert_numpy_types(feature_summary), f, indent=2)
-        
-        print(f"Saved engineered data to {output_file}")
-        
-        return output_file
+    # Select only numeric features for baseline
+    numeric_cols = df.select_dtypes(include=[np.number]).columns
+    df_numeric = df[numeric_cols].copy()
     
-    def preprocess_for_modeling(self, df):
-        """Preprocess engineered data for autoencoder training."""
-        print("Preprocessing and splitting data...")
-        
-        # Separate features and target
-        X = df.drop(columns=["isFraud"])
-        y = df["isFraud"]
-
-        # Scale features
-        self.scaler = StandardScaler()
-        X_scaled = self.scaler.fit_transform(X)
-
-        # Split data
-        X_train, X_test, y_train, y_test = train_test_split(
-            X_scaled, y, test_size=self.config.data.test_size, 
-            stratify=y, random_state=self.config.data.random_state
-        )
-
-        # For autoencoder, we only train on non-fraudulent data
-        X_train_ae = X_train[y_train == 0]
-        
-        print(f"Training samples (non-fraudulent): {X_train_ae.shape[0]}")
-        print(f"Test samples: {X_test.shape[0]}")
-        print(f"Features: {X_train.shape[1]}")
-        
-        return X_train_ae, X_test, y_train, y_test, self.scaler
-
-    def _create_time_features(self, df):
-        """Create time-based features from transaction data."""
-        logger.info("Creating time-based features...")
-        
-        # Create time-based features from Transaction Date
-        if 'transaction_date' in df.columns:
-            # Convert to datetime
-            df['transaction_date'] = pd.to_datetime(df['transaction_date'])
-            
-            # Extract time components
-            df['transaction_hour'] = df['transaction_date'].dt.hour
-            df['transaction_day'] = df['transaction_date'].dt.day
-            df['transaction_month'] = df['transaction_date'].dt.month
-            df['transaction_day_of_week'] = df['transaction_date'].dt.dayofweek
-            df['transaction_day_of_year'] = df['transaction_date'].dt.dayofyear
-            
-            # High-risk hours (based on EDA findings)
-            df['is_high_risk_hour'] = df['transaction_hour'].isin([0, 1, 3, 4, 5]).astype(int)
-            
-            # Time of day categories
-            df['time_of_day'] = pd.cut(
-                df['transaction_hour'], 
-                bins=[0, 6, 12, 18, 24], 
-                labels=['night', 'morning', 'afternoon', 'evening'],
-                include_lowest=True
-            )
-            
-            # Convert to numeric for modeling
-            time_mapping = {'night': 0, 'morning': 1, 'afternoon': 2, 'evening': 3}
-            df['time_of_day_encoded'] = df['time_of_day'].map(time_mapping)
-            
-            # Weekend vs weekday
-            df['is_weekend'] = (df['transaction_day_of_week'] >= 5).astype(int)
-            
-            # Remove original date column (keep derived features)
-            df = df.drop(columns=['transaction_date'])
-            
-            logger.info("Created time-based features: hour, day, month, day_of_week, day_of_year, high-risk hours, time of day, weekend")
-        
-        return df
-
-
-def preprocess_data(df):
-    """Legacy function for backward compatibility."""
-    engineer = FeatureEngineer()
-    return engineer.preprocess_for_modeling(df) 
+    logger.info(f"Final preprocessed shape: {df_numeric.shape}")
+    return df_numeric 

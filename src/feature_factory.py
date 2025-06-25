@@ -1,37 +1,27 @@
 """
-Feature factory orchestrator for E-commerce Fraud Detection.
+Baseline feature factory for E-commerce Fraud Detection.
+Simplified for baseline model with essential features only.
 """
 
 import pandas as pd
 import numpy as np
 import os
 import json
-from typing import Dict, List, Any, Optional
 import logging
+from typing import Dict, List, Any
 
 from src.config import PipelineConfig
-from src.feature_engineering import (
-    TransactionFeatureBuilder,
-    CustomerFeatureBuilder,
-    InteractionFeatureBuilder,
-    StatisticalFeatureBuilder,
-    handle_infinite_values
-)
+from src.feature_engineering import BaselineFeatureEngineer, handle_infinite_values
 
 logger = logging.getLogger(__name__)
 
 
-class FeatureFactory:
-    """Main feature factory that orchestrates all feature builders."""
+class BaselineFeatureFactory:
+    """Baseline feature factory for essential fraud detection features."""
     
     def __init__(self, config: PipelineConfig = None):
         self.config = config or PipelineConfig()
-        self.builders = {
-            'transaction': TransactionFeatureBuilder(self.config.features),
-            'customer': CustomerFeatureBuilder(self.config.features),
-            'interaction': InteractionFeatureBuilder(self.config.features),
-            'statistical': StatisticalFeatureBuilder(self.config.features)
-        }
+        self.feature_engineer = BaselineFeatureEngineer()
         self.feature_info = {}
     
     def load_cleaned_data(self):
@@ -47,32 +37,23 @@ class FeatureFactory:
         
         return df
     
-    def build_features(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Build all features based on configuration."""
-        logger.info("Starting feature factory pipeline...")
-        
-        # Build features in order
-        for builder_name, builder in self.builders.items():
-            df = builder.build(df)
-            self.feature_info[builder_name] = builder.get_feature_info()
-        
-        # Handle infinite values
-        df = handle_infinite_values(df)
-        
-        logger.info(f"Feature factory completed. Total features: {df.shape[1]}")
-        return df
-    
     def engineer_features(self, save_output=True):
-        """Complete feature engineering pipeline."""
-        logger.info("Starting feature engineering pipeline...")
+        """Complete baseline feature engineering pipeline."""
+        logger.info("Starting baseline feature engineering...")
         
         # Load cleaned data
         df = self.load_cleaned_data()
         
-        # Build features
-        df = self.build_features(df)
+        # Engineer baseline features
+        df = self.feature_engineer.engineer_features(df)
         
-        logger.info(f"Final engineered shape: {df.shape}")
+        # Handle infinite values
+        df = handle_infinite_values(df)
+        
+        # Get feature information
+        self.feature_info = self.feature_engineer.get_feature_info()
+        
+        logger.info(f"Baseline features engineered. Shape: {df.shape}")
         
         # Save engineered data if requested
         if save_output:
@@ -87,72 +68,31 @@ class FeatureFactory:
         os.makedirs(self.config.data.engineered_dir, exist_ok=True)
         
         # Save engineered data
-        output_file = os.path.join(self.config.data.engineered_dir, f"ecommerce_features{suffix}.csv")
+        output_file = os.path.join(self.config.data.engineered_dir, f"baseline_features{suffix}.csv")
         df.to_csv(output_file, index=False)
         
-        # Convert NumPy types to Python native types for JSON serialization
-        def convert_numpy_types(obj):
-            if isinstance(obj, dict):
-                return {k: convert_numpy_types(v) for k, v in obj.items()}
-            elif isinstance(obj, list):
-                return [convert_numpy_types(v) for v in obj]
-            elif isinstance(obj, np.integer):
-                return int(obj)
-            elif isinstance(obj, np.floating):
-                return float(obj)
-            elif isinstance(obj, np.ndarray):
-                return obj.tolist()
-            else:
-                return obj
-        
         # Save feature information
-        feature_summary = self.get_feature_summary()
-        info_file = os.path.join(self.config.data.engineered_dir, f"feature_info{suffix}.json")
+        info_file = os.path.join(self.config.data.engineered_dir, f"baseline_feature_info{suffix}.json")
         with open(info_file, 'w') as f:
-            json.dump(convert_numpy_types(feature_summary), f, indent=2)
+            json.dump(self.feature_info, f, indent=2)
         
-        logger.info(f"Saved engineered data to {output_file}")
+        logger.info(f"Saved baseline features to {output_file}")
         
         return output_file
     
     def get_feature_summary(self) -> Dict[str, Any]:
-        """Get summary of all built features."""
-        summary = {
+        """Get summary of baseline features."""
+        return {
             'total_features': len(self.feature_info),
-            'feature_groups': {},
-            'total_engineered_features': 0
-        }
-        
-        for group_name, group_info in self.feature_info.items():
-            summary['feature_groups'][group_name] = {
-                'count': len(group_info),
-                'features': group_info
+            'feature_info': self.feature_info,
+            'feature_categories': {
+                'temporal': ['hour', 'day_of_week', 'is_weekend', 'is_night', 'is_high_risk_hour'],
+                'entity_frequency': ['customer_frequency', 'customer_novelty'],
+                'behavioral': ['amount_log', 'amount_squared', 'amount_category']
             }
-            summary['total_engineered_features'] += len(group_info)
-        
-        return summary
+        }
     
-    def get_feature_list(self) -> List[str]:
-        """Get list of all engineered feature names."""
-        feature_list = []
-        for group_info in self.feature_info.values():
-            feature_list.extend(group_info.keys())
-        return feature_list
-    
-    def _get_categorical_columns(self, df: pd.DataFrame) -> List[str]:
-        """Get categorical columns for encoding."""
-        categorical_cols = []
-        
-        # Define expected categorical columns
-        expected_categorical = [
-            'payment_method',
-            'product_category', 
-            'device_used',
-            'customer_location'  # Note: This is actually the Customer ID in this dataset
-        ]
-        
-        for col in expected_categorical:
-            if col in df.columns:
-                categorical_cols.append(col)
-        
-        return categorical_cols 
+    def get_numeric_features(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Get only numeric features for baseline model."""
+        numeric_cols = df.select_dtypes(include=[np.number]).columns
+        return df[numeric_cols].copy() 

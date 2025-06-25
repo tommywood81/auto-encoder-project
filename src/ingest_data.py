@@ -20,6 +20,39 @@ ROOT_DIR = Path(__file__).parent.parent
 RAW_DATA_DIR = ROOT_DIR / "data" / "raw"
 RAW_DATA_DIR.mkdir(parents=True, exist_ok=True)
 
+
+class DataIngestion:
+    """Data ingestion class for the pipeline."""
+    
+    def __init__(self, config: PipelineConfig):
+        self.config = config
+    
+    def ingest_data(self, input_file: str = None) -> pd.DataFrame:
+        """Ingest data from a CSV file."""
+        try:
+            # Use default e-commerce fraud dataset if none provided
+            if input_file is None:
+                df = import_fraudulent_ecommerce_data()
+            else:
+                logger.info(f"Loading data from {input_file}")
+                df = pd.read_csv(input_file)
+            
+            # Create ingested directory if it doesn't exist
+            ingested_dir = Path("data/ingested")
+            ingested_dir.mkdir(parents=True, exist_ok=True)
+            
+            # Save to ingested directory
+            output_file = ingested_dir / "raw_ecommerce_data.csv"
+            df.to_csv(output_file, index=False)
+            logger.info(f"Saved ingested data to {output_file}")
+            
+            return df
+            
+        except Exception as e:
+            logger.error(f"Error ingesting data: {str(e)}")
+            raise
+
+
 def list_available_files() -> list:
     """
     List all available files in the raw data directory.
