@@ -13,7 +13,7 @@ We use the **E-commerce Fraud Detection Dataset** containing 23,634 transactions
 - **Memory Usage**: 19.2 MB
 - **Data Quality**: No missing values (production-ready)
 
-![Fraud Distribution](results/fraud_distribution.png)
+![Fraud Distribution](docs/fraud_distribution.png)
 
 ## Data Cleaning Decisions & Analysis
 
@@ -36,7 +36,7 @@ Legitimate transactions: Mean $211.23, Median $148.20
 - **Impact**: Prevents extreme values from skewing models
 - **Business Value**: Maintains model stability while preserving legitimate high-value transactions
 
-![Transaction Amount Analysis](results/transaction_amount_analysis.png)
+![Transaction Amount Analysis](docs/transaction_amount_analysis.png)
 
 ### 2. Customer Age Analysis
 
@@ -55,7 +55,7 @@ Found 331 transactions with unrealistic ages (negative or >100)
 - **Impact**: Ensures data quality for production
 - **Business Value**: Focuses on adult customers with more predictable fraud patterns
 
-![Customer Age Analysis](results/customer_age_analysis.png)
+![Customer Age Analysis](docs/customer_age_analysis.png)
 
 
 **Note**: Customers aged 13-17 can be issued debit cards, but these cards are more likely to be stolen or lost at school, presenting a different fraud detection challenge. For this portfolio piece, we focus on adult customers (18+) to simplify the fraud detection model.
@@ -75,7 +75,7 @@ bank transfer: 24.8% (5.56% fraud rate)
 - **Impact**: Model can learn payment-specific fraud signals
 - **Business Value**: Captures nuanced fraud patterns across payment types
 
-![Payment Method Analysis](results/payment_method_analysis.png)
+![Payment Method Analysis](docs/payment_method_analysis.png)
 
 ### 4. Temporal Patterns
 
@@ -90,7 +90,7 @@ Most common transaction hour: 0 (midnight)
 - **Impact**: Model can learn temporal fraud patterns
 - **Business Value**: Enables real-time fraud detection based on time patterns
 
-![Temporal Patterns](results/temporal_patterns.png)
+![Temporal Patterns](docs/temporal_patterns.png)
 
 ### 5. Location Analysis
 
@@ -108,7 +108,7 @@ High fraud locations: Multiple locations with 100% fraud rate
 
 ## Dataset Summary
 
-![Dataset Summary](results/dataset_summary.png)
+![Dataset Summary](docs/dataset_summary.png)
 
 ## Feature Engineering Strategy
 
