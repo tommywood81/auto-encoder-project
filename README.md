@@ -347,7 +347,7 @@ src/
 python run_pipeline.py
 
 # Run individual stages
-python -c "from src.data_cleaning import DataCleaner; from src.config import PipelineConfig; cleaner = DataCleaner(PipelineConfig()); cleaner.clean_data()"
+python -c "from src.data import DataCleaner; from src.config import PipelineConfig; cleaner = DataCleaner(PipelineConfig()); cleaner.clean_data()"
 ```
 
 ### Testing

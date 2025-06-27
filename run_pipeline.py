@@ -14,9 +14,9 @@ from datetime import datetime
 sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
 
 from src.config import PipelineConfig
-from src.data_cleaning import DataCleaner
+from src.data import DataCleaner
 from src.feature_factory import FeatureFactory
-from src.autoencoder import BaselineAutoencoder
+from src.models import BaselineAutoencoder
 
 # Set up logging
 logging.basicConfig(

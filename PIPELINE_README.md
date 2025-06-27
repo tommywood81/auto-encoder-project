@@ -304,7 +304,7 @@ After training, the model can be used for inference:
 
 ```python
 import torch
-from src.autoencoder import Autoencoder
+from src.models import Autoencoder
 
 # Load trained model
 checkpoint = torch.load('models/autoencoder_fraud_detection.pth')
