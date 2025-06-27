@@ -4,10 +4,8 @@ Evaluation module for fraud detection.
 This module handles model evaluation and performance metrics.
 """
 
-from .evaluator import ModelEvaluator
-from .evaluate import evaluate_model
+from .evaluate import evaluate_autoencoder
 
 __all__ = [
-    "ModelEvaluator",
-    "evaluate_model"
+    "evaluate_autoencoder"
 ] 

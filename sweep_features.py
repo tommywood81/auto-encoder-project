@@ -25,8 +25,9 @@ STRATEGIES = [
     "baseline",
     "temporal", 
     "behavioural",
-    "account_age",
-    "device_novelty"
+    "account_risk",
+    "demographic_risk",
+    "combined"
 ]
 
 # Strategy descriptions for display
@@ -34,8 +35,9 @@ STRATEGY_DESCRIPTIONS = {
     "baseline": "Core transaction features only (9 features)",
     "temporal": "Core features + temporal patterns (10 features)", 
     "behavioural": "Core features + amount per item (10 features)",
-    "account_age": "Core features + account age risk (newer accounts = higher fraud risk) (10 features)",
-    "device_novelty": "Core features + customer age risk scores (10 features)"
+    "account_risk": "Core features + account age risk (newer accounts = higher fraud risk) (10 features)",
+    "demographic_risk": "Core features + customer age risk scores (10 features)",
+    "combined": "All unique features from all strategies (no duplicates)"
 }
 
 def run_pipeline(strategy: str) -> Tuple[bool, float, str]:

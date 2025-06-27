@@ -32,8 +32,9 @@ class FeatureFactory:
         "baseline": "BaselineFeatures",
         "temporal": "TemporalFeatures", 
         "behavioural": "BehaviouralFeatures",
-        "account_age": "AccountAgeRiskFeatures",
-        "device_novelty": "DeviceNoveltyFeatures"
+        "account_risk": "AccountRiskFeatures",
+        "demographic_risk": "DemographicRiskFeatures",
+        "combined": "CombinedFeatures"
     }
     
     @classmethod
@@ -43,14 +44,15 @@ class FeatureFactory:
             raise ValueError(f"Unknown strategy: {strategy_name}. Available: {list(cls._strategies.keys())}")
         
         # Import the strategy class dynamically
-        from .strategies import BaselineFeatures, TemporalFeatures, BehaviouralFeatures, AccountAgeRiskFeatures, DeviceNoveltyFeatures
+        from .strategies import BaselineFeatures, TemporalFeatures, BehaviouralFeatures, AccountRiskFeatures, DemographicRiskFeatures, CombinedFeatures
         
         strategy_classes = {
             "baseline": BaselineFeatures,
             "temporal": TemporalFeatures,
             "behavioural": BehaviouralFeatures,
-            "account_age": AccountAgeRiskFeatures,
-            "device_novelty": DeviceNoveltyFeatures
+            "account_risk": AccountRiskFeatures,
+            "demographic_risk": DemographicRiskFeatures,
+            "combined": CombinedFeatures
         }
         
         return strategy_classes[strategy_name]()

@@ -1,7 +1,6 @@
 import numpy as np
 import torch
 from sklearn.metrics import classification_report, roc_auc_score, confusion_matrix
-from src.config import PERCENTILE_THRESHOLD
 
 
 def evaluate_autoencoder(model, X_train_ae, X_test, y_test, percentile=None):
@@ -16,7 +15,7 @@ def evaluate_autoencoder(model, X_train_ae, X_test, y_test, percentile=None):
         percentile (int, optional): Percentile for threshold calculation. Defaults to config value.
     """
     if percentile is None:
-        percentile = PERCENTILE_THRESHOLD
+        percentile = 95
         
     print("🔎 Detecting anomalies...")
     

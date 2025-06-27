@@ -84,7 +84,7 @@ def main():
         "--strategy", 
         type=str, 
         default="baseline",
-        choices=["baseline", "temporal", "behavioural", "account_age", "device_novelty"],
+        choices=["baseline", "temporal", "behavioural", "account_risk", "demographic_risk", "combined"],
         help="Feature strategy to use (default: baseline)"
     )
     parser.add_argument(
@@ -101,8 +101,9 @@ def main():
         print("  - baseline: Basic transaction features only (9 features)")
         print("  - temporal: Basic features + temporal patterns (10 features)")
         print("  - behavioural: Core features + amount per item (10 features)")
-        print("  - account_age: Core features + account age risk (newer accounts = higher fraud risk) (10 features)")
-        print("  - device_novelty: Core features + customer age risk scores (10 features)")
+        print("  - account_risk: Core features + account age risk (newer accounts = higher fraud risk) (10 features)")
+        print("  - demographic_risk: Core features + customer age risk scores (10 features)")
+        print("  - combined: All unique features from all strategies (no duplicates)")
         return
     
     # Run pipeline

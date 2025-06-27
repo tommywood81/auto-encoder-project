@@ -153,19 +153,19 @@ class BehaviouralFeatures(FeatureEngineer):
         return self.feature_info
 
 
-class AccountAgeRiskFeatures(FeatureEngineer):
-    """Account age risk feature engineering - detects fraud based on account age."""
+class AccountRiskFeatures(FeatureEngineer):
+    """Account risk feature engineering - detects fraud based on account age."""
     
     def __init__(self):
         self.feature_info = {
-            "strategy": "account_age",
+            "strategy": "account_risk",
             "description": "Core features + account age risk scores (newer accounts = higher fraud risk)",
             "features": {}
         }
     
     def generate_features(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Generate account age risk features."""
-        logger.info("Generating account age risk features...")
+        """Generate account risk features."""
+        logger.info("Generating account risk features...")
         
         # Start with baseline features
         baseline = BaselineFeatures()
@@ -188,35 +188,35 @@ class AccountAgeRiskFeatures(FeatureEngineer):
             if feature in df_risk.columns:
                 df_features[feature] = df_risk[feature]
         
-        logger.info(f"Added account age risk features: {risk_features}")
+        logger.info(f"Added account risk features: {risk_features}")
         
         # Update feature info
         self.feature_info["features"].update({
-            col: "account age risk feature (newer accounts = higher fraud risk)" for col in risk_features
+            col: "account risk feature (newer accounts = higher fraud risk)" for col in risk_features
         })
         self.feature_info["feature_count"] = len(df_features.columns) - 1  # -1 for target
         
-        logger.info(f"Account age risk features generated: {len(df_features.columns) - 1} features")
+        logger.info(f"Account risk features generated: {len(df_features.columns) - 1} features")
         return df_features
     
     def get_feature_info(self) -> Dict[str, Any]:
-        """Get account age risk feature information."""
+        """Get account risk feature information."""
         return self.feature_info
 
 
-class DeviceNoveltyFeatures(FeatureEngineer):
-    """Customer age risk feature engineering - includes customer age risk scores."""
+class DemographicRiskFeatures(FeatureEngineer):
+    """Demographic risk feature engineering - includes customer age risk scores."""
     
     def __init__(self):
         self.feature_info = {
-            "strategy": "device_novelty",
+            "strategy": "demographic_risk",
             "description": "Core features + customer age risk scores",
             "features": {}
         }
     
     def generate_features(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Generate customer age risk features."""
-        logger.info("Generating customer age risk features...")
+        """Generate demographic risk features."""
+        logger.info("Generating demographic risk features...")
         
         # Start with baseline features
         baseline = BaselineFeatures()
@@ -236,17 +236,55 @@ class DeviceNoveltyFeatures(FeatureEngineer):
             if feature in df_risk.columns:
                 df_features[feature] = df_risk[feature]
         
-        logger.info(f"Added customer age risk features: {risk_features}")
+        logger.info(f"Added demographic risk features: {risk_features}")
         
         # Update feature info
         self.feature_info["features"].update({
-            col: "customer age risk feature" for col in risk_features
+            col: "demographic risk feature" for col in risk_features
         })
         self.feature_info["feature_count"] = len(df_features.columns) - 1  # -1 for target
         
-        logger.info(f"Customer age risk features generated: {len(df_features.columns) - 1} features")
+        logger.info(f"Demographic risk features generated: {len(df_features.columns) - 1} features")
         return df_features
     
     def get_feature_info(self) -> Dict[str, Any]:
-        """Get customer age risk feature information."""
+        """Get demographic risk feature information."""
+        return self.feature_info
+
+
+class CombinedFeatures(FeatureEngineer):
+    """Combined feature engineering - concatenates all unique features from all strategies."""
+    def __init__(self):
+        self.feature_info = {
+            "strategy": "combined",
+            "description": "All unique features from baseline, temporal, behavioural, account risk, and demographic risk.",
+            "features": {}
+        }
+
+    def generate_features(self, df: pd.DataFrame) -> pd.DataFrame:
+        logger.info("Generating combined features from all strategies...")
+        # Instantiate each strategy
+        strategies = [
+            BaselineFeatures(),
+            TemporalFeatures(),
+            BehaviouralFeatures(),
+            AccountRiskFeatures(),
+            DemographicRiskFeatures()
+        ]
+        # Generate features for each
+        feature_dfs = [s.generate_features(df) for s in strategies]
+        # Concatenate all columns, avoiding duplicates
+        combined_df = feature_dfs[0].copy()
+        for fdf in feature_dfs[1:]:
+            for col in fdf.columns:
+                if col not in combined_df.columns:
+                    combined_df[col] = fdf[col]
+        # Update feature info
+        all_features = [col for col in combined_df.columns if col != 'is_fraudulent']
+        self.feature_info["features"] = {col: "combined feature" for col in all_features}
+        self.feature_info["feature_count"] = len(all_features)
+        logger.info(f"Combined features generated: {len(all_features)} features")
+        return combined_df
+
+    def get_feature_info(self) -> Dict[str, Any]:
         return self.feature_info 
