@@ -283,8 +283,7 @@ class FeatureFactory:
         if strategy_name not in cls._strategies:
             raise ValueError(f"Unknown strategy: {strategy_name}. Available: {list(cls._strategies.keys())}")
         
-        strategy_class = cls._strategies[strategy_name]
-        return strategy_class()
+        return cls._strategies[strategy_name]()
     
     @classmethod
     def get_available_strategies(cls) -> list:

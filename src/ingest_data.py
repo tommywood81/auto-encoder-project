@@ -61,6 +61,7 @@ def list_available_files() -> list:
     """
     return [f.name for f in RAW_DATA_DIR.glob("*") if f.is_file()]
 
+
 def load_csv_from_raw(filename: str) -> pd.DataFrame:
     """
     Load a CSV file from the raw data directory.
@@ -79,6 +80,7 @@ def load_csv_from_raw(filename: str) -> pd.DataFrame:
     
     return df
 
+
 def import_fraudulent_ecommerce_data() -> pd.DataFrame:
     """
     Import the 'Fraudulent_E-Commerce_Transaction_Data_2.csv' file from data/raw.
@@ -95,51 +97,6 @@ def import_fraudulent_ecommerce_data() -> pd.DataFrame:
     
     return df
 
-def save_interim_data(df: pd.DataFrame, filename: str) -> None:
-    """
-    Save the ingested DataFrame to the data/interim directory.
-    Args:
-        df (pd.DataFrame): The DataFrame to save.
-        filename (str): The name of the output file (e.g., 'raw_ecommerce_data.csv').
-    """
-    interim_dir = ROOT_DIR / "data" / "interim"
-    interim_dir.mkdir(exist_ok=True)
-    output_path = interim_dir / filename
-    df.to_csv(output_path, index=False)
-    logger.info(f"Saved interim data to {output_path}")
-
-def ingest_data(input_file: str = None) -> pd.DataFrame:
-    """
-    Ingest data from a CSV file.
-    
-    Args:
-        input_file: Path to the input CSV file. If None, uses default e-commerce fraud dataset.
-        
-    Returns:
-        DataFrame containing the ingested data
-    """
-    try:
-        # Use default e-commerce fraud dataset if none provided
-        if input_file is None:
-            df = import_fraudulent_ecommerce_data()
-        else:
-            logger.info(f"Loading data from {input_file}")
-            df = pd.read_csv(input_file)
-        
-        # Create ingested directory if it doesn't exist
-        ingested_dir = Path("data/ingested")
-        ingested_dir.mkdir(parents=True, exist_ok=True)
-        
-        # Save to ingested directory
-        output_file = ingested_dir / "raw_ecommerce_data.csv"
-        df.to_csv(output_file, index=False)
-        logger.info(f"Saved ingested data to {output_file}")
-        
-        return df
-        
-    except Exception as e:
-        logger.error(f"Error ingesting data: {str(e)}")
-        raise
 
 def get_data_info(df: pd.DataFrame) -> dict:
     """
@@ -165,6 +122,7 @@ def get_data_info(df: pd.DataFrame) -> dict:
     
     return info
 
+
 def main():
     """Main function to test data ingestion."""
     try:
@@ -175,7 +133,7 @@ def main():
         logger.info(f"Available files in raw data directory: {available_files}")
         
         # Ingest the e-commerce fraud dataset
-        df = ingest_data()
+        df = import_fraudulent_ecommerce_data()
         
         # Get and log dataset information
         info = get_data_info(df)
