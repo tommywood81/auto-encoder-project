@@ -1,95 +1,312 @@
 """
-Configuration for E-commerce Fraud Detection baseline model.
-Simplified configuration focusing on essential settings.
+Configuration management for the fraud detection pipeline.
 """
 
 from dataclasses import dataclass
-from typing import List, Optional
-import os
+from typing import Dict, Any
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
 class DataConfig:
-    """Data configuration for baseline model."""
-    raw_dir: str = "data/raw"
-    cleaned_dir: str = "data/cleaned"
-    engineered_dir: str = "data/engineered"
-    models_dir: str = "models"
-    results_dir: str = "results"
-    
-    # Data splitting
-    test_size: float = 0.2
-    random_state: int = 42
-    
-    # Time-based split (for fraud detection)
-    use_time_split: bool = True
-    time_split_date: str = "2024-02-01"  # Split data before this date
+    """Data configuration."""
+    raw_file: str
+    cleaned_dir: str
+    engineered_dir: str
+    models_dir: str
+    test_size: float
+    random_state: int
 
 
 @dataclass
 class ModelConfig:
-    """Autoencoder model configuration."""
-    # Architecture
-    input_dim: Optional[int] = None  # Will be set automatically
-    hidden_dim: int = 64
-    latent_dim: int = 32
-    
-    # Training
-    epochs: int = 50
-    batch_size: int = 32
-    learning_rate: float = 0.001
-    validation_split: float = 0.2
-    
-    # Anomaly detection
-    threshold_percentile: float = 95.0  # Percentile for anomaly threshold
-    
-    # Model saving
-    save_model: bool = True
-    model_name: str = "baseline_autoencoder"
+    """Model configuration."""
+    name: str
+    hidden_dim: int
+    latent_dim: int
+    learning_rate: float
+    epochs: int
+    batch_size: int
+    validation_split: float
+    threshold_percentile: float
+    save_model: bool
 
 
 @dataclass
-class EvaluationConfig:
-    """Evaluation configuration."""
-    # Metrics
-    primary_metric: str = "roc_auc"
-    
-    # Threshold optimization
-    optimize_threshold: bool = True
-    threshold_range: List[float] = None  # Will be set automatically
-    
-    # Results
-    save_results: bool = True
-    results_name: str = "baseline_results"
+class FeatureConfig:
+    """Feature configuration."""
+    transaction_amount: bool
+    customer_age: bool
+    quantity: bool
+    account_age_days: bool
+    payment_method: bool
+    product_category: bool
+    device_used: bool
+    customer_location: bool
+    transaction_amount_log: bool
+    customer_location_freq: bool
+    temporal_features: bool
+    behavioural_features: bool
 
 
 @dataclass
 class PipelineConfig:
     """Main pipeline configuration."""
-    data: DataConfig = None
-    model: ModelConfig = None
-    evaluation: EvaluationConfig = None
-    
-    def __post_init__(self):
-        if self.data is None:
-            self.data = DataConfig()
-        if self.model is None:
-            self.model = ModelConfig()
-        if self.evaluation is None:
-            self.evaluation = EvaluationConfig()
+    name: str
+    description: str
+    feature_strategy: str
+    data: DataConfig
+    model: ModelConfig
+    features: FeatureConfig
     
     @classmethod
-    def from_file(cls, config_path: str):
-        """Load configuration from file (placeholder for future)."""
-        # For now, return default config
-        return cls()
+    def get_baseline_config(cls) -> 'PipelineConfig':
+        """Get baseline configuration."""
+        return cls(
+            name="baseline",
+            description="Basic transaction features only",
+            feature_strategy="baseline",
+            data=DataConfig(
+                raw_file="data/raw/Fraudulent_E-Commerce_Transaction_Data_2.csv",
+                cleaned_dir="data/cleaned",
+                engineered_dir="data/engineered",
+                models_dir="models",
+                test_size=0.2,
+                random_state=42
+            ),
+            model=ModelConfig(
+                name="autoencoder",
+                hidden_dim=64,
+                latent_dim=32,
+                learning_rate=0.001,
+                epochs=10,
+                batch_size=32,
+                validation_split=0.2,
+                threshold_percentile=95.0,
+                save_model=True
+            ),
+            features=FeatureConfig(
+                transaction_amount=True,
+                customer_age=True,
+                quantity=True,
+                account_age_days=True,
+                payment_method=True,
+                product_category=True,
+                device_used=True,
+                customer_location=True,
+                transaction_amount_log=True,
+                customer_location_freq=True,
+                temporal_features=False,
+                behavioural_features=False
+            )
+        )
     
-    def save_config(self, config_path: str):
-        """Save configuration to file (placeholder for future)."""
-        # For now, just create the directory
-        os.makedirs(os.path.dirname(config_path), exist_ok=True)
-        print(f"Configuration would be saved to {config_path}")
-
-
-# Default configuration instance
-DEFAULT_CONFIG = PipelineConfig() 
+    @classmethod
+    def get_temporal_config(cls) -> 'PipelineConfig':
+        """Get temporal configuration."""
+        return cls(
+            name="temporal",
+            description="Basic transaction features + temporal patterns",
+            feature_strategy="temporal",
+            data=DataConfig(
+                raw_file="data/raw/Fraudulent_E-Commerce_Transaction_Data_2.csv",
+                cleaned_dir="data/cleaned",
+                engineered_dir="data/engineered",
+                models_dir="models",
+                test_size=0.2,
+                random_state=42
+            ),
+            model=ModelConfig(
+                name="autoencoder",
+                hidden_dim=64,
+                latent_dim=32,
+                learning_rate=0.001,
+                epochs=10,
+                batch_size=32,
+                validation_split=0.2,
+                threshold_percentile=95.0,
+                save_model=True
+            ),
+            features=FeatureConfig(
+                transaction_amount=True,
+                customer_age=True,
+                quantity=True,
+                account_age_days=True,
+                payment_method=True,
+                product_category=True,
+                device_used=True,
+                customer_location=True,
+                transaction_amount_log=True,
+                customer_location_freq=True,
+                temporal_features=True,
+                behavioural_features=False
+            )
+        )
+    
+    @classmethod
+    def get_behavioural_config(cls) -> 'PipelineConfig':
+        """Get behavioural configuration."""
+        return cls(
+            name="behavioural",
+            description="Core features + amount per item",
+            feature_strategy="behavioural",
+            data=DataConfig(
+                raw_file="data/raw/Fraudulent_E-Commerce_Transaction_Data_2.csv",
+                cleaned_dir="data/cleaned",
+                engineered_dir="data/engineered",
+                models_dir="models",
+                test_size=0.2,
+                random_state=42
+            ),
+            model=ModelConfig(
+                name="autoencoder",
+                hidden_dim=64,
+                latent_dim=32,
+                learning_rate=0.001,
+                epochs=10,
+                batch_size=32,
+                validation_split=0.2,
+                threshold_percentile=95.0,
+                save_model=True
+            ),
+            features=FeatureConfig(
+                transaction_amount=True,
+                customer_age=True,
+                quantity=True,
+                account_age_days=True,
+                payment_method=True,
+                product_category=True,
+                device_used=True,
+                customer_location=True,
+                transaction_amount_log=True,
+                customer_location_freq=True,
+                temporal_features=False,
+                behavioural_features=True
+            )
+        )
+    
+    @classmethod
+    def get_account_age_config(cls) -> 'PipelineConfig':
+        """Get configuration for account age strategy."""
+        return cls(
+            name="account_age",
+            description="Core features + account age risk scores",
+            feature_strategy="account_age",
+            data=DataConfig(
+                raw_file="data/raw/Fraudulent_E-Commerce_Transaction_Data_2.csv",
+                cleaned_dir="data/cleaned",
+                engineered_dir="data/engineered",
+                models_dir="models",
+                test_size=0.2,
+                random_state=42
+            ),
+            model=ModelConfig(
+                name="autoencoder",
+                hidden_dim=64,
+                latent_dim=32,
+                learning_rate=0.001,
+                epochs=10,
+                batch_size=32,
+                validation_split=0.2,
+                threshold_percentile=95.0,
+                save_model=True
+            ),
+            features=FeatureConfig(
+                transaction_amount=True,
+                customer_age=True,
+                quantity=True,
+                account_age_days=True,
+                payment_method=True,
+                product_category=True,
+                device_used=True,
+                customer_location=True,
+                transaction_amount_log=True,
+                customer_location_freq=True,
+                temporal_features=False,
+                behavioural_features=False
+            )
+        )
+    
+    @classmethod
+    def get_device_novelty_config(cls) -> 'PipelineConfig':
+        """Get device novelty configuration."""
+        return cls(
+            name="device_novelty",
+            description="Core features + customer age risk scores",
+            feature_strategy="device_novelty",
+            data=DataConfig(
+                raw_file="data/raw/Fraudulent_E-Commerce_Transaction_Data_2.csv",
+                cleaned_dir="data/cleaned",
+                engineered_dir="data/engineered",
+                models_dir="models",
+                test_size=0.2,
+                random_state=42
+            ),
+            model=ModelConfig(
+                name="autoencoder",
+                hidden_dim=64,
+                latent_dim=32,
+                learning_rate=0.001,
+                epochs=10,
+                batch_size=32,
+                validation_split=0.2,
+                threshold_percentile=95.0,
+                save_model=True
+            ),
+            features=FeatureConfig(
+                transaction_amount=True,
+                customer_age=True,
+                quantity=True,
+                account_age_days=True,
+                payment_method=True,
+                product_category=True,
+                device_used=True,
+                customer_location=True,
+                transaction_amount_log=True,
+                customer_location_freq=True,
+                temporal_features=False,
+                behavioural_features=False
+            )
+        )
+    
+    @classmethod
+    def get_config(cls, strategy: str) -> 'PipelineConfig':
+        """Get configuration by strategy name."""
+        if strategy == "baseline":
+            return cls.get_baseline_config()
+        elif strategy == "temporal":
+            return cls.get_temporal_config()
+        elif strategy == "behavioural":
+            return cls.get_behavioural_config()
+        elif strategy == "account_age":
+            return cls.get_account_age_config()
+        elif strategy == "device_novelty":
+            return cls.get_device_novelty_config()
+        else:
+            raise ValueError(f"Unknown strategy: {strategy}. Available: baseline, temporal, behavioural, account_age, device_novelty")
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert config to dictionary for logging."""
+        return {
+            'name': self.name,
+            'description': self.description,
+            'feature_strategy': self.feature_strategy,
+            'data': {
+                'raw_file': self.data.raw_file,
+                'test_size': self.data.test_size,
+                'random_state': self.data.random_state
+            },
+            'model': {
+                'name': self.model.name,
+                'hidden_dim': self.model.hidden_dim,
+                'latent_dim': self.model.latent_dim,
+                'epochs': self.model.epochs,
+                'learning_rate': self.model.learning_rate
+            },
+            'features': {
+                'temporal_features': self.features.temporal_features,
+                'behavioural_features': self.features.behavioural_features
+            }
+        } 

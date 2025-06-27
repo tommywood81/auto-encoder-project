@@ -16,7 +16,7 @@ from tensorflow import keras
 from tensorflow.keras import layers
 
 from src.config import PipelineConfig
-from src.feature_factory import BaselineFeatureFactory
+from src.feature_factory import FeatureFactory
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +26,7 @@ class BaselineAutoencoder:
     
     def __init__(self, config: PipelineConfig = None):
         self.config = config or PipelineConfig()
-        self.feature_factory = BaselineFeatureFactory(self.config)
+        self.feature_factory = FeatureFactory.create(self.config.feature_strategy)
         self.scaler = StandardScaler()
         self.model = None
         self.threshold = None
@@ -35,32 +35,36 @@ class BaselineAutoencoder:
         """Prepare data for training with time-aware split."""
         logger.info("Preparing data for baseline model...")
         
+        # Load cleaned data first
+        cleaned_file = os.path.join(self.config.data.cleaned_dir, "ecommerce_cleaned.csv")
+        df_cleaned = pd.read_csv(cleaned_file)
+        logger.info(f"Loaded cleaned data: {df_cleaned.shape}")
+        
         # Engineer features
-        df = self.feature_factory.engineer_features(save_output=False)
+        df = self.feature_factory.generate_features(df_cleaned)
         
         # Get numeric features only
-        df_numeric = self.feature_factory.get_numeric_features(df)
+        df_numeric = self._get_numeric_features(df)
         
         # Separate features and target
         X = df_numeric.drop(columns=['is_fraudulent'])
         y = df_numeric['is_fraudulent']
         
-        # Time-aware split (if transaction_date features exist)
-        if 'hour' in X.columns and self.config.data.use_time_split:
-            # Use hour as proxy for time (simplified time split)
-            # Split based on hour: train on first 80% of hours, test on last 20%
-            hours = X['hour'].values
-            split_hour = np.percentile(hours, 80)
+        # Time-aware split using transaction_hour (since data is sorted by date)
+        if 'transaction_hour' in X.columns:
+            # Data is already sorted by transaction_date, so we can use index for time split
+            total_samples = len(X)
+            train_size = int(0.8 * total_samples)
             
-            train_mask = hours <= split_hour
-            test_mask = hours > split_hour
-            
-            X_train = X[train_mask]
-            X_test = X[test_mask]
-            y_train = y[train_mask]
-            y_test = y[test_mask]
+            # Split based on temporal order (first 80% for training, last 20% for testing)
+            X_train = X.iloc[:train_size]
+            X_test = X.iloc[train_size:]
+            y_train = y.iloc[:train_size]
+            y_test = y.iloc[train_size:]
             
             logger.info(f"Time-aware split: train={len(X_train)}, test={len(X_test)}")
+            logger.info(f"Train period: transactions 0 to {train_size-1}")
+            logger.info(f"Test period: transactions {train_size} to {total_samples-1}")
         else:
             # Fallback to random split
             X_train, X_test, y_train, y_test = train_test_split(
@@ -81,6 +85,18 @@ class BaselineAutoencoder:
         logger.info(f"Features: {X_train.shape[1]}")
         
         return X_train_normal, X_test_scaled, y_train, y_test
+    
+    def _get_numeric_features(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Get numeric features from the dataset."""
+        # Select only numeric columns
+        numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
+        
+        # Ensure target is included
+        if 'is_fraudulent' not in numeric_cols and 'is_fraudulent' in df.columns:
+            numeric_cols.append('is_fraudulent')
+        
+        logger.info(f"Numeric features: {numeric_cols}")
+        return df[numeric_cols]
     
     def build_model(self, input_dim: int):
         """Build simple autoencoder architecture."""
@@ -167,7 +183,7 @@ class BaselineAutoencoder:
     def save_model(self):
         """Save the trained model."""
         os.makedirs(self.config.data.models_dir, exist_ok=True)
-        model_path = os.path.join(self.config.data.models_dir, f"{self.config.model.model_name}.h5")
+        model_path = os.path.join(self.config.data.models_dir, f"{self.config.model.name}.h5")
         self.model.save(model_path)
         logger.info(f"Model saved to {model_path}")
     

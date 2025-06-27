@@ -1,139 +1,117 @@
 #!/usr/bin/env python3
 """
-Baseline pipeline runner for fraud detection.
-Simplified pipeline focusing on essential components.
+Fraud Detection Pipeline Runner.
+Supports config-driven feature strategies via CLI arguments.
 """
 
+import argparse
 import logging
-import sys
 import os
-from typing import List, Optional
+import sys
+from datetime import datetime
+
+# Add src to path
+sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
 
 from src.config import PipelineConfig
-from src.ingest_data import DataIngestion
 from src.data_cleaning import DataCleaner
-from src.feature_factory import BaselineFeatureFactory
+from src.feature_factory import FeatureFactory
 from src.autoencoder import BaselineAutoencoder
 
-# Configure logging
+# Set up logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler('pipeline.log'),
-        logging.StreamHandler(sys.stdout)
-    ]
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
-
 logger = logging.getLogger(__name__)
 
 
-class BaselinePipelineRunner:
-    """Baseline pipeline runner for fraud detection."""
+def run_pipeline(strategy: str):
+    """Run the complete fraud detection pipeline with given strategy."""
+    logger.info(f"Starting fraud detection pipeline with strategy: {strategy}")
     
-    def __init__(self, config: Optional[PipelineConfig] = None):
-        self.config = config or PipelineConfig()
-        self.data_ingestion = DataIngestion(self.config)
-        self.data_cleaner = DataCleaner(self.config)
-        self.feature_factory = BaselineFeatureFactory(self.config)
-        self.autoencoder = BaselineAutoencoder(self.config)
+    # Load configuration
+    config = PipelineConfig.get_config(strategy)
+    logger.info(f"Configuration loaded: {config.name}")
+    logger.info(f"Feature strategy: {config.feature_strategy}")
     
-    def run_stage(self, stage: str):
-        """Run a specific pipeline stage."""
-        logger.info(f"Running baseline pipeline stage: {stage}")
-        
-        if stage == "clean":
-            self._run_cleaning()
-        elif stage == "engineer":
-            self._run_feature_engineering()
-        elif stage == "train":
-            self._run_training()
-        elif stage == "all":
-            self._run_full_pipeline()
-        else:
-            logger.error(f"Unknown stage: {stage}")
-            return False
-        
-        logger.info(f"Pipeline stage '{stage}' completed successfully")
-        return True
+    # Step 1: Data Cleaning
+    logger.info("Step 1: Data Cleaning")
+    cleaner = DataCleaner(config)
+    df_cleaned = cleaner.clean_data(save_output=True)
+    logger.info(f"Data cleaning completed. Shape: {df_cleaned.shape}")
     
-    def _run_cleaning(self):
-        """Run data cleaning stage."""
-        logger.info("Starting data cleaning...")
-        self.data_cleaner.clean_data()
-        logger.info("Data cleaning completed")
+    # Step 2: Feature Engineering
+    logger.info("Step 2: Feature Engineering")
+    feature_engineer = FeatureFactory.create(config.feature_strategy)
+    df_features = feature_engineer.generate_features(df_cleaned)
     
-    def _run_feature_engineering(self):
-        """Run feature engineering stage."""
-        logger.info("Starting baseline feature engineering...")
-        self.feature_factory.engineer_features()
-        logger.info("Feature engineering completed")
+    # Log feature information
+    feature_info = feature_engineer.get_feature_info()
+    logger.info(f"Feature strategy: {feature_info['strategy']}")
+    logger.info(f"Feature count: {feature_info['feature_count']}")
+    logger.info(f"Features: {list(feature_info['features'].keys())}")
     
-    def _run_training(self):
-        """Run model training and evaluation stage."""
-        logger.info("Starting baseline model training...")
-        
-        # Train the autoencoder
-        results = self.autoencoder.train()
-        
-        # Log results
-        logger.info(f"Training completed!")
-        logger.info(f"ROC AUC: {results['roc_auc']:.4f}")
-        logger.info(f"Anomaly threshold: {results['threshold']:.6f}")
-        
-        logger.info("Model training and evaluation completed")
+    # Save engineered features
+    os.makedirs(config.data.engineered_dir, exist_ok=True)
+    output_file = os.path.join(config.data.engineered_dir, f"{config.feature_strategy}_features.csv")
+    df_features.to_csv(output_file, index=False)
+    logger.info(f"Features saved to: {output_file}")
     
-    def _run_full_pipeline(self):
-        """Run the complete baseline pipeline."""
-        logger.info("Starting full baseline pipeline...")
-        
-        self._run_cleaning()
-        self._run_feature_engineering()
-        self._run_training()
-        
-        logger.info("Full baseline pipeline completed successfully")
+    # Step 3: Model Training
+    logger.info("Step 3: Model Training")
+    autoencoder = BaselineAutoencoder(config)
+    results = autoencoder.train()
+    
+    # Log results
+    logger.info("Pipeline completed successfully!")
+    logger.info(f"ROC AUC: {results['roc_auc']:.4f}")
+    logger.info(f"Anomaly threshold: {results['threshold']:.6f}")
+    
+    # Log configuration summary
+    config_summary = config.to_dict()
+    logger.info("Configuration summary:")
+    for key, value in config_summary.items():
+        logger.info(f"  {key}: {value}")
+    
+    return results
 
 
 def main():
-    """Main entry point for the baseline pipeline."""
-    import argparse
-    
-    parser = argparse.ArgumentParser(description="Baseline Fraud Detection Pipeline")
+    """Main entry point with CLI argument parsing."""
+    parser = argparse.ArgumentParser(description="Fraud Detection Pipeline")
     parser.add_argument(
-        "stage",
-        choices=["clean", "engineer", "train", "all"],
-        help="Pipeline stage to run"
+        "--strategy", 
+        type=str, 
+        default="baseline",
+        choices=["baseline", "temporal", "behavioural", "account_age", "device_novelty"],
+        help="Feature strategy to use (default: baseline)"
     )
     parser.add_argument(
-        "--config",
-        type=str,
-        help="Path to configuration file (optional)"
+        "--list-strategies",
+        action="store_true",
+        help="List available strategies"
     )
     
     args = parser.parse_args()
     
+    # List available strategies
+    if args.list_strategies:
+        print("Available strategies:")
+        print("  - baseline: Basic transaction features only (9 features)")
+        print("  - temporal: Basic features + temporal patterns (10 features)")
+        print("  - behavioural: Core features + amount per item (10 features)")
+        print("  - account_age: Core features + account age risk (newer accounts = higher fraud risk) (10 features)")
+        print("  - device_novelty: Core features + customer age risk scores (10 features)")
+        return
+    
+    # Run pipeline
     try:
-        # Initialize pipeline runner
-        config = PipelineConfig()
-        if args.config:
-            # Load custom config if provided
-            config = PipelineConfig.from_file(args.config)
-        
-        runner = BaselinePipelineRunner(config)
-        
-        # Run the specified stage
-        success = runner.run_stage(args.stage)
-        
-        if success:
-            logger.info("Baseline pipeline completed successfully")
-            sys.exit(0)
-        else:
-            logger.error("Baseline pipeline failed")
-            sys.exit(1)
-            
+        results = run_pipeline(args.strategy)
+        logger.info("Pipeline completed successfully!")
     except Exception as e:
-        logger.error(f"Baseline pipeline failed with error: {e}")
-        sys.exit(1)
+        logger.error(f"Pipeline failed: {str(e)}")
+        raise
 
 
 if __name__ == "__main__":

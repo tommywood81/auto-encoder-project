@@ -1,38 +1,77 @@
 """
-Test script for feature engineering with e-commerce dataset.
+Test script to verify feature engineering works with new temporal features.
 """
 
-from src.feature_factory import FeatureFactory
+import pandas as pd
+import numpy as np
+import logging
+from src.data_cleaning import DataCleaner
+from src.feature_engineering import BaselineFeatureEngineer
 from src.config import PipelineConfig
 
+# Set up logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 def test_feature_engineering():
-    """Test the feature engineering pipeline."""
-    print("Testing feature engineering pipeline...")
+    """Test the feature engineering with temporal features."""
     
-    # Initialize feature factory
+    print("## Testing Feature Engineering with Temporal Features")
+    print()
+    
+    # Initialize config and cleaner
     config = PipelineConfig()
-    factory = FeatureFactory(config)
+    cleaner = DataCleaner(config)
+    
+    # Clean the data
+    df_cleaned = cleaner.clean_data(save_output=False)
+    print(f"Cleaned data shape: {df_cleaned.shape}")
+    print()
     
     # Engineer features
-    df_engineered = factory.engineer_features()
+    engineer = BaselineFeatureEngineer()
+    df_engineered = engineer.engineer_features(df_cleaned)
     
-    print(f"✅ Feature engineering completed successfully!")
-    print(f"   Cleaned data shape: (23634, 11)")
-    print(f"   Engineered shape: {df_engineered.shape}")
-    print(f"   Additional features: {df_engineered.shape[1] - 11}")
+    print(f"Engineered data shape: {df_engineered.shape}")
+    print()
     
-    # Show feature summary
-    summary = factory.get_feature_summary()
-    print(f"\nFeature summary:")
-    for group_name, group_info in summary['feature_groups'].items():
-        print(f"   {group_name}: {group_info['count']} features")
-        for feature_name, description in group_info['features'].items():
-            print(f"     - {feature_name}: {description}")
+    # Show feature info
+    feature_info = engineer.get_feature_info()
+    print("Engineered features:")
+    for feature, description in feature_info.items():
+        print(f"  - {feature}: {description}")
+    print()
     
-    # Check target variable
-    if 'Is Fraudulent' in df_engineered.columns:
-        fraud_dist = df_engineered['Is Fraudulent'].value_counts()
-        print(f"\n   Fraud distribution: {fraud_dist.to_dict()}")
+    # Check for new features
+    new_features = [col for col in df_engineered.columns if col not in df_cleaned.columns]
+    print(f"New features added: {new_features}")
+    print()
+    
+    # Check temporal features are preserved
+    temporal_features = [
+        'transaction_hour', 'transaction_day_of_week', 'transaction_month',
+        'is_weekend', 'is_business_hours', 'is_night_hours',
+        'hour_sin', 'hour_cos', 'day_of_week_sin', 'day_of_week_cos',
+        'month_sin', 'month_cos', 'is_high_risk_hour'
+    ]
+    
+    preserved_temporal = [col for col in temporal_features if col in df_engineered.columns]
+    print(f"Preserved temporal features: {preserved_temporal}")
+    print()
+    
+    # Check interaction features
+    interaction_features = [
+        'high_risk_hour_weekend', 'high_value_novel_customer', 'night_high_value'
+    ]
+    
+    available_interactions = [col for col in interaction_features if col in df_engineered.columns]
+    print(f"Available interaction features: {available_interactions}")
+    print()
+    
+    # Show final columns
+    print("Final engineered columns:")
+    print(list(df_engineered.columns))
+    print()
     
     return df_engineered
 

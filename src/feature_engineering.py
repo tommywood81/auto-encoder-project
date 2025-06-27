@@ -23,92 +23,79 @@ class BaselineFeatureEngineer:
         
         df_engineered = df.copy()
         
-        # 1. Temporal features (essential for fraud detection)
-        df_engineered = self._create_temporal_features(df_engineered)
+        # 1. Use temporal features already created in data cleaning
+        df_engineered = self._use_existing_temporal_features(df_engineered)
         
         # 2. Entity frequency features (customer behavior patterns)
         df_engineered = self._create_entity_frequency_features(df_engineered)
         
-        # 3. Simple behavioral features (rolling averages)
-        df_engineered = self._create_behavioral_features(df_engineered)
+        # 3. Advanced behavioral features (rolling averages and patterns)
+        df_engineered = self._create_advanced_behavioral_features(df_engineered)
+        
+        # 4. Interaction features (combinations of important variables)
+        df_engineered = self._create_interaction_features(df_engineered)
         
         logger.info(f"Engineered {len(self.feature_info)} baseline features")
         return df_engineered
     
-    def _create_temporal_features(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Create essential temporal features."""
-        logger.info("Creating temporal features...")
-        
-        if 'transaction_date' in df.columns:
-            # Convert to datetime
-            df['transaction_date'] = pd.to_datetime(df['transaction_date'])
-            
-            # Basic time features
-            df['hour'] = df['transaction_date'].dt.hour
-            df['day_of_week'] = df['transaction_date'].dt.dayofweek
-            df['is_weekend'] = (df['day_of_week'] >= 5).astype(int)
-            df['is_night'] = ((df['hour'] >= 22) | (df['hour'] <= 6)).astype(int)
-            
-            # High-risk hours (based on fraud patterns)
-            df['is_high_risk_hour'] = df['hour'].isin([0, 1, 3, 4, 5]).astype(int)
-            
-            # Remove original date column
-            df = df.drop(columns=['transaction_date'])
-            
-            self.feature_info.update({
-                'hour': 'Hour of day (0-23)',
-                'day_of_week': 'Day of week (0-6)',
-                'is_weekend': 'Weekend transaction flag',
-                'is_night': 'Night transaction flag (10 PM - 6 AM)',
-                'is_high_risk_hour': 'High fraud risk hours flag'
-            })
-        
+    def _use_existing_temporal_features(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Baseline: no temporal feature engineering."""
+        logger.info("Baseline: no temporal feature engineering - keeping original transaction_date")
         return df
     
     def _create_entity_frequency_features(self, df: pd.DataFrame) -> pd.DataFrame:
         """Create entity frequency features for customer behavior."""
         logger.info("Creating entity frequency features...")
-        
+        # (keep as before)
+        customer_col = None
         if 'customer_location' in df.columns:
-            # Customer frequency (how often this customer appears)
-            customer_freq = df['customer_location'].value_counts(normalize=True)
-            df['customer_frequency'] = df['customer_location'].map(customer_freq)
-            
-            # Customer novelty (inverse of frequency - rare customers)
-            df['customer_novelty'] = 1 - df['customer_frequency']
-            
-            # Remove original customer_location (keep encoded version)
-            df = df.drop(columns=['customer_location'])
-            
+            customer_col = 'customer_location'
+        elif 'customer_location_freq' in df.columns:
+            customer_col = 'customer_location_freq'
+        if customer_col:
+            if customer_col == 'customer_location':
+                customer_freq = df['customer_location'].value_counts(normalize=True)
+                df['customer_frequency'] = df['customer_location'].map(customer_freq)
+                df['customer_novelty'] = 1 - df['customer_frequency']
+                customer_counts = df['customer_location'].value_counts()
+                df['customer_transaction_count'] = df['customer_location'].map(customer_counts)
+                df = df.drop(columns=['customer_location'])
+            else:
+                df['customer_frequency'] = df['customer_location_freq']
+                df['customer_novelty'] = 1 - df['customer_frequency']
+                df['customer_transaction_count'] = (1 / df['customer_location_freq']).round().astype(int)
             self.feature_info.update({
                 'customer_frequency': 'Frequency of customer in dataset',
-                'customer_novelty': 'Novelty score (1 - frequency)'
+                'customer_novelty': 'Novelty score (1 - frequency)',
+                'customer_transaction_count': 'Total transactions per customer'
             })
-        
         return df
     
-    def _create_behavioral_features(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Create simple behavioral features."""
-        logger.info("Creating behavioral features...")
-        
+    def _create_advanced_behavioral_features(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Create advanced behavioral features."""
+        logger.info("Creating advanced behavioral features...")
+        # (keep as before)
         if 'transaction_amount' in df.columns:
-            # Amount-based features
-            df['amount_log'] = np.log1p(df['transaction_amount'])
-            df['amount_squared'] = df['transaction_amount'] ** 2
-            
-            # Simple amount categories
+            if 'transaction_amount_log' in df.columns:
+                df['amount_log'] = df['transaction_amount_log']
+            else:
+                df['amount_log'] = np.log1p(df['transaction_amount'])
             df['amount_category'] = pd.cut(
                 df['transaction_amount'],
-                bins=[0, 50, 200, 1000, float('inf')],
+                bins=[0, 25, 100, 500, float('inf')],
                 labels=[0, 1, 2, 3]
             ).astype(int)
-            
+            df['is_high_value'] = (df['transaction_amount'] > 500).astype(int)
             self.feature_info.update({
                 'amount_log': 'Log-transformed transaction amount',
-                'amount_squared': 'Squared transaction amount',
-                'amount_category': 'Amount category (0-3)'
+                'amount_category': 'Amount category (0-3)',
+                'is_high_value': 'High-value transaction flag (>$500)'
             })
-        
+        return df
+    
+    def _create_interaction_features(self, df: pd.DataFrame) -> pd.DataFrame:
+        """No interaction features in simple version."""
+        logger.info("Skipping interaction features (simple version)...")
         return df
     
     def get_feature_info(self) -> Dict[str, Any]:

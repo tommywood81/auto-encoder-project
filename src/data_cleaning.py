@@ -52,23 +52,49 @@ class DataCleaner:
         df_clean.columns = df_clean.columns.str.lower().str.replace(' ', '_')
         logger.info("Cleaned column names to lowercase with underscores")
         
-        # 1. Handle missing values (EDA showed no missing values, but good practice)
+        # 1. Handle datetime column properly (organize by date and time)
+        df_clean = self._process_datetime_column(df_clean)
+        
+        # 2. Handle missing values (EDA showed no missing values, but good practice)
         df_clean = self._handle_missing_values(df_clean)
         
-        # 2. Clean categorical variables
+        # 3. Clean categorical variables
         df_clean = self._clean_categorical_variables(df_clean)
         
-        # 3. Clean numeric variables (based on EDA findings)
+        # 4. Clean numeric variables (based on EDA findings)
         df_clean = self._clean_numeric_variables(df_clean)
         
-        # 4. Remove unnecessary columns (privacy and modeling concerns)
+        # 5. Remove unnecessary columns (privacy and modeling concerns)
         df_clean = self._remove_unnecessary_columns(df_clean)
         
-        # 5. Feature encoding (based on EDA decisions)
+        # 6. Feature encoding (based on EDA decisions)
         df_clean = self._encode_features(df_clean)
         
         logger.info("Data cleaning completed")
         return df_clean
+    
+    def _process_datetime_column(self, df):
+        """Process the datetime column to organize data by date and time (baseline version)."""
+        logger.info("Processing datetime column (baseline version)...")
+        
+        # Convert to datetime
+        df['transaction_date'] = pd.to_datetime(df['transaction_date'])
+        logger.info(f"Converted transaction_date to datetime. Range: {df['transaction_date'].min()} to {df['transaction_date'].max()}")
+        
+        # Sort by datetime to ensure temporal order
+        df = df.sort_values('transaction_date').reset_index(drop=True)
+        logger.info("Sorted data by transaction date for temporal integrity")
+        
+        # Extract hour for temporal features
+        df['transaction_hour'] = df['transaction_date'].dt.hour
+        
+        # Create is_between_11pm_and_6am flag (high fraud risk period)
+        df['is_between_11pm_and_6am'] = ((df['transaction_hour'] >= 23) | (df['transaction_hour'] <= 6)).astype(int)
+        logger.info(f"Created is_between_11pm_and_6am flag. High-risk transactions: {df['is_between_11pm_and_6am'].sum()}")
+        
+        # Keep only the original transaction_date for baseline (no derived features)
+        logger.info("Baseline: keeping only original transaction_date for temporal sorting")
+        return df
     
     def _handle_missing_values(self, df):
         """Handle missing values in the dataset."""
