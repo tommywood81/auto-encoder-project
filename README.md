@@ -1,386 +1,426 @@
 # E-commerce Fraud Detection with Autoencoders
 
-This project demonstrates a production-ready fraud detection system using autoencoders for anomaly detection. The system is designed to identify fraudulent e-commerce transactions using unsupervised learning techniques.
+> **Can we catch fraudsters using only normal transaction patterns?** 
 
-## Dataset Overview
+This project explores how autoencoders can detect fraudulent e-commerce transactions by learning what "normal" looks like. Instead of trying to identify fraud directly, we teach the model to recognize legitimate patterns—anything that doesn't fit becomes a potential red flag.
 
-We use the **E-commerce Fraud Detection Dataset** containing 23,634 transactions with a 5.17% fraud rate (1,222 fraudulent transactions). This represents a realistic scenario where fraud is rare but costly.
+**Current Performance**: Our best model achieves an **AUC ROC of 0.6511** using a combination of behavioral, temporal, and demographic features.
 
-### Dataset Characteristics
-- **Shape**: 23,634 rows × 16 columns
-- **Fraud Rate**: 5.17% (1,222 fraudulent, 22,412 legitimate)
-- **Class Imbalance**: 18.3:1 ratio (legitimate:fraudulent)
-- **Memory Usage**: 19.2 MB
-- **Data Quality**: No missing values (production-ready)
+![Fraud Distribution](./docs/fraud_distribution.png)
 
-### Columns and Data Types
-- `Transaction ID`: object | 0 nulls (0.0%) | 23,634 unique values (100.0%)
-- `Customer ID`: object | 0 nulls (0.0%) | 23,634 unique values (100.0%)
-- `Transaction Amount`: float64 | 0 nulls (0.0%) | 23,634 unique values (100.0%)
-- `Transaction Date`: object | 0 nulls (0.0%) | 23,634 unique values (100.0%)
-- `Payment Method`: object | 0 nulls (0.0%) | 4 unique values (0.0%)
-- `Product Category`: object | 0 nulls (0.0%) | 5 unique values (0.0%)
-- `Quantity`: int64 | 0 nulls (0.0%) | 5 unique values (0.0%)
-- `Customer Age`: int64 | 0 nulls (0.0%) | 73 unique values (0.3%)
-- `Customer Location`: object | 0 nulls (0.0%) | 14,868 unique values (62.9%)
-- `Device Used`: object | 0 nulls (0.0%) | 3 unique values (0.0%)
-- `IP Address`: object | 0 nulls (0.0%) | 23,634 unique values (100.0%)
-- `Shipping Address`: object | 0 nulls (0.0%) | 23,634 unique values (100.0%)
-- `Billing Address`: object | 0 nulls (0.0%) | 23,634 unique values (100.0%)
-- `Is Fraudulent`: int64 | 0 nulls (0.0%) | 2 unique values (0.0%)
-- `Account Age Days`: int64 | 0 nulls (0.0%) | 365 unique values (1.5%)
-- `Transaction Hour`: int64 | 0 nulls (0.0%) | 24 unique values (0.1%)
+## 📋 Table of Contents
 
-### Column Analysis
+- [Features](#-features)
+- [Installation](#-installation)
+- [Usage](#-usage)
+- [Architecture](#-architecture)
+- [Results](#-results)
+- [Contributing](#-contributing)
+- [Tests](#-tests)
+- [Credits](#-credits)
+- [Contact](#-contact)
+- [License](#-license)
 
-**Transaction ID**: Unique identifier for each transaction - Remove (no predictive value)
+## ✨ Features
 
-**Customer ID**: Unique identifier for each customer - Remove (no predictive value)
+### 🎯 Core Capabilities
+- **Unsupervised Learning**: Detects fraud without labeled fraud examples
+- **Production-Ready Pipeline**: Modular, configurable, and scalable architecture
+- **Multiple Feature Strategies**: Test different approaches systematically
+- **Automated Experimentation**: Feature sweep pipeline for performance comparison
 
-**Transaction Amount**: Dollar amount of the transaction - Keep (primary feature for fraud detection, highly skewed at 6.7)
+### 🏗️ Technical Features
+- **Strategy Pattern**: Flexible feature engineering with easy extensibility
+- **Configuration Management**: Type-safe, version-controlled experiment settings
+- **Modular Design**: Isolated components for data cleaning, feature engineering, and model training
+- **Comprehensive Logging**: Full pipeline monitoring and debugging support
 
-**Transaction Date**: Date and time of the transaction - Keep (will extract time-based features)
+### 📊 Feature Engineering Strategies
+- **Baseline**: Core transaction features (9 features)
+- **Temporal**: Time-based patterns and night-time detection
+- **Behavioural**: Purchase behavior analysis and amount-per-item calculations
+- **Demographic Risk**: Age-based risk scoring
+- **Combined**: All unique features from all strategies (12 features)
 
-**Payment Method**: Method used for payment - Keep (4 unique values, different fraud rates by payment type)
+## 🚀 Installation
 
-**Product Category**: Category of product purchased - Keep (5 unique values, different fraud rates by category)
+### Prerequisites
+- Python 3.8+
+- pip package manager
+- Git
 
-**Quantity**: Number of items purchased - Keep (low cardinality, can indicate bulk fraud)
+### Step-by-Step Setup
 
-**Customer Age**: Age of the customer - Keep (filter to 18+ only, age patterns important for fraud detection)
+```bash
+# 1. Clone the repository
+git clone <your-repo-url>
+cd auto-encoder-project
 
-**Customer Location**: Customer ID (misnamed in dataset) - Keep (use frequency encoding, 14,868 unique values too many for one-hot encoding)
+# 2. Create and activate virtual environment
+python -m venv env
+.\env\Scripts\Activate.ps1  # On Windows
+source env/bin/activate     # On Unix/Mac
 
-**Device Used**: Device type used for transaction - Keep (3 unique values, different fraud rates by device)
-
-**IP Address**: IP address of the customer - Remove (privacy concern, too many unique values)
-
-**Shipping Address**: Shipping address of the customer - Remove (privacy concern, too many unique values)
-
-**Billing Address**: Billing address of the customer - Remove (privacy concern, too many unique values)
-
-**Is Fraudulent**: Target variable (1 = fraudulent, 0 = legitimate) - Keep (binary target for fraud detection)
-
-**Account Age Days**: Age of customer account in days - Keep (new accounts more likely to be fraudulent)
-
-**Transaction Hour**: Hour of day when transaction occurred - Keep (fraud patterns vary by time of day)
-
-### Columns Dropped (100% Unique - No Predictive Value)
-
-The following columns are **100% unique** across all 23,634 transactions, meaning they have no patterns for the model to learn:
-
-- **Transaction ID**: Every transaction has a unique identifier
-- **Customer ID**: Every transaction has a unique customer identifier  
-- **IP Address**: Every transaction has a unique IP address
-- **Shipping Address**: Every transaction has a unique shipping address
-- **Billing Address**: Every transaction has a unique billing address
-
-These columns provide no predictive signal for fraud detection and are removed to improve model performance and reduce computational overhead.
-
-### Final Columns Kept
-
-**Numeric Features:**
-- `transaction_amount` - Primary fraud indicator (log-transformed)
-- `quantity` - Number of items purchased
-- `customer_age` - Customer age (18+ only)
-- `account_age_days` - Account age in days
-- `transaction_hour` - Hour of transaction (0-23)
-
-**Categorical Features:**
-- `payment_method` - Payment type (4 values)
-- `product_category` - Product category (5 values)
-- `device_used` - Device type (3 values)
-- `customer_location` - Customer ID (frequency encoded)
-
-**Target Variable:**
-- `is_fraudulent` - Binary fraud indicator
-
-**Derived Features:**
-- Time-based features extracted from `transaction_date`
-- Log-transformed and scaled transaction amounts
-- Encoded categorical variables
-
-## Data Cleaning Decisions & Analysis
-
-### 1. Transaction Amount Analysis
-
-```python
-# Key Statistics
-Mean: $229.37
-Median: $151.41
-Std: $282.05
-99th percentile: $1,162.04
-
-# Fraud vs Legitimate Patterns
-Fraudulent transactions: Mean $562.08, Median $251.03
-Legitimate transactions: Mean $211.23, Median $148.20
+# 3. Install dependencies
+pip install -r requirements.txt
 ```
 
-**Decision**: Use robust scaling and normalization instead of capping
-- **Rationale**: Capping at percentiles breaks model generalizability and inference
-- **Impact**: Model can handle new high-value products without retraining
-- **Business Value**: Maintains model performance when business introduces new products
+### Dependencies
+The project requires the following key packages:
+- `pandas` - Data manipulation
+- `numpy` - Numerical computing
+- `scikit-learn` - Machine learning utilities
+- `tensorflow` - Deep learning framework
+- `matplotlib` - Visualization
+- `seaborn` - Statistical visualization
 
-**Logical Approach**: Instead of capping, we implement:
-1. **Log transformation**: `log(amount + 1)` to handle skewed distributions
-2. **Robust scaling**: Use median and IQR instead of mean and std
-3. **Feature engineering**: Create amount-based ratios and interactions
-4. **Domain-specific thresholds**: Set business rules for suspicious amounts
-5. **Model interpretability**: Ensure high-value transactions can be explained
+## 💻 Usage
 
-**Why not capping?**: If the business introduces a new $50,000 product, capping would:
-- Flag all legitimate high-value sales as fraud
-- Require immediate model retraining
-- Break inference on new transaction patterns
-- Reduce model generalizability
+### Quick Start
 
-**Skewness Analysis**: The original transaction amount data is highly skewed (skewness: 6.697), with a long right tail. Log transformation reduces skewness to -0.228, making the data more suitable for modeling.
+```bash
+# Run with the best-performing strategy
+python run_pipeline.py --strategy combined
 
-### Transaction Amount Handling
-Instead of capping at the 99th percentile (which breaks generalizability), we use **log transformation** to handle the extreme skewness (6.7). This approach:
-- Preserves all data points for inference
-- Maintains model generalizability for new high-value products
-- Transforms the distribution to be more suitable for modeling
+# See all available strategies
+python run_pipeline.py --list-strategies
 
-#### Why Log Transformation?
-
-**Benefits:**
-- Reduces skewness dramatically
-- Preserves all data points
-- Maintains relative relationships
-- Production-ready for new data
-
-**Mathematical Intuition:**
-The log transformation works because:
-- **Compresses Large Values**: $5000 becomes log(5001) ≈ 8.5
-- **Expands Small Values**: $5 becomes log(6) ≈ 1.8
-- **Preserves Order**: If A > B, then log(A) > log(B)
-- **Handles Zero**: log1p(0) = 0
-
-**Autoencoder Benefits:**
-With log-transformed data:
-- **Better Reconstruction**: Model can reconstruct both small and large amounts with similar precision
-- **Stable Training**: Gradients are more stable across the value range
-- **Improved Anomaly Detection**: Fraudulent transactions stand out more clearly against the normalized background
-- **Faster Convergence**: Training completes in fewer epochs
-
-**Production Considerations:**
-The log transformation is also production-friendly because:
-- **Invertible**: We can transform back to original scale if needed
-- **Consistent**: Same transformation applied to training and inference
-- **Robust**: Handles new extreme values gracefully
-- **Interpretable**: Log-scale differences represent multiplicative relationships
-
-This is why our model achieves 94.8% accuracy with good precision and recall - the log transformation makes the autoencoder's job much easier!
-
-![Transaction Amount Skewness Analysis](docs/transaction_amount_skewness_analysis.png)
-
-![Transaction Amount Analysis](docs/transaction_amount_analysis.png)
-
-### 2. Customer Age Analysis
-
-```python
-# Age Distribution
-Mean age: 34.6 years
-Median age: 35.0 years
-Range: -2.0 to 73.0 years
-
-# Data Quality Issues
-Found 331 transactions with unrealistic ages (negative or >100)
+# Run the full feature sweep (tests all strategies)
+python sweep_features.py
 ```
 
-**Decision**: Filter to customers 18+ years old and clip to 18-100 range
-- **Rationale**: Customers under 18 can be issued debit cards but present different fraud patterns.
-Also we would need to make sure they signed a user agreement to use their data. Since this is just a portfolio project I'll
-just remove any row where the user is under 18 years.
-- **Impact**: Ensures data quality for production
-- **Business Value**: Focuses on adult customers with more predictable fraud patterns
+### Available Strategies
 
-![Customer Age Analysis](docs/customer_age_analysis.png)
+| Strategy | Description | Features |
+|----------|-------------|----------|
+| `baseline` | Core transaction features only | 9 features |
+| `temporal` | Basic features + temporal patterns | 10 features |
+| `behavioural` | Core features + amount per item | 10 features |
+| `demographic_risk` | Core features + age risk scores | 10 features |
+| `combined` | All unique features from all strategies | 12 features |
 
-
-**Note**: Customers aged 13-17 can be issued debit cards, but these cards are more likely to be stolen or lost at school, presenting a different fraud detection challenge. For this portfolio piece, we focus on adult customers (18+) to simplify the fraud detection model.
-
-### 3. Payment Method Analysis
-
-```python
-# Distribution
-debit card: 25.2% (4.79% fraud rate)
-credit card: 25.1% (5.08% fraud rate)
-PayPal: 25.0% (5.26% fraud rate)
-bank transfer: 24.8% (5.56% fraud rate)
-```
-
-**Decision**: Keep all payment methods in the model
-- **Rationale**: Different payment methods have different fraud patterns
-- **Impact**: Model can learn payment-specific fraud signals
-- **Business Value**: Captures nuanced fraud patterns across payment types
-
-![Payment Method Analysis](docs/payment_method_analysis.png)
-
-### 4. Temporal Patterns
-
-```python
-# High Fraud Hours (>8% fraud rate)
-Hours 0, 1, 2, 3, 4, 5 (early morning)
-Most common transaction hour: 0 (midnight)
-```
-
-**Decision**: Create time-based features
-- **Rationale**: Fraud patterns vary by time of day
-- **Impact**: Model can learn temporal fraud patterns
-- **Business Value**: Enables real-time fraud detection based on time patterns
-
-![Temporal Patterns](docs/temporal_patterns.png)
-
-### 5. Location Analysis
-
-```python
-# Geographic Distribution
-Unique locations: 14,868
-Most common: North Michael (30 transactions)
-High fraud locations: Multiple locations with 100% fraud rate
-```
-
-**Decision**: Use frequency encoding for customer locations
-- **Rationale**: Too many unique locations for one-hot encoding
-- **Impact**: Captures location popularity as a fraud signal
-- **Business Value**: Handles high cardinality while preserving geographic patterns
-
-## Dataset Summary
-
-![Dataset Summary](docs/dataset_summary.png)
-
-## Feature Engineering Strategy
-
-Based on our EDA, we implement the following feature engineering approach:
-
-### 1. Transaction Features
-- Log and sqrt transformations of transaction amount
-- Amount per item (amount/quantity)
-- Quantity squared
-
-### 2. Customer Features
-- Age bins (0-25, 26-35, 36-50, 50+)
-- Account age in years
-- Age to account age ratio
-
-### 3. Time Features
-- Hour bins (0-6, 7-12, 13-18, 19-24)
-- Night transaction flag (10 PM - 6 AM)
-
-### 4. Interaction Features
-- Amount × Age interaction
-- Amount × Quantity interaction
-- Amount × Payment method interactions
-
-### 5. Encoding Strategy
-- Label encoding for low-cardinality categoricals
-- Frequency encoding for high-cardinality categoricals
-
-## Data Cleaning Pipeline
-
-### Columns Removed
-- **Transaction ID**: Unique identifier, not useful for modeling
-- **Customer ID**: Unique identifier, not useful for modeling
-- **IP Address**: Privacy concern, too many unique values
-- **Shipping/Billing Address**: Privacy concern, too many unique values
-- **Transaction Date**: Will be replaced by derived time features
-
-### Data Quality Improvements
--  No missing values found
--  Robust scaling and log transformation for transaction amounts
--  Filtered to customers 18+ years old
--  Capped quantities at 99th percentile
--  Clipped account ages to max 10 years
--  Ensured transaction hours in 0-23 range
-
-### Final Dataset
-- **Shape**: 22,580 rows × 11 columns
-- **Memory**: 2.0 MB (optimized)
-- **Data Types**: 2 float64, 8 int64, 1 object
-- **Encoding**: Label encoding for categoricals, frequency encoding for locations
-
-## Production Considerations
-
-### Model Selection
-- **Autoencoder**: For anomaly detection (good for imbalanced data)
-- **Random Forest**: For interpretability
-- **Ensemble Approach**: Consider combining multiple models
-
-### Evaluation Metrics
-- **Primary**: Precision, Recall, F1-score (not just accuracy)
-- **Secondary**: ROC AUC for model comparison
-- **Business**: False positive rate monitoring
-
-### Deployment Strategy
-- Real-time scoring capability
-- Model interpretability for business stakeholders
-- Regular model retraining schedule
-- Comprehensive logging and monitoring
-
-## Project Architecture
+### Example Output
 
 ```
-data/
- raw/                    # Original dataset
- ingested/              # Processed raw data
- cleaned/               # Cleaned dataset
- processed/             # Feature-engineered data
+FEATURE SWEEP RESULTS
+================================================================================
+Strategy             Status     ROC AUC    Notes                          
+--------------------------------------------------------------------------------
+combined             ✅ SUCCESS 0.6511     Success                        
+behavioural          ✅ SUCCESS 0.6235     Success                        
+demographic_risk     ✅ SUCCESS 0.6164     Success                        
+temporal             ✅ SUCCESS 0.6119     Success                        
+baseline             ✅ SUCCESS 0.5954     Success                        
 
+🏆 BEST PERFORMING STRATEGY: combined
+   ROC AUC: 0.6511
+   Improvement over baseline: +9.36%
+```
+
+## 🏛️ Architecture
+
+### System Overview
+
+The project follows a modular, production-ready architecture designed for scalability and maintainability:
+
+```
 src/
- ingest_data.py         # Data ingestion
- data_cleaning.py       # Data cleaning pipeline
- feature_engineering.py # Feature creation
- feature_factory.py     # Feature orchestration
- autoencoder.py         # Autoencoder model
- train.py              # Training pipeline
- evaluate.py           # Model evaluation
- config.py             # Configuration management
+├── config.py          # Configuration management
+├── data/              # Data cleaning and processing
+├── feature_factory/   # Strategy pattern for feature engineering
+├── models/            # Autoencoder implementation
+└── evaluation/        # Model evaluation and metrics
 ```
 
-## Usage
+### Key Design Patterns
 
-### Running the Pipeline
+1. **Strategy Pattern**: Feature engineering strategies
+2. **Factory Pattern**: Configuration and feature strategy creation
+3. **Pipeline Pattern**: Sequential data processing steps
+4. **Configuration Pattern**: Centralized settings management
+5. **Observer Pattern**: Logging and monitoring throughout pipeline
+
+### Configuration Management
+
+The heart of the system is a sophisticated configuration system that manages everything from data paths to model hyperparameters:
+
+```python
+@dataclass
+class PipelineConfig:
+    """Main pipeline configuration."""
+    name: str
+    description: str
+    feature_strategy: str
+    data: DataConfig
+    model: ModelConfig
+    features: FeatureConfig
+    
+    @classmethod
+    def get_config(cls, strategy: str) -> 'PipelineConfig':
+        """Get configuration by strategy name."""
+        if strategy == "baseline":
+            return cls.get_baseline_config()
+        elif strategy == "temporal":
+            return cls.get_temporal_config()
+        elif strategy == "behavioural":
+            return cls.get_behavioural_config()
+        elif strategy == "demographic_risk":
+            return cls.get_demographic_risk_config()
+        elif strategy == "combined":
+            return cls.get_combined_config()
+        else:
+            raise ValueError(f"Unknown strategy: {strategy}")
+```
+
+**Why This Design?** I wanted to make experiments reproducible and configurable. Each strategy has its own factory method, making it easy to version-control different experimental setups.
+
+### Feature Factory Pattern
+
+The feature engineering system uses the **Strategy Pattern** to make it easy to experiment with different feature combinations:
+
+```python
+class FeatureEngineer(ABC):
+    """Abstract base class for feature engineering strategies."""
+    
+    @abstractmethod
+    def generate_features(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Generate features for the given dataset."""
+        pass
+    
+    @abstractmethod
+    def get_feature_info(self) -> Dict[str, Any]:
+        """Get information about the features generated."""
+        pass
+
+
+class FeatureFactory:
+    """Factory for creating feature engineering strategies."""
+    
+    STRATEGY_CLASSES = {
+        "baseline": BaselineFeatures,
+        "temporal": TemporalFeatures,
+        "behavioural": BehaviouralFeatures,
+        "demographic_risk": DemographicRiskFeatures,
+        "combined": CombinedFeatures
+    }
+    
+    @classmethod
+    def create(cls, strategy_name: str) -> FeatureEngineer:
+        """Create a feature engineering strategy."""
+        return cls.STRATEGY_CLASSES[strategy_name]()
+```
+
+**Why This Pattern?** It makes adding new feature strategies trivial. Want to test a new behavioral feature? Just implement the interface and add it to the factory.
+
+### Pipeline Workflow
+
+The main pipeline (`run_pipeline.py`) orchestrates the entire fraud detection workflow:
+
+```python
+def run_pipeline(strategy: str):
+    """Run the complete fraud detection pipeline with given strategy."""
+    
+    # 1. Load configuration
+    config = PipelineConfig.get_config(strategy)
+    
+    # 2. Data cleaning
+    cleaner = DataCleaner(config)
+    df_cleaned = cleaner.clean_data(save_output=True)
+    
+    # 3. Feature engineering
+    feature_engineer = FeatureFactory.create(config.feature_strategy)
+    df_features = feature_engineer.generate_features(df_cleaned)
+    
+    # 4. Model training
+    autoencoder = BaselineAutoencoder(config)
+    results = autoencoder.train()
+    
+    return results
+```
+
+Each step is isolated and can be tested independently, making the system robust and maintainable.
+
+## 📈 Results
+
+### Dataset Overview
+
+We're working with **23,634 e-commerce transactions** where about 5.17% are fraudulent (1,222 fraudulent vs 22,412 legitimate). This imbalance makes it a perfect candidate for anomaly detection.
+
+![Dataset Summary](./docs/dataset_summary.png)
+
+### Data Quality Decisions
+
+#### Customer Age Filtering
+**The Problem**: Some customers had unrealistic ages (like 5-year-olds making purchases).
+**The Decision**: Filtered to customers 18+ years old.
+**Legal Reasoning**: Users under 18 cannot legally agree to user agreements and terms of service, making their transactions potentially invalid from a legal standpoint.
+**Impact**: Focused on adult customers with predictable fraud patterns, removing 1,054 unrealistic transactions. For now, we're dropping under-18 users and will consult with management on how they want to handle this demographic.
+
+![Customer Age Analysis](./docs/customer_age_analysis.png)
+
+#### Transaction Amount Handling
+**The Problem**: Transaction amounts were heavily skewed (skewness of 6.7).
+**The Decision**: Used log transformation instead of capping.
+**Why It Worked**: Capping would break generalizability for new high-value products. Log transformation reduced skewness to -0.228 while preserving the ability to handle new products.
+
+![Transaction Amount Analysis](./docs/transaction_amount_analysis.png)
+![Transaction Amount Skewness](./docs/transaction_amount_skewness_analysis.png)
+
+#### Feature Selection Strategy
+**The Problem**: Some columns looked useful but were actually noise.
+**The Decision**: Removed 5 columns (Transaction ID, Customer ID, IP Address, Shipping/Billing Address) because they contained all unique values.
+**Why It Worked**: Reduced noise and improved model convergence.
+
+![Missing Values Analysis](./docs/missing_values.png)
+
+### Feature Sweep Performance
+
+Our systematic testing revealed that combining all feature strategies provides the best performance:
+
+| Strategy | ROC AUC | Improvement | What It Tests |
+|----------|---------|-------------|---------------|
+| **Combined** | **0.6511** | **+9.36%** | All features together |
+| Behavioural | 0.6235 | +4.72% | Purchase behavior patterns |
+| Demographic Risk | 0.6164 | +3.52% | Age-based risk scoring |
+| Temporal | 0.6119 | +2.77% | Time-based patterns |
+| Baseline | 0.5954 | - | Core transaction features |
+
+### Model Performance Visualization
+
+![ROC Curve](./docs/roc_curve.png)
+![PR Curve](./docs/pr_curve.png)
+![Confusion Matrix](./docs/confusion_matrix.png)
+
+### Key Insights
+
+The results show that:
+1. **More features help**: The combined strategy outperforms individual strategies
+2. **Behavioral patterns matter**: Amount per item is a strong fraud indicator
+3. **Time matters**: Night-time transactions are indeed suspicious
+4. **Age matters**: Younger customers show higher fraud risk
+
+### Performance Metrics
+
+- **Best Strategy**: Combined features (ROC AUC: 0.6511)
+- **Improvement over Baseline**: +9.36%
+- **Training Time**: ~1 minute per strategy
+- **Total Features**: 12 unique features
+
+### Temporal Patterns
+
+![Temporal Patterns](./docs/temporal_patterns.png)
+
+### Payment Method Analysis
+
+![Payment Method Analysis](./docs/payment_method_analysis.png)
+
+### Error Distribution
+
+![Error Distribution](./docs/error_distribution.png)
+
+## 🤝 Contributing
+
+This project demonstrates production-ready ML engineering practices. We welcome contributions!
+
+### How to Contribute
+
+1. **Fork the repository**
+2. **Create a feature branch**: `git checkout -b feature/amazing-feature`
+3. **Make your changes**: Add new feature strategies, improve models, or enhance documentation
+4. **Test your changes**: Ensure all tests pass and the pipeline runs successfully
+5. **Submit a pull request**: Describe your changes and their impact
+
+### Areas for Contribution
+
+- **New Feature Strategies**: Implement `FeatureEngineer` interface
+- **Model Improvements**: Enhance the autoencoder architecture
+- **Evaluation Metrics**: Add new performance measures
+- **Documentation**: Improve guides and examples
+- **Performance Optimization**: Speed up the pipeline
+
+### Development Setup
+
 ```bash
-# Run complete pipeline
-python run_pipeline.py
+# Install development dependencies
+pip install -r requirements-dev.txt
 
-# Run individual stages
-python -c "from src.data import DataCleaner; from src.config import PipelineConfig; cleaner = DataCleaner(PipelineConfig()); cleaner.clean_data()"
+# Run tests
+python -m pytest tests/
+
+# Run linting
+flake8 src/
+black src/
 ```
 
-### Testing
+## 🧪 Tests
+
+### Running Tests
+
 ```bash
-# Test data cleaning
-python test_cleaning.py
+# Run all tests
+python -m pytest tests/
 
-# Test feature engineering
-python test_feature_engineering.py
+# Run specific test file
+python -m pytest tests/test_feature_factory.py
+
+# Run with coverage
+python -m pytest --cov=src tests/
 ```
 
-### Creating Visualizations
-```bash
-# Generate all visualizations for the README
-python create_visualizations.py
-```
+### Test Coverage
 
-## Key Insights
+The project includes comprehensive tests for:
+- Feature engineering strategies
+- Configuration management
+- Data cleaning pipeline
+- Model training and evaluation
+- Pipeline orchestration
 
-1. **Fraud Patterns**: Early morning hours (0-5 AM) show highest fraud rates
-2. **Payment Risk**: Bank transfers have slightly higher fraud rates
-3. **Amount Patterns**: Fraudulent transactions tend to be higher value
-4. **Age Issues**: 331 transactions had unrealistic ages (data quality concern)
-5. **Geographic Spread**: Fraud is distributed across many locations
+### Continuous Integration
 
-## Next Steps
+Tests are automatically run on:
+- Pull requests
+- Main branch commits
+- Release tags
 
-1.  Implement data cleaning pipeline
-2.  Create feature engineering pipeline
-3.  Build and evaluate multiple models
-4.  Create model interpretability reports
-5.  Design production deployment strategy
+## 👥 Credits
+
+### Dataset
+- **Source**: [Fraudulent E-commerce Transaction Data](https://www.kaggle.com/datasets/arhamrumi/fraudulent-ecommerce-transaction-data)
+- **License**: CC0 1.0 Universal
+
+### Key Libraries
+- **TensorFlow**: Deep learning framework
+- **Scikit-learn**: Machine learning utilities
+- **Pandas**: Data manipulation
+- **NumPy**: Numerical computing
+
+### Inspiration
+This project was inspired by the need for robust, unsupervised fraud detection systems that can adapt to evolving fraud patterns without requiring labeled fraud examples.
+
+## 📞 Contact
+
+### Get in Touch
+- **Issues**: [GitHub Issues](https://github.com/yourusername/auto-encoder-project/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/yourusername/auto-encoder-project/discussions)
+- **Email**: your.email@example.com
+
+### Support
+For questions about:
+- **Installation**: Check the [Installation](#-installation) section
+- **Usage**: See the [Usage](#-usage) section and examples
+- **Architecture**: Review the [Architecture](#-architecture) documentation
+- **Contributing**: Read the [Contributing](#-contributing) guidelines
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+### License Summary
+- **Permissions**: Commercial use, modification, distribution, private use
+- **Limitations**: Liability, warranty
+- **Conditions**: License and copyright notice
 
 ---
 
-> This project demonstrates a production-ready fraud detection system with comprehensive data cleaning, feature engineering, and model development. The decisions made are based on real-world considerations including privacy, business impact, and model performance. 
+*This project demonstrates that with the right architecture and systematic experimentation, unsupervised learning can be surprisingly effective for fraud detection. The modular design makes it easy to extend and improve as new insights emerge.* 

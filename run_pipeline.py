@@ -81,11 +81,11 @@ def main():
     """Main entry point with CLI argument parsing."""
     parser = argparse.ArgumentParser(description="Fraud Detection Pipeline")
     parser.add_argument(
-        "--strategy", 
-        type=str, 
+        "--strategy",
+        type=str,
         default="baseline",
-        choices=["baseline", "temporal", "behavioural", "account_risk", "demographic_risk", "combined"],
-        help="Feature strategy to use (default: baseline)"
+        choices=["baseline", "temporal", "behavioural", "demographic_risk", "combined"],
+        help="Feature engineering strategy to use"
     )
     parser.add_argument(
         "--list-strategies",
@@ -101,7 +101,6 @@ def main():
         print("  - baseline: Basic transaction features only (9 features)")
         print("  - temporal: Basic features + temporal patterns (10 features)")
         print("  - behavioural: Core features + amount per item (10 features)")
-        print("  - account_risk: Core features + account age risk (newer accounts = higher fraud risk) (10 features)")
         print("  - demographic_risk: Core features + customer age risk scores (10 features)")
         print("  - combined: All unique features from all strategies (no duplicates)")
         return

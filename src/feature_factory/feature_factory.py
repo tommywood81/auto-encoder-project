@@ -28,36 +28,31 @@ class FeatureEngineer(ABC):
 class FeatureFactory:
     """Factory for creating feature engineering strategies."""
     
-    _strategies = {
-        "baseline": "BaselineFeatures",
-        "temporal": "TemporalFeatures", 
-        "behavioural": "BehaviouralFeatures",
-        "account_risk": "AccountRiskFeatures",
-        "demographic_risk": "DemographicRiskFeatures",
-        "combined": "CombinedFeatures"
+    STRATEGY_DESCRIPTIONS = {
+        "baseline": "Basic transaction features only",
+        "temporal": "Basic features + temporal patterns",
+        "behavioural": "Core features + amount per item",
+        "demographic_risk": "Core features + customer age risk scores",
+        "combined": "All unique features from all strategies"
+    }
+    
+    STRATEGY_CLASSES = {
+        "baseline": BaselineFeatures,
+        "temporal": TemporalFeatures,
+        "behavioural": BehaviouralFeatures,
+        "demographic_risk": DemographicRiskFeatures,
+        "combined": CombinedFeatures
     }
     
     @classmethod
     def create(cls, strategy_name: str) -> FeatureEngineer:
         """Create a feature engineering strategy."""
-        if strategy_name not in cls._strategies:
-            raise ValueError(f"Unknown strategy: {strategy_name}. Available: {list(cls._strategies.keys())}")
+        if strategy_name not in cls.STRATEGY_CLASSES:
+            raise ValueError(f"Unknown strategy: {strategy_name}. Available: {list(cls.STRATEGY_CLASSES.keys())}")
         
-        # Import the strategy class dynamically
-        from .strategies import BaselineFeatures, TemporalFeatures, BehaviouralFeatures, AccountRiskFeatures, DemographicRiskFeatures, CombinedFeatures
-        
-        strategy_classes = {
-            "baseline": BaselineFeatures,
-            "temporal": TemporalFeatures,
-            "behavioural": BehaviouralFeatures,
-            "account_risk": AccountRiskFeatures,
-            "demographic_risk": DemographicRiskFeatures,
-            "combined": CombinedFeatures
-        }
-        
-        return strategy_classes[strategy_name]()
+        return cls.STRATEGY_CLASSES[strategy_name]()
     
     @classmethod
     def get_available_strategies(cls) -> list:
         """Get list of available strategies."""
-        return list(cls._strategies.keys()) 
+        return list(cls.STRATEGY_CLASSES.keys()) 

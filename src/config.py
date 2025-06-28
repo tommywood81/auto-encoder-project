@@ -188,48 +188,6 @@ class PipelineConfig:
         )
     
     @classmethod
-    def get_account_risk_config(cls) -> 'PipelineConfig':
-        """Get configuration for account risk strategy."""
-        return cls(
-            name="account_risk",
-            description="Core features + account age risk scores",
-            feature_strategy="account_risk",
-            data=DataConfig(
-                raw_file="data/raw/Fraudulent_E-Commerce_Transaction_Data_2.csv",
-                cleaned_dir="data/cleaned",
-                engineered_dir="data/engineered",
-                models_dir="models",
-                test_size=0.2,
-                random_state=42
-            ),
-            model=ModelConfig(
-                name="autoencoder",
-                hidden_dim=64,
-                latent_dim=32,
-                learning_rate=0.001,
-                epochs=10,
-                batch_size=32,
-                validation_split=0.2,
-                threshold_percentile=95.0,
-                save_model=True
-            ),
-            features=FeatureConfig(
-                transaction_amount=True,
-                customer_age=True,
-                quantity=True,
-                account_age_days=True,
-                payment_method=True,
-                product_category=True,
-                device_used=True,
-                customer_location=True,
-                transaction_amount_log=True,
-                customer_location_freq=True,
-                temporal_features=False,
-                behavioural_features=False
-            )
-        )
-    
-    @classmethod
     def get_demographic_risk_config(cls) -> 'PipelineConfig':
         """Get demographic risk configuration."""
         return cls(
@@ -238,9 +196,6 @@ class PipelineConfig:
             feature_strategy="demographic_risk",
             data=DataConfig(
                 raw_file="data/raw/Fraudulent_E-Commerce_Transaction_Data_2.csv",
-                cleaned_dir="data/cleaned",
-                engineered_dir="data/engineered",
-                models_dir="models",
                 test_size=0.2,
                 random_state=42
             ),
@@ -248,24 +203,10 @@ class PipelineConfig:
                 name="autoencoder",
                 hidden_dim=64,
                 latent_dim=32,
-                learning_rate=0.001,
                 epochs=10,
-                batch_size=32,
-                validation_split=0.2,
-                threshold_percentile=95.0,
-                save_model=True
+                learning_rate=0.001
             ),
             features=FeatureConfig(
-                transaction_amount=True,
-                customer_age=True,
-                quantity=True,
-                account_age_days=True,
-                payment_method=True,
-                product_category=True,
-                device_used=True,
-                customer_location=True,
-                transaction_amount_log=True,
-                customer_location_freq=True,
                 temporal_features=False,
                 behavioural_features=False
             )
@@ -322,14 +263,12 @@ class PipelineConfig:
             return cls.get_temporal_config()
         elif strategy == "behavioural":
             return cls.get_behavioural_config()
-        elif strategy == "account_risk":
-            return cls.get_account_risk_config()
         elif strategy == "demographic_risk":
             return cls.get_demographic_risk_config()
         elif strategy == "combined":
             return cls.get_combined_config()
         else:
-            raise ValueError(f"Unknown strategy: {strategy}. Available: baseline, temporal, behavioural, account_risk, demographic_risk, combined")
+            raise ValueError(f"Unknown strategy: {strategy}. Available: baseline, temporal, behavioural, demographic_risk, combined")
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert config to dictionary for logging."""
