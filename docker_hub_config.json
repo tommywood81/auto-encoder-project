@@ -1,0 +1,6 @@
+{
+  "docker_hub_username": "tommyboy777",
+  "repository_name": "fraud-detection-api",
+  "image_tag": "latest",
+  "description": "AI-powered fraud detection using autoencoders"
+}

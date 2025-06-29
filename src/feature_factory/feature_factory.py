@@ -8,6 +8,15 @@ import pandas as pd
 import numpy as np
 import logging
 
+# Import the feature strategy classes
+from .strategies import (
+    BaselineFeatures,
+    TemporalFeatures,
+    BehaviouralFeatures,
+    DemographicRiskFeatures,
+    CombinedFeatures
+)
+
 logger = logging.getLogger(__name__)
 
 

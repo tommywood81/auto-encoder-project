@@ -1,0 +1,5 @@
+{
+  "droplet_ip": "209.38.89.159",
+  "ssh_user": "root",
+  "docker_tag": "latest"
+}

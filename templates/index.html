@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>E-commerce Fraud Detection</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        .section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #e1e8ed;
+            border-radius: 10px;
+            background: #f8f9fa;
+        }
+
+        .section h2 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+            font-size: 1.5em;
+        }
+
+        .data-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .data-card {
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 15px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .data-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            border-color: #667eea;
+        }
+
+        .data-card.selected {
+            border-color: #667eea;
+            background: #f0f4ff;
+        }
+
+        .data-card h3 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+
+        .feature-list {
+            font-size: 0.9em;
+            color: #666;
+            max-height: 100px;
+            overflow-y: auto;
+        }
+
+        .feature-item {
+            margin-bottom: 5px;
+            padding: 2px 0;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1em;
+            transition: all 0.3s ease;
+        }
+
+        .btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .result-card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 20px;
+            border-left: 4px solid #667eea;
+        }
+
+        .result-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .prediction-badge {
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 0.9em;
+        }
+
+        .prediction-fraud {
+            background: #ff6b6b;
+            color: white;
+        }
+
+        .prediction-legit {
+            background: #51cf66;
+            color: white;
+        }
+
+        .metrics {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .metric {
+            text-align: center;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 6px;
+        }
+
+        .metric-value {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+
+        .metric-label {
+            font-size: 0.8em;
+            color: #666;
+            margin-top: 5px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+
+        .error {
+            background: #ff6b6b;
+            color: white;
+            padding: 15px;
+            border-radius: 6px;
+            margin-top: 15px;
+        }
+
+        .success {
+            background: #51cf66;
+            color: white;
+            padding: 15px;
+            border-radius: 6px;
+            margin-top: 15px;
+        }
+
+        .api-status {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 0.8em;
+            margin-left: 10px;
+        }
+
+        .status-healthy {
+            background: #51cf66;
+            color: white;
+        }
+
+        .status-error {
+            background: #ff6b6b;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🛡️ E-commerce Fraud Detection</h1>
+            <p>AI-powered anomaly detection using Autoencoders</p>
+            <div id="api-status" class="api-status status-error">API: Checking...</div>
+        </div>
+
+        <div class="content">
+            <div class="section">
+                <h2>📊 Test Data Points</h2>
+                <p>Select a transaction from the test dataset to analyze for fraud detection:</p>
+                <div id="data-grid" class="data-grid">
+                    <div class="loading">Loading test data...</div>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2>🔍 Fraud Analysis</h2>
+                <button id="analyze-btn" class="btn" disabled>Analyze Selected Transaction</button>
+                <div id="result-container"></div>
+            </div>
+
+            <div class="section">
+                <h2>📈 Model Information</h2>
+                <div id="model-info">Loading model information...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = window.location.origin;
+        let selectedDataPoint = null;
+        let testData = [];
+
+        // Check API health
+        async function checkApiHealth() {
+            try {
+                const response = await fetch(`${API_BASE}/health`);
+                const data = await response.json();
+                const statusEl = document.getElementById('api-status');
+                
+                if (data.model_loaded) {
+                    statusEl.textContent = 'API: Healthy';
+                    statusEl.className = 'api-status status-healthy';
+                } else {
+                    statusEl.textContent = 'API: Model Loading';
+                    statusEl.className = 'api-status status-error';
+                }
+            } catch (error) {
+                const statusEl = document.getElementById('api-status');
+                statusEl.textContent = 'API: Error';
+                statusEl.className = 'api-status status-error';
+            }
+        }
+
+        // Load test data
+        async function loadTestData() {
+            try {
+                const response = await fetch(`${API_BASE}/test-data`);
+                const data = await response.json();
+                
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                
+                testData = data.test_data;
+                renderTestData();
+            } catch (error) {
+                document.getElementById('data-grid').innerHTML = 
+                    `<div class="error">Error loading test data: ${error.message}</div>`;
+            }
+        }
+
+        // Render test data cards
+        function renderTestData() {
+            const grid = document.getElementById('data-grid');
+            grid.innerHTML = '';
+            
+            testData.forEach((dataPoint, index) => {
+                const card = document.createElement('div');
+                card.className = 'data-card';
+                card.onclick = () => selectDataPoint(index);
+                
+                const features = Object.entries(dataPoint.features)
+                    .slice(0, 5) // Show first 5 features
+                    .map(([key, value]) => `${key}: ${value}`)
+                    .join('<br>');
+                
+                card.innerHTML = `
+                    <h3>Transaction #${dataPoint.id}</h3>
+                    <div class="feature-list">
+                        ${features}
+                        ${Object.keys(dataPoint.features).length > 5 ? '<br>...' : ''}
+                    </div>
+                `;
+                
+                grid.appendChild(card);
+            });
+        }
+
+        // Select data point
+        function selectDataPoint(index) {
+            // Remove previous selection
+            document.querySelectorAll('.data-card').forEach(card => {
+                card.classList.remove('selected');
+            });
+            
+            // Add selection to clicked card
+            event.target.closest('.data-card').classList.add('selected');
+            
+            selectedDataPoint = testData[index];
+            document.getElementById('analyze-btn').disabled = false;
+        }
+
+        // Analyze selected transaction
+        async function analyzeTransaction() {
+            if (!selectedDataPoint) return;
+            
+            const btn = document.getElementById('analyze-btn');
+            const container = document.getElementById('result-container');
+            
+            btn.disabled = true;
+            btn.textContent = 'Analyzing...';
+            container.innerHTML = '<div class="loading">Processing transaction...</div>';
+            
+            try {
+                const response = await fetch(`${API_BASE}/predict`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        features: selectedDataPoint.features
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                
+                renderResult(data);
+            } catch (error) {
+                container.innerHTML = `<div class="error">Error: ${error.message}</div>`;
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Analyze Selected Transaction';
+            }
+        }
+
+        // Render prediction result
+        function renderResult(data) {
+            const container = document.getElementById('result-container');
+            const prediction = data.prediction;
+            
+            const confidencePercent = Math.round(prediction.confidence * 100);
+            const anomalyScore = prediction.anomaly_score.toFixed(4);
+            const threshold = prediction.threshold.toFixed(4);
+            
+            container.innerHTML = `
+                <div class="result-card">
+                    <div class="result-header">
+                        <h3>Fraud Detection Result</h3>
+                        <span class="prediction-badge ${prediction.is_fraudulent ? 'prediction-fraud' : 'prediction-legit'}">
+                            ${prediction.is_fraudulent ? '🚨 FRAUDULENT' : '✅ LEGITIMATE'}
+                        </span>
+                    </div>
+                    
+                    <div class="metrics">
+                        <div class="metric">
+                            <div class="metric-value">${confidencePercent}%</div>
+                            <div class="metric-label">Confidence</div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-value">${anomalyScore}</div>
+                            <div class="metric-label">Anomaly Score</div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-value">${threshold}</div>
+                            <div class="metric-label">Threshold</div>
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top: 15px;">
+                        <strong>Analysis:</strong> This transaction has an anomaly score of ${anomalyScore}, 
+                        which is ${prediction.is_fraudulent ? 'above' : 'below'} the threshold of ${threshold}. 
+                        The model is ${confidencePercent}% confident in this prediction.
+                    </div>
+                </div>
+            `;
+        }
+
+        // Load model information
+        async function loadModelInfo() {
+            try {
+                const response = await fetch(`${API_BASE}/model-info`);
+                const data = await response.json();
+                
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                
+                document.getElementById('model-info').innerHTML = `
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                        <div class="metric">
+                            <div class="metric-value">${data.model_type}</div>
+                            <div class="metric-label">Model Type</div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-value">${data.strategy}</div>
+                            <div class="metric-label">Strategy</div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-value">${data.feature_count}</div>
+                            <div class="metric-label">Features</div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-value">${data.threshold ? data.threshold.toFixed(4) : 'N/A'}</div>
+                            <div class="metric-label">Threshold</div>
+                        </div>
+                    </div>
+                `;
+            } catch (error) {
+                document.getElementById('model-info').innerHTML = 
+                    `<div class="error">Error loading model info: ${error.message}</div>`;
+            }
+        }
+
+        // Event listeners
+        document.getElementById('analyze-btn').addEventListener('click', analyzeTransaction);
+
+        // Initialize
+        checkApiHealth();
+        loadTestData();
+        loadModelInfo();
+
+        // Refresh health check every 30 seconds
+        setInterval(checkApiHealth, 30000);
+    </script>
+</body>
+</html> 
