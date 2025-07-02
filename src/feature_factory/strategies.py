@@ -6,9 +6,23 @@ import pandas as pd
 import numpy as np
 import logging
 from typing import Dict, Any
-from .feature_factory import FeatureEngineer
+from abc import ABC, abstractmethod
 
 logger = logging.getLogger(__name__)
+
+
+class FeatureEngineer(ABC):
+    """Abstract base class for feature engineering strategies."""
+    
+    @abstractmethod
+    def generate_features(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Generate features for the given dataset."""
+        pass
+    
+    @abstractmethod
+    def get_feature_info(self) -> Dict[str, Any]:
+        """Get information about the features generated."""
+        pass
 
 
 class BaselineFeatures(FeatureEngineer):
@@ -202,37 +216,67 @@ class DemographicRiskFeatures(FeatureEngineer):
 
 
 class CombinedFeatures(FeatureEngineer):
-    """Combined feature engineering - concatenates all unique features from all strategies."""
+    """Combined feature engineering - all unique features from all strategies."""
+    
     def __init__(self):
         self.feature_info = {
             "strategy": "combined",
-            "description": "All unique features from baseline, temporal, behavioural, and demographic risk.",
+            "description": "All unique features from all strategies",
             "features": {}
         }
-
+    
     def generate_features(self, df: pd.DataFrame) -> pd.DataFrame:
-        logger.info("Generating combined features from all strategies...")
-        # Instantiate each strategy
-        strategies = [
-            BaselineFeatures(),
-            TemporalFeatures(),
-            BehaviouralFeatures(),
-            DemographicRiskFeatures()
-        ]
-        # Generate features for each
-        feature_dfs = [s.generate_features(df) for s in strategies]
-        # Concatenate all columns, avoiding duplicates
-        combined_df = feature_dfs[0].copy()
-        for fdf in feature_dfs[1:]:
-            for col in fdf.columns:
-                if col not in combined_df.columns:
-                    combined_df[col] = fdf[col]
+        """Generate combined features."""
+        logger.info("Generating combined features...")
+        
+        # Start with baseline features
+        baseline = BaselineFeatures()
+        df_features = baseline.generate_features(df)
+        
+        # Add behavioural features
+        behavioural = BehaviouralFeatures()
+        df_behavioural = behavioural.generate_features(df)
+        
+        # Add demographic risk features
+        demographic = DemographicRiskFeatures()
+        df_demographic = demographic.generate_features(df)
+        
+        # Combine all features
+        all_features = set(df_features.columns)
+        all_features.update(df_behavioural.columns)
+        all_features.update(df_demographic.columns)
+        
+        # Remove target column from feature list
+        if 'is_fraudulent' in all_features:
+            all_features.remove('is_fraudulent')
+        
+        # Create final dataframe with all features
+        df_combined = df.copy()
+        
+        # Add behavioural features
+        if 'amount_per_item' in df_behavioural.columns:
+            df_combined['amount_per_item'] = df_behavioural['amount_per_item']
+        
+        # Add demographic risk features
+        if 'customer_age_risk' in df_demographic.columns:
+            df_combined['customer_age_risk'] = df_demographic['customer_age_risk']
+        
+        # Select only the features we want
+        feature_columns = list(all_features)
+        if 'is_fraudulent' in df_combined.columns:
+            feature_columns.append('is_fraudulent')
+        
+        df_final = df_combined[feature_columns].copy()
+        
         # Update feature info
-        all_features = [col for col in combined_df.columns if col != 'is_fraudulent']
-        self.feature_info["features"] = {col: "combined feature" for col in all_features}
+        self.feature_info["features"] = {
+            col: "combined feature" for col in all_features
+        }
         self.feature_info["feature_count"] = len(all_features)
+        
         logger.info(f"Combined features generated: {len(all_features)} features")
-        return combined_df
-
+        return df_final
+    
     def get_feature_info(self) -> Dict[str, Any]:
+        """Get combined feature information."""
         return self.feature_info 

@@ -10,6 +10,7 @@ import logging
 
 # Import the feature strategy classes
 from .strategies import (
+    FeatureEngineer,
     BaselineFeatures,
     TemporalFeatures,
     BehaviouralFeatures,
@@ -18,20 +19,6 @@ from .strategies import (
 )
 
 logger = logging.getLogger(__name__)
-
-
-class FeatureEngineer(ABC):
-    """Abstract base class for feature engineering strategies."""
-    
-    @abstractmethod
-    def generate_features(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Generate features for the given dataset."""
-        pass
-    
-    @abstractmethod
-    def get_feature_info(self) -> Dict[str, Any]:
-        """Get information about the features generated."""
-        pass
 
 
 class FeatureFactory:
