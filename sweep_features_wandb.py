@@ -61,9 +61,9 @@ def train_model_with_strategy(strategy: str, config: Dict, entity: Optional[str]
     Returns:
         Tuple of (success, roc_auc, metrics_dict)
     """
-    logger.info(f"🚀 Starting training with strategy: {strategy}")
-    print(f"   📋 Strategy: {strategy}")
-    print(f"   📊 Description: {STRATEGY_DESCRIPTIONS.get(strategy, 'No description')}")
+    logger.info(f"Starting training with strategy: {strategy}")
+    print(f"   Strategy: {strategy}")
+    print(f"   Description: {STRATEGY_DESCRIPTIONS.get(strategy, 'No description')}")
     
     # Initialize W&B
     wandb_config = config.copy()
@@ -118,12 +118,8 @@ def train_model_with_strategy(strategy: str, config: Dict, entity: Optional[str]
             autoencoder = BaselineAutoencoder(pipeline_config)
             
             # Train the model
-            history = autoencoder.train(
-                X, 
-                epochs=config['model']['epochs'],
-                batch_size=config['model']['batch_size'],
-                validation_split=config['training']['validation_split']
-            )
+            results = autoencoder.train()
+            history = results['history']
             
             # Evaluate model
             from sklearn.metrics import roc_auc_score, precision_score, recall_score, confusion_matrix
@@ -171,15 +167,15 @@ def train_model_with_strategy(strategy: str, config: Dict, entity: Optional[str]
                     "val_loss": history.history.get('val_loss', [0])[epoch] if epoch < len(history.history.get('val_loss', [])) else 0
                 })
             
-            logger.info(f"✅ Strategy {strategy} completed successfully with ROC AUC: {roc_auc:.4f}")
-            print(f"   ✅ SUCCESS: {strategy} - ROC AUC: {roc_auc:.4f}")
+            logger.info(f"Strategy {strategy} completed successfully with ROC AUC: {roc_auc:.4f}")
+            print(f"   SUCCESS: {strategy} - ROC AUC: {roc_auc:.4f}")
             
             return True, roc_auc, metrics
             
     except Exception as e:
         error_msg = f"Training failed for {strategy}: {str(e)}"
         logger.error(error_msg)
-        print(f"   ❌ FAILED: {strategy} - {str(e)}")
+        print(f"   FAILED: {strategy} - {str(e)}")
         return False, 0.0, {}
 
 def run_feature_sweep(entity: Optional[str] = None) -> Dict[str, Tuple[bool, float, Dict]]:
@@ -192,7 +188,7 @@ def run_feature_sweep(entity: Optional[str] = None) -> Dict[str, Tuple[bool, flo
     Returns:
         Dictionary of results for each strategy
     """
-    print("🚀 Starting Feature Sweep with W&B Integration")
+    print("Starting Feature Sweep with W&B Integration")
     print("=" * 80)
     
     # Load baseline configuration
@@ -202,7 +198,7 @@ def run_feature_sweep(entity: Optional[str] = None) -> Dict[str, Tuple[bool, flo
     results = {}
     
     for strategy in STRATEGIES:
-        print(f"\n🍰 Testing Strategy: {strategy}")
+        print(f"\nTesting Strategy: {strategy}")
         print("-" * 60)
         
         success, roc_auc, metrics = train_model_with_strategy(strategy, config, entity)
@@ -243,8 +239,8 @@ def save_best_features_config(results: Dict[str, Tuple[bool, float, Dict]]) -> O
     
     config_loader.update_config("best_features", updates)
     
-    logger.info(f"🏆 Best strategy '{best_strategy}' saved to config (ROC AUC: {best_roc:.4f})")
-    print(f"\n🏆 Best strategy '{best_strategy}' saved to config (ROC AUC: {best_roc:.4f})")
+    logger.info(f"Best strategy '{best_strategy}' saved to config (ROC AUC: {best_roc:.4f})")
+    print(f"\nBest strategy '{best_strategy}' saved to config (ROC AUC: {best_roc:.4f})")
     
     return best_strategy
 
@@ -265,7 +261,7 @@ def print_results(results: Dict[str, Tuple[bool, float, Dict]]):
     print("-" * 80)
     
     for strategy, (success, roc_auc, metrics) in sorted_results:
-        status = "✅ SUCCESS" if success else "❌ FAILED"
+        status = "SUCCESS" if success else "FAILED"
         roc_str = f"{roc_auc:.4f}" if success else "N/A"
         precision_str = f"{metrics.get('precision', 0):.4f}" if success else "N/A"
         recall_str = f"{metrics.get('recall', 0):.4f}" if success else "N/A"
@@ -279,7 +275,7 @@ def print_results(results: Dict[str, Tuple[bool, float, Dict]]):
     
     if successful_results:
         best_strategy, best_roc = successful_results[0]
-        print(f"\n🏆 BEST PERFORMING STRATEGY: {best_strategy}")
+        print(f"\nBEST PERFORMING STRATEGY: {best_strategy}")
         print(f"   ROC AUC: {best_roc:.4f}")
         
         # Compare with baseline
@@ -300,7 +296,7 @@ def print_results(results: Dict[str, Tuple[bool, float, Dict]]):
         else:
             print(f"   Could not compare with baseline (baseline failed)")
     else:
-        print(f"\n❌ No strategies completed successfully!")
+        print(f"\nNo strategies completed successfully!")
 
 def main():
     """Main function to run the feature sweep."""
@@ -327,16 +323,16 @@ def main():
         best_strategy = save_best_features_config(results)
         
         if best_strategy:
-            print(f"\n✅ Feature sweep completed! Best strategy '{best_strategy}' saved to config.")
+            print(f"\nFeature sweep completed! Best strategy '{best_strategy}' saved to config.")
             print(f"   Next step: Run hyperparameter tuning with 'python sweep_parameters_wandb.py'")
         else:
-            print(f"\n❌ Feature sweep failed! No successful strategies found.")
+            print(f"\nFeature sweep failed! No successful strategies found.")
             
     except KeyboardInterrupt:
-        print("\n⚠️ Feature sweep interrupted by user")
+        print("\nFeature sweep interrupted by user")
     except Exception as e:
         logger.error(f"Feature sweep failed: {str(e)}")
-        print(f"\n❌ Feature sweep failed: {str(e)}")
+        print(f"\nFeature sweep failed: {str(e)}")
 
 if __name__ == "__main__":
     main() 

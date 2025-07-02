@@ -41,12 +41,11 @@ def train_final_model(entity: Optional[str] = None) -> bool:
     Returns:
         True if training completed successfully
     """
-    print("🏆 Training Final Model")
-    print("=" * 50)
+    print("Training Final Model")
+    print("=" * 60)
     
     # Load final configuration
     config_loader = ConfigLoader()
-    
     try:
         config = config_loader.load_config("final_config")
     except FileNotFoundError:
@@ -54,16 +53,16 @@ def train_final_model(entity: Optional[str] = None) -> bool:
         config = config_loader.load_config("best_features")
         # Update for final training
         config['model']['epochs'] = 50
-        config['training']['early_stopping_patience'] = 10
+        config['model']['early_stopping'] = True
     
     # Initialize W&B
     wandb_config = config.copy()
-    wandb_config['wandb']['tags'] = ["final_model"]
+    wandb_config['wandb']['tags'] = ["final_model", "production"]
     
     if entity:
         wandb_config['wandb']['entity'] = entity
     
-    run_name = f"final_model_{int(time.time())}"
+    run_name = f"final_model_{wandb_config['model']['latent_dim']}_{wandb_config['model']['learning_rate']}"
     
     try:
         with wandb.init(
@@ -109,22 +108,18 @@ def train_final_model(entity: Optional[str] = None) -> bool:
             # Initialize and train model
             autoencoder = BaselineAutoencoder(pipeline_config)
             
-            print(f"🔧 Training with configuration:")
-            print(f"   Strategy: {strategy}")
-            print(f"   Features: {X.shape[1]}")
-            print(f"   Samples: {X.shape[0]}")
+            print(f"Training with configuration:")
+            print(f"   Latent dim: {config['model']['latent_dim']}")
+            print(f"   Learning rate: {config['model']['learning_rate']}")
             print(f"   Epochs: {config['model']['epochs']}")
             print(f"   Batch size: {config['model']['batch_size']}")
-            print(f"   Learning rate: {config['model']['learning_rate']}")
-            print(f"   Latent dim: {config['model']['latent_dim']}")
+            print(f"   Activation: {config['model']['activation_fn']}")
+            print(f"   Threshold: {config['model']['threshold']}")
+            print(f"   Early stopping: {config['model'].get('early_stopping', False)}")
             
             # Train the model
-            history = autoencoder.train(
-                X, 
-                epochs=config['model']['epochs'],
-                batch_size=config['model']['batch_size'],
-                validation_split=config['training']['validation_split']
-            )
+            results = autoencoder.train()
+            history = results['history']
             
             # Evaluate model
             from sklearn.metrics import roc_auc_score, precision_score, recall_score, confusion_matrix, classification_report
@@ -192,7 +187,13 @@ def train_final_model(entity: Optional[str] = None) -> bool:
             # Save model
             model_path = Path("models/final_model.h5")
             model_path.parent.mkdir(exist_ok=True)
-            autoencoder.save_model(str(model_path))
+            autoencoder.save_model()
+            
+            # Move the saved model to the desired location
+            import shutil
+            default_model_path = Path("models/autoencoder.h5")
+            if default_model_path.exists():
+                shutil.move(str(default_model_path), str(model_path))
             
             # Create model artifact
             artifact = wandb.Artifact(
@@ -218,19 +219,18 @@ def train_final_model(entity: Optional[str] = None) -> bool:
             with open(info_path, 'w') as f:
                 yaml.dump(model_info, f, default_flow_style=False, indent=2)
             
-            print(f"\n✅ Final model training completed successfully!")
-            print(f"   🏆 Best ROC AUC: {roc_auc:.4f}")
-            print(f"   📊 Precision: {precision:.4f}")
-            print(f"   📊 Recall: {recall:.4f}")
-            print(f"   💾 Model saved to: {model_path}")
-            print(f"   📋 Model info saved to: {info_path}")
+            print(f"\nFinal model training completed successfully!")
+            print(f"   Best ROC AUC: {roc_auc:.4f}")
+            print(f"   Precision: {precision:.4f}")
+            print(f"   Recall: {recall:.4f}")
+            print(f"   Model saved to: {model_path}")
+            print(f"   Model info saved to: {info_path}")
             
             return True
             
     except Exception as e:
-        error_msg = f"Final training failed: {str(e)}"
-        logger.error(error_msg)
-        print(f"❌ Final training failed: {str(e)}")
+        logger.error(f"Final training failed: {str(e)}")
+        print(f"Final training failed: {str(e)}")
         return False
 
 def main():
@@ -251,18 +251,18 @@ def main():
         success = train_final_model(args.entity)
         
         if success:
-            print(f"\n🎉 Final model training completed!")
-            print(f"   📊 Check W&B dashboard for detailed results")
-            print(f"   🚀 Model ready for deployment")
+            print(f"\nFinal model training completed!")
+            print(f"   Check W&B dashboard for detailed results")
+            print(f"   Model ready for deployment")
         else:
-            print(f"\n❌ Final model training failed!")
+            print(f"\nFinal model training failed!")
             sys.exit(1)
             
     except KeyboardInterrupt:
-        print("\n⚠️ Final training interrupted by user")
+        print("\nFinal training interrupted by user")
     except Exception as e:
         logger.error(f"Final training failed: {str(e)}")
-        print(f"\n❌ Final training failed: {str(e)}")
+        print(f"\nFinal training failed: {str(e)}")
         sys.exit(1)
 
 if __name__ == "__main__":

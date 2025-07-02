@@ -43,7 +43,7 @@ def train_model_with_config(config: Dict, entity: Optional[str] = None, stage: s
     Returns:
         Tuple of (success, roc_auc, metrics_dict)
     """
-    logger.info(f"🚀 Starting training with stage: {stage}")
+    logger.info(f"Starting training with stage: {stage}")
     
     # Initialize W&B
     wandb_config = config.copy()
@@ -99,12 +99,8 @@ def train_model_with_config(config: Dict, entity: Optional[str] = None, stage: s
             autoencoder = BaselineAutoencoder(pipeline_config)
             
             # Train the model
-            history = autoencoder.train(
-                X, 
-                epochs=config['model']['epochs'],
-                batch_size=config['model']['batch_size'],
-                validation_split=config['training']['validation_split']
-            )
+            results = autoencoder.train()
+            history = results['history']
             
             # Evaluate model
             from sklearn.metrics import roc_auc_score, precision_score, recall_score, confusion_matrix
@@ -124,7 +120,7 @@ def train_model_with_config(config: Dict, entity: Optional[str] = None, stage: s
             recall = recall_score(y, binary_predictions, zero_division=0)
             
             # Find best epoch
-            best_epoch = np.argmin(history.history['loss'])
+            best_epoch = np.argmin(history['loss'])
             
             # Log metrics
             metrics = {
@@ -133,8 +129,8 @@ def train_model_with_config(config: Dict, entity: Optional[str] = None, stage: s
                 "recall": recall,
                 "threshold": threshold,
                 "best_epoch": best_epoch,
-                "final_loss": history.history['loss'][-1],
-                "best_loss": history.history['loss'][best_epoch]
+                "final_loss": history['loss'][-1],
+                "best_loss": history['loss'][best_epoch]
             }
             
             wandb.log(metrics)
@@ -150,14 +146,14 @@ def train_model_with_config(config: Dict, entity: Optional[str] = None, stage: s
             })
             
             # Log training history
-            for epoch in range(len(history.history['loss'])):
+            for epoch in range(len(history['loss'])):
                 wandb.log({
                     "epoch": epoch,
-                    "loss": history.history['loss'][epoch],
-                    "val_loss": history.history.get('val_loss', [0])[epoch] if epoch < len(history.history.get('val_loss', [])) else 0
+                    "loss": history['loss'][epoch],
+                    "val_loss": history.get('val_loss', [0])[epoch] if epoch < len(history.get('val_loss', [])) else 0
                 })
             
-            logger.info(f"✅ Training completed successfully with ROC AUC: {roc_auc:.4f}")
+            logger.info(f"Training completed successfully with ROC AUC: {roc_auc:.4f}")
             
             return True, roc_auc, metrics
             
@@ -176,7 +172,7 @@ def run_broad_sweep(entity: Optional[str] = None) -> List[Tuple[Dict, float]]:
     Returns:
         List of (config, roc_auc) tuples sorted by performance
     """
-    print("🔧 Stage 2.1: Broad Hyperparameter Sweep")
+    print("Stage 2.1: Broad Hyperparameter Sweep")
     print("=" * 60)
     
     # Load best features configuration
@@ -186,7 +182,7 @@ def run_broad_sweep(entity: Optional[str] = None) -> List[Tuple[Dict, float]]:
     # Define hyperparameter combinations
     hyperparams = {
         'latent_dim': [8, 16, 32],
-        'learning_rate': [0.001, 0.0005],
+        'learning_rate': [0.01, 0.005, 0.001],  # Increased learning rates
         'activation_fn': ['relu', 'leaky_relu'],
         'batch_size': [64, 128],
         'threshold': [90, 95]
@@ -203,12 +199,12 @@ def run_broad_sweep(entity: Optional[str] = None) -> List[Tuple[Dict, float]]:
     values = list(hyperparams.values())
     
     total_combinations = len(list(itertools.product(*values)))
-    print(f"🍰 Testing {total_combinations} hyperparameter combinations...")
+    print(f"Testing {total_combinations} hyperparameter combinations...")
     
     for i, combination in enumerate(itertools.product(*values)):
         param_dict = dict(zip(keys, combination))
         
-        print(f"\n🔧 Combination {i+1}/{total_combinations}: {param_dict}")
+        print(f"\nCombination {i+1}/{total_combinations}: {param_dict}")
         
         # Update config with current hyperparameters
         test_config = config.copy()
@@ -220,9 +216,9 @@ def run_broad_sweep(entity: Optional[str] = None) -> List[Tuple[Dict, float]]:
         
         if success:
             results.append((test_config, roc_auc))
-            print(f"   ✅ ROC AUC: {roc_auc:.4f}")
+            print(f"   ROC AUC: {roc_auc:.4f}")
         else:
-            print(f"   ❌ Failed")
+            print(f"   Failed")
         
         # Small delay between runs
         time.sleep(1)
@@ -230,60 +226,60 @@ def run_broad_sweep(entity: Optional[str] = None) -> List[Tuple[Dict, float]]:
     # Sort by ROC AUC (descending)
     results.sort(key=lambda x: x[1], reverse=True)
     
-    print(f"\n🏆 Broad sweep completed! Top 10 results:")
+    print(f"\nBroad sweep completed! Top 10 results:")
     for i, (config, roc_auc) in enumerate(results[:10]):
         print(f"   {i+1}. ROC AUC: {roc_auc:.4f} - {config['model']}")
     
     return results
 
-def run_refined_sweep(top_configs: List[Tuple[Dict, float]], entity: Optional[str] = None) -> List[Tuple[Dict, float]]:
+def run_refined_sweep(broad_results: List[Tuple[Dict, float]], entity: Optional[str] = None) -> List[Tuple[Dict, float]]:
     """
     Run refined hyperparameter sweep (Stage 2.2).
     
     Args:
-        top_configs: Top configurations from broad sweep
+        broad_results: Results from broad sweep
         entity: W&B entity (username/team)
         
     Returns:
         List of (config, roc_auc) tuples sorted by performance
     """
-    print("\n🔧 Stage 2.2: Refined Hyperparameter Sweep")
+    print("\nStage 2.2: Refined Hyperparameter Sweep")
     print("=" * 60)
     
-    # Take top 10 configurations
-    top_10 = top_configs[:10]
+    # Take top 10 from broad sweep
+    top_10 = broad_results[:10]
     
-    print(f"🍰 Testing top {len(top_10)} configurations with 15 epochs...")
+    # Increase epochs for refined sweep
+    config = broad_results[0][0].copy()
+    config['model']['epochs'] = 15
     
-    results = []
+    print(f"Testing top {len(top_10)} configurations with 15 epochs...")
     
-    for i, (config, _) in enumerate(top_10):
-        print(f"\n🔧 Testing configuration {i+1}/{len(top_10)}")
+    refined_results = []
+    
+    for i, (test_config, _) in enumerate(top_10):
+        print(f"\nTesting configuration {i+1}/{len(top_10)}")
         
-        # Update epochs for refined sweep
-        test_config = config.copy()
-        test_config['model']['epochs'] = 15
-        
-        # Train model
+        # Train model with more epochs
         success, roc_auc, metrics = train_model_with_config(test_config, entity, "refined")
         
         if success:
-            results.append((test_config, roc_auc))
-            print(f"   ✅ ROC AUC: {roc_auc:.4f}")
+            refined_results.append((test_config, roc_auc))
+            print(f"   ROC AUC: {roc_auc:.4f}")
         else:
-            print(f"   ❌ Failed")
+            print(f"   Failed")
         
         # Small delay between runs
         time.sleep(1)
     
     # Sort by ROC AUC (descending)
-    results.sort(key=lambda x: x[1], reverse=True)
+    refined_results.sort(key=lambda x: x[1], reverse=True)
     
-    print(f"\n🏆 Refined sweep completed! Top 3 results:")
-    for i, (config, roc_auc) in enumerate(results[:3]):
+    print(f"\nRefined sweep completed! Top 3 results:")
+    for i, (config, roc_auc) in enumerate(refined_results[:3]):
         print(f"   {i+1}. ROC AUC: {roc_auc:.4f} - {config['model']}")
     
-    return results
+    return refined_results
 
 def run_final_training(top_configs: List[Tuple[Dict, float]], entity: Optional[str] = None) -> Tuple[Dict, float]:
     """
@@ -296,51 +292,55 @@ def run_final_training(top_configs: List[Tuple[Dict, float]], entity: Optional[s
     Returns:
         Tuple of (best_config, best_roc_auc)
     """
-    print("\n🔧 Stage 2.3: Final Training")
+    print("\nStage 2.3: Final Training")
     print("=" * 60)
     
-    # Take top 3 configurations
+    # Take top 3 from refined sweep
     top_3 = top_configs[:3]
     
-    print(f"🍰 Final training with top {len(top_3)} configurations (50 epochs + early stopping)...")
+    # Increase epochs for final training
+    config = top_configs[0][0].copy()
+    config['model']['epochs'] = 50
+    config['model']['early_stopping'] = True
+    
+    print(f"Final training with top {len(top_3)} configurations (50 epochs + early stopping)...")
     
     best_config = None
-    best_roc_auc = 0.0
+    best_roc = 0.0
     
-    for i, (config, _) in enumerate(top_3):
-        print(f"\n🔧 Final training {i+1}/{len(top_3)}")
+    for i, (test_config, _) in enumerate(top_3):
+        print(f"\nFinal training {i+1}/{len(top_3)}")
         
-        # Update config for final training
-        test_config = config.copy()
-        test_config['model']['epochs'] = 50
-        test_config['training']['early_stopping_patience'] = 10
-        
-        # Train model
+        # Train model with full epochs and early stopping
         success, roc_auc, metrics = train_model_with_config(test_config, entity, "final")
         
-        if success and roc_auc > best_roc_auc:
-            best_config = test_config
-            best_roc_auc = roc_auc
-            print(f"   🏆 New best! ROC AUC: {roc_auc:.4f}")
-        elif success:
-            print(f"   ✅ ROC AUC: {roc_auc:.4f}")
+        if success:
+            if roc_auc > best_roc:
+                best_roc = roc_auc
+                best_config = test_config
+                print(f"   New best! ROC AUC: {roc_auc:.4f}")
+            else:
+                print(f"   ROC AUC: {roc_auc:.4f}")
         else:
-            print(f"   ❌ Failed")
+            print(f"   Failed")
         
         # Small delay between runs
         time.sleep(1)
     
     if best_config:
-        print(f"\n🏆 Final training completed! Best configuration:")
-        print(f"   ROC AUC: {best_roc_auc:.4f}")
-        print(f"   Config: {best_config['model']}")
+        print(f"\nFinal training completed! Best configuration:")
+        print(f"   ROC AUC: {best_roc:.4f}")
+        print(f"   Configuration: {best_config['model']}")
         
         # Save best configuration
         config_loader = ConfigLoader()
-        config_loader.save_config(best_config, "final_config")
-        print(f"   💾 Best configuration saved to configs/final_config.yaml")
-    
-    return best_config, best_roc_auc
+        config_loader.update_config("final_config", {"model": best_config['model']})
+        print(f"   Best configuration saved to configs/final_config.yaml")
+        
+        return best_config, best_roc
+    else:
+        print(f"\nFinal training failed! No successful configurations.")
+        return None, 0.0
 
 def main():
     """Main function to run the hyperparameter sweep."""
@@ -385,17 +385,18 @@ def main():
             best_config, best_roc_auc = run_final_training(refined_results, args.entity)
             
             if best_config:
-                print(f"\n✅ Hyperparameter sweep completed!")
+                print(f"\nHyperparameter sweep completed!")
                 print(f"   Best ROC AUC: {best_roc_auc:.4f}")
-                print(f"   Next step: Train final model with 'python train_final_model.py'")
+                print(f"   Best configuration saved to configs/final_config.yaml")
+                print(f"   Next step: Run final training with 'python train_final_model.py'")
             else:
-                print(f"\n❌ Hyperparameter sweep failed! No successful configurations.")
+                print(f"\nHyperparameter sweep failed! No successful configurations.")
                 
     except KeyboardInterrupt:
-        print("\n⚠️ Hyperparameter sweep interrupted by user")
+        print("\nHyperparameter sweep interrupted by user")
     except Exception as e:
         logger.error(f"Hyperparameter sweep failed: {str(e)}")
-        print(f"\n❌ Hyperparameter sweep failed: {str(e)}")
+        print(f"\nHyperparameter sweep failed: {str(e)}")
 
 if __name__ == "__main__":
     main() 

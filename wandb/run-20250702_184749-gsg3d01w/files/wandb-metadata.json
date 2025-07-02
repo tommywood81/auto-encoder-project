@@ -1,0 +1,42 @@
+{
+  "os": "Windows-10-10.0.26100-SP0",
+  "python": "CPython 3.11.3",
+  "startedAt": "2025-07-02T08:47:49.250020Z",
+  "args": [
+    "--entity",
+    "tommywood81-fractal-dynamics"
+  ],
+  "program": "C:\\Users\\tommy\\projects\\auto-encoder-project\\sweep_parameters_wandb.py",
+  "codePath": "sweep_parameters_wandb.py",
+  "codePathLocal": "sweep_parameters_wandb.py",
+  "git": {
+    "remote": "https://github.com/tommywood81/auto-encoder-project.git",
+    "commit": "d0a19a5123b296cddc89e7e5ce6ef31f1238a67c"
+  },
+  "email": "tommywood81@gmail.com",
+  "root": "C:\\Users\\tommy\\projects\\auto-encoder-project",
+  "host": "LAPTOP-U7F1NDJK",
+  "executable": "C:\\Users\\tommy\\projects\\auto-encoder-project\\env\\Scripts\\python.exe",
+  "cpu_count": 4,
+  "cpu_count_logical": 8,
+  "gpu": "GeForce GTX 1650",
+  "gpu_count": 1,
+  "disk": {
+    "/": {
+      "total": "254855344128",
+      "used": "237503578112"
+    }
+  },
+  "memory": {
+    "total": "34188873728"
+  },
+  "gpu_nvidia": [
+    {
+      "name": "GeForce GTX 1650",
+      "architecture": "Turing",
+      "uuid": "GPU-1fae71aa-5bd3-0913-de7a-02c43e0b27b4"
+    }
+  ],
+  "cudaVersion": "11.0",
+  "writerId": "eqlw9wxpl8ay9nr2zf38q87vked1zfqj"
+}

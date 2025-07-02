@@ -1,3 +1,6 @@
+python.exe train_final_model.py 
+ python main_controller.py --entity tommywood81-fractal-dynamics --force-hyperparam
+
 # E-commerce Fraud Detection with Autoencoders
 
 > **Can we catch fraudsters using only normal transaction patterns?** 

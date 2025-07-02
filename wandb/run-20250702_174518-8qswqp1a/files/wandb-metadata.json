@@ -1,0 +1,21 @@
+{
+  "os": "Windows-10-10.0.26100-SP0",
+  "python": "CPython 3.11.3",
+  "startedAt": "2025-07-02T07:45:18.688555Z",
+  "args": [
+    "--entity",
+    "tommywood81-fractal-dynamics"
+  ],
+  "program": "C:\\Users\\tommy\\projects\\auto-encoder-project\\sweep_features_wandb.py",
+  "codePath": "sweep_features_wandb.py",
+  "codePathLocal": "sweep_features_wandb.py",
+  "git": {
+    "remote": "https://github.com/tommywood81/auto-encoder-project.git",
+    "commit": "d0a19a5123b296cddc89e7e5ce6ef31f1238a67c"
+  },
+  "email": "tommywood81@gmail.com",
+  "root": "C:\\Users\\tommy\\projects\\auto-encoder-project",
+  "host": "LAPTOP-U7F1NDJK",
+  "executable": "C:\\Users\\tommy\\projects\\auto-encoder-project\\env\\Scripts\\python.exe",
+  "writerId": "w84o8cceygkd5uiwbgg9y05yy2v5rwhm"
+}

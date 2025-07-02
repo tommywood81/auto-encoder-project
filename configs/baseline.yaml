@@ -1,10 +1,10 @@
 # Baseline Autoencoder Configuration
 model:
   latent_dim: 16
-  learning_rate: 0.001
+  learning_rate: 0.01  # Increased from 0.001
   activation_fn: "relu"
   batch_size: 128
-  epochs: 10
+  epochs: 5
   threshold: 95
 
 features:

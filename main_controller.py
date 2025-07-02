@@ -35,13 +35,20 @@ logger = logging.getLogger(__name__)
 class ExperimentController:
     """Main controller for orchestrating experiments."""
     
-    def __init__(self, entity: Optional[str] = None, project: str = "fraud-detection-autoencoder"):
-        self.entity = entity
-        self.project = project
+    def __init__(self, entity: Optional[str] = None):
+        """
+        Initialize the experiment controller.
+        
+        Args:
+            entity: W&B entity (team/organization name). 
+                   Defaults to 'tommywood81-fractal-dynamics' for your team.
+        """
+        self.entity = entity or "tommywood81-fractal-dynamics"  # Use team name by default
+        self.project = "fraud-detection-autoencoder"
         self.config_loader = ConfigLoader()
         
         # Set W&B project
-        os.environ["WANDB_PROJECT"] = project
+        os.environ["WANDB_PROJECT"] = self.project
     
     def get_best_feature_auc(self) -> Optional[float]:
         """
@@ -75,30 +82,49 @@ class ExperimentController:
             logger.error(f"Failed to get best feature AUC from W&B: {str(e)}")
             return None
     
-    def check_feature_improvement(self, baseline_threshold: float = 0.72) -> bool:
+    def check_feature_improvement(self) -> bool:
         """
-        Check if feature sweep improved over baseline.
+        Check if the current feature sweep produced a new best result.
         
-        Args:
-            baseline_threshold: Minimum AUC improvement threshold
-            
         Returns:
-            True if improvement found, False otherwise
+            True if current sweep produced a new best result, False otherwise
         """
-        best_auc = self.get_best_feature_auc()
-        
-        if best_auc is None:
-            logger.warning("Could not determine best feature AUC - proceeding with hyperparameter tuning")
+        try:
+            # Get the best feature AUC from current sweep
+            best_feature_auc = self.get_best_feature_auc()
+            
+            if best_feature_auc is None:
+                logger.warning("Could not determine best feature AUC - proceeding with hyperparameter tuning")
+                return True
+            
+            # Get the best AUC from all previous runs in W&B
+            api = wandb.Api()
+            all_runs = api.runs(f"{self.entity}/{self.project}")
+            
+            best_previous_auc = 0.0
+            if all_runs:
+                # Get the best AUC from all runs (excluding current sweep)
+                current_sweep_runs = [run for run in all_runs if "feature_sweep" in run.tags]
+                other_runs = [run for run in all_runs if "feature_sweep" not in run.tags]
+                
+                if other_runs:
+                    best_previous_auc = max([run.summary.get('final_auc', 0) for run in other_runs])
+            
+            # Compare current best with previous best
+            if best_feature_auc > best_previous_auc:
+                improvement = best_feature_auc - best_previous_auc
+                logger.info(f"New best result found! Current AUC: {best_feature_auc:.4f} (improvement: +{improvement:.4f} over previous best {best_previous_auc:.4f})")
+                print(f"   New best result found! Current AUC: {best_feature_auc:.4f} (improvement: +{improvement:.4f} over previous best {best_previous_auc:.4f})")
+                return True
+            else:
+                logger.info(f"No new best result. Current AUC: {best_feature_auc:.4f} (vs previous best: {best_previous_auc:.4f})")
+                print(f"   No new best result. Current AUC: {best_feature_auc:.4f} (vs previous best: {best_previous_auc:.4f})")
+                return False
+                
+        except Exception as e:
+            logger.error(f"Failed to check feature improvement: {str(e)}")
+            print(f"   Could not check feature improvement - proceeding with hyperparameter tuning")
             return True
-        
-        improvement = best_auc - baseline_threshold
-        
-        if improvement > 0:
-            logger.info(f"✅ Feature improvement found! Best AUC: {best_auc:.4f} (improvement: +{improvement:.4f})")
-            return True
-        else:
-            logger.info(f"❌ No significant feature improvement. Best AUC: {best_auc:.4f} (vs baseline: {baseline_threshold:.4f})")
-            return False
     
     def run_feature_sweep(self) -> bool:
         """
@@ -107,7 +133,7 @@ class ExperimentController:
         Returns:
             True if sweep completed successfully
         """
-        print("🍰 Step 1: Feature Sweep")
+        print("Step 1: Feature Sweep")
         print("=" * 50)
         
         try:
@@ -116,20 +142,20 @@ class ExperimentController:
             if self.entity:
                 cmd.extend(["--entity", self.entity])
             
-            print(f"🚀 Running: {' '.join(cmd)}")
+            print(f"Running: {' '.join(cmd)}")
             result = subprocess.run(cmd, capture_output=True, text=True)
             
             if result.returncode != 0:
                 logger.error(f"Feature sweep failed: {result.stderr}")
-                print(f"❌ Feature sweep failed: {result.stderr}")
+                print(f"Feature sweep failed: {result.stderr}")
                 return False
             
-            print("✅ Feature sweep completed successfully")
+            print("Feature sweep completed successfully")
             return True
             
         except Exception as e:
             logger.error(f"Feature sweep failed: {str(e)}")
-            print(f"❌ Feature sweep failed: {str(e)}")
+            print(f"Feature sweep failed: {str(e)}")
             return False
     
     def run_hyperparameter_sweep(self) -> bool:
@@ -139,7 +165,7 @@ class ExperimentController:
         Returns:
             True if sweep completed successfully
         """
-        print("\n🔧 Step 2: Hyperparameter Tuning")
+        print("\nStep 2: Hyperparameter Tuning")
         print("=" * 50)
         
         try:
@@ -148,66 +174,154 @@ class ExperimentController:
             if self.entity:
                 cmd.extend(["--entity", self.entity])
             
-            print(f"🚀 Running: {' '.join(cmd)}")
+            print(f"Running: {' '.join(cmd)}")
             result = subprocess.run(cmd, capture_output=True, text=True)
             
             if result.returncode != 0:
                 logger.error(f"Hyperparameter sweep failed: {result.stderr}")
-                print(f"❌ Hyperparameter sweep failed: {result.stderr}")
+                print(f"Hyperparameter sweep failed: {result.stderr}")
                 return False
             
-            print("✅ Hyperparameter sweep completed successfully")
+            print("Hyperparameter sweep completed successfully")
             return True
             
         except Exception as e:
             logger.error(f"Hyperparameter sweep failed: {str(e)}")
-            print(f"❌ Hyperparameter sweep failed: {str(e)}")
+            print(f"Hyperparameter sweep failed: {str(e)}")
             return False
     
     def run_final_training(self) -> bool:
         """
-        Run final model training.
+        Run final model training with multiple reconstruction thresholds.
         
         Returns:
             True if training completed successfully
         """
-        print("\n🏆 Step 3: Final Model Training")
-        print("=" * 50)
+        print("\nStep 3: Final Model Training with Multiple Thresholds")
+        print("=" * 60)
         
-        try:
-            # Run final training
-            cmd = [sys.executable, "train_final_model.py"]
-            if self.entity:
-                cmd.extend(["--entity", self.entity])
+        # Define thresholds to test
+        thresholds = [86, 89, 93]
+        best_auc = 0.0
+        best_threshold = None
+        best_run_success = False
+        
+        for threshold in thresholds:
+            print(f"\nTesting threshold: {threshold}%")
+            print("-" * 40)
             
-            print(f"🚀 Running: {' '.join(cmd)}")
-            result = subprocess.run(cmd, capture_output=True, text=True)
+            try:
+                # Update the final config with current threshold
+                config = self.config_loader.load_config("final_config")
+                config['model']['threshold'] = threshold
+                
+                # Save updated config temporarily
+                temp_config_path = "configs/temp_final_config.yaml"
+                with open(temp_config_path, 'w') as f:
+                    yaml.dump(config, f, default_flow_style=False, indent=2)
+                
+                # Run final training with current threshold
+                cmd = [sys.executable, "train_final_model.py"]
+                if self.entity:
+                    cmd.extend(["--entity", self.entity])
+                
+                print(f"Running: {' '.join(cmd)}")
+                result = subprocess.run(cmd, capture_output=True, text=True)
+                
+                if result.returncode == 0:
+                    print(f"Threshold {threshold}% training completed successfully")
+                    
+                    # Get the AUC from the training output
+                    try:
+                        # First try to get from stdout (most reliable)
+                        if "Best ROC AUC:" in result.stdout:
+                            import re
+                            auc_match = re.search(r"Best ROC AUC:\s+([\d.]+)", result.stdout)
+                            if auc_match:
+                                current_auc = float(auc_match.group(1))
+                                print(f"   AUC from output: {current_auc:.4f}")
+                                
+                                if current_auc > best_auc:
+                                    best_auc = current_auc
+                                    best_threshold = threshold
+                                    best_run_success = True
+                                    print(f"   NEW BEST! Threshold {threshold}% with AUC {current_auc:.4f}")
+                                else:
+                                    print(f"   Not best (current best: {best_auc:.4f})")
+                            else:
+                                print(f"   Could not parse AUC from output for threshold {threshold}%")
+                        else:
+                            # Fallback to W&B API
+                            api = wandb.Api()
+                            runs = api.runs(f"{self.entity}/{self.project}", filters={"tags": "final_model"})
+                            
+                            if runs:
+                                # Get the most recent run for this threshold
+                                latest_run = runs[0]  # Most recent run
+                                if latest_run.summary and 'final_auc' in latest_run.summary:
+                                    current_auc = latest_run.summary['final_auc']
+                                    print(f"   AUC from W&B: {current_auc:.4f}")
+                                    
+                                    if current_auc > best_auc:
+                                        best_auc = current_auc
+                                        best_threshold = threshold
+                                        best_run_success = True
+                                        print(f"   NEW BEST! Threshold {threshold}% with AUC {current_auc:.4f}")
+                                    else:
+                                        print(f"   Not best (current best: {best_auc:.4f})")
+                                else:
+                                    print(f"   Could not retrieve AUC from W&B for threshold {threshold}%")
+                            else:
+                                print(f"   No final model runs found for threshold {threshold}%")
+                    
+                    except Exception as e:
+                        logger.error(f"Failed to get AUC for threshold {threshold}%: {str(e)}")
+                        print(f"   Could not retrieve AUC for threshold {threshold}%")
+                
+                else:
+                    logger.error(f"Final training failed for threshold {threshold}%: {result.stderr}")
+                    print(f"Final training failed for threshold {threshold}%: {result.stderr}")
+                
+                # Clean up temp config
+                if os.path.exists(temp_config_path):
+                    os.remove(temp_config_path)
+                
+                # Small delay between runs
+                time.sleep(5)
+                
+            except Exception as e:
+                logger.error(f"Final training failed for threshold {threshold}%: {str(e)}")
+                print(f"Final training failed for threshold {threshold}%: {str(e)}")
+        
+        # Summary
+        print(f"\nFinal Training Summary")
+        print("=" * 40)
+        if best_run_success:
+            print(f"Best threshold: {best_threshold}%")
+            print(f"Best AUC: {best_auc:.4f}")
             
-            if result.returncode != 0:
-                logger.error(f"Final training failed: {result.stderr}")
-                print(f"❌ Final training failed: {result.stderr}")
-                return False
+            # Update final config with best threshold
+            config = self.config_loader.load_config("final_config")
+            config['model']['threshold'] = best_threshold
+            self.config_loader.update_config("final_config", {"model": config['model']})
+            print(f"Updated final config with best threshold: {best_threshold}%")
             
-            print("✅ Final training completed successfully")
             return True
-            
-        except Exception as e:
-            logger.error(f"Final training failed: {str(e)}")
-            print(f"❌ Final training failed: {str(e)}")
+        else:
+            print("No successful training runs found")
             return False
     
-    def run_full_pipeline(self, baseline_threshold: float = 0.72, force_hyperparam: bool = False) -> bool:
+    def run_full_pipeline(self, force_hyperparam: bool = False) -> bool:
         """
         Run the complete experiment pipeline.
         
         Args:
-            baseline_threshold: Minimum AUC improvement threshold
             force_hyperparam: Force hyperparameter tuning even without improvement
             
         Returns:
             True if pipeline completed successfully
         """
-        print("🚀 Starting Complete Experiment Pipeline")
+        print("Starting Complete Experiment Pipeline")
         print("=" * 80)
         
         # Step 1: Feature Sweep
@@ -215,15 +329,15 @@ class ExperimentController:
             return False
         
         # Wait a bit for W&B to sync
-        print("⏳ Waiting for W&B to sync...")
+        print("Waiting for W&B to sync...")
         time.sleep(10)
         
         # Step 2: Check if hyperparameter tuning is worth it
         if not force_hyperparam:
-            improvement_found = self.check_feature_improvement(baseline_threshold)
+            improvement_found = self.check_feature_improvement()
             
             if not improvement_found:
-                print("\n❌ No significant feature improvement found.")
+                print("\nNo new best result found.")
                 print("   Skipping hyperparameter tuning to save resources.")
                 print("   You can force hyperparameter tuning with --force-hyperparam")
                 return True
@@ -233,16 +347,16 @@ class ExperimentController:
             return False
         
         # Wait a bit for W&B to sync
-        print("⏳ Waiting for W&B to sync...")
+        print("Waiting for W&B to sync...")
         time.sleep(10)
         
         # Step 3: Final Training
         if not self.run_final_training():
             return False
         
-        print("\n🎉 Complete pipeline finished successfully!")
-        print("   📊 Check W&B dashboard for detailed results")
-        print("   🏆 Final model saved and ready for deployment")
+        print("\nComplete pipeline finished successfully!")
+        print("   Check W&B dashboard for detailed results")
+        print("   Final model saved and ready for deployment")
         
         return True
     
@@ -304,8 +418,6 @@ def main():
     parser.add_argument("--entity", type=str, help="W&B entity (username/team)")
     parser.add_argument("--project", type=str, default="fraud-detection-autoencoder", 
                        help="W&B project name")
-    parser.add_argument("--baseline-threshold", type=float, default=0.72,
-                       help="Minimum AUC improvement threshold")
     parser.add_argument("--force-hyperparam", action="store_true",
                        help="Force hyperparameter tuning even without improvement")
     parser.add_argument("--summary", action="store_true",
@@ -314,34 +426,50 @@ def main():
     args = parser.parse_args()
     
     # Initialize controller
-    controller = ExperimentController(args.entity, args.project)
+    controller = ExperimentController(args.entity)
     
     if args.summary:
         # Show summary only
         summary = controller.get_experiment_summary()
         if summary:
-            print("\n📊 Experiment Summary")
+            print("\nExperiment Summary")
             print("=" * 50)
-            print(f"Total runs: {summary['total_runs']}")
-            print(f"Feature sweep runs: {summary['feature_sweep_runs']}")
-            print(f"Parameter sweep runs: {summary['param_sweep_runs']}")
-            print(f"Final runs: {summary['final_runs']}")
-            print(f"Best feature AUC: {summary['best_feature_auc']:.4f}")
-            print(f"Best parameter AUC: {summary['best_param_auc']:.4f}")
-            print(f"Best final AUC: {summary['best_final_auc']:.4f}")
+            
+            # Get latest runs for each stage
+            api = wandb.Api()
+            
+            # Get feature sweep runs
+            feature_runs = api.runs(f"{args.entity}/{args.project}", filters={"tags": "feature_sweep"})
+            if feature_runs:
+                best_feature_run = max(feature_runs, key=lambda r: r.summary.get('final_auc', 0))
+                print(f"Best Feature Strategy: {best_feature_run.config.get('features', {}).get('strategy', 'Unknown')}")
+                print(f"Feature AUC: {best_feature_run.summary.get('final_auc', 0):.4f}")
+            
+            # Get hyperparameter sweep runs
+            param_runs = api.runs(f"{args.entity}/{args.project}", filters={"tags": "param_sweep"})
+            if param_runs:
+                best_param_run = max(param_runs, key=lambda r: r.summary.get('final_auc', 0))
+                print(f"Best Hyperparameters: {best_param_run.config.get('model', {})}")
+                print(f"Param AUC: {best_param_run.summary.get('final_auc', 0):.4f}")
+            
+            # Get final model runs
+            final_runs = api.runs(f"{args.entity}/{args.project}", filters={"tags": "final_model"})
+            if final_runs:
+                best_final_run = max(final_runs, key=lambda r: r.summary.get('final_auc', 0))
+                print(f"Final Model AUC: {best_final_run.summary.get('final_auc', 0):.4f}")
+            
         else:
-            print("❌ Could not retrieve experiment summary")
+            print("Could not retrieve experiment summary")
     else:
         # Run full pipeline
         success = controller.run_full_pipeline(
-            baseline_threshold=args.baseline_threshold,
             force_hyperparam=args.force_hyperparam
         )
         
         if success:
-            print("\n✅ Pipeline completed successfully!")
+            print("\nPipeline completed successfully!")
         else:
-            print("\n❌ Pipeline failed!")
+            print("\nPipeline failed!")
             sys.exit(1)
 
 if __name__ == "__main__":

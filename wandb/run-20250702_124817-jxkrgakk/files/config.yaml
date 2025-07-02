@@ -1,0 +1,35 @@
+_wandb:
+    value:
+        cli_version: 0.21.0
+        e:
+            ew74bbtsnahunok68mvtxrdf2s98y2gw:
+                codePath: test_wandb_team.py
+                codePathLocal: test_wandb_team.py
+                email: tommywood81@gmail.com
+                executable: C:\Users\tommy\projects\auto-encoder-project\env\Scripts\python.exe
+                git:
+                    commit: d0a19a5123b296cddc89e7e5ce6ef31f1238a67c
+                    remote: https://github.com/tommywood81/auto-encoder-project.git
+                host: LAPTOP-U7F1NDJK
+                os: Windows-10-10.0.26100-SP0
+                program: C:\Users\tommy\projects\auto-encoder-project\test_wandb_team.py
+                python: CPython 3.11.3
+                root: C:\Users\tommy\projects\auto-encoder-project
+                startedAt: "2025-07-02T02:48:17.195948Z"
+                writerId: ew74bbtsnahunok68mvtxrdf2s98y2gw
+        m: []
+        python_version: 3.11.3
+        t:
+            "3":
+                - 2
+                - 13
+                - 15
+            "4": 3.11.3
+            "5": 0.21.0
+            "8":
+                - 2
+                - 3
+            "12": 0.21.0
+            "13": windows-amd64
+test_param:
+    value: 42
