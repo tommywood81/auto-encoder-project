@@ -5,4 +5,5 @@ scikit-learn>=1.0.0
 fastapi>=0.104.0
 uvicorn[standard]>=0.24.0
 python-multipart>=0.0.6
-requests>=2.25.0 
+requests>=2.25.0
+wandb>=0.15.0 
