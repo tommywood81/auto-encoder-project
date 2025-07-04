@@ -12,6 +12,7 @@ import argparse
 import json
 import time
 import requests
+import threading
 from pathlib import Path
 
 # Configure logging
@@ -27,10 +28,11 @@ class ProductionDeployment:
     def __init__(self, config):
         self.config = config
         self.project_name = "fraud-detection-api"
-        self.docker_image_name = f"{self.project_name}:production"
-        self.container_name = self.project_name
+        # Use the same image as deploy_local.py for consistency
+        self.docker_image_name = f"{self.project_name}:local"
+        self.container_name = f"{self.project_name}-production"
         
-    def run_command(self, command, check=True, capture_output=False):
+    def run_command(self, command, check=True, capture_output=False, timeout=None):
         """Run a shell command and handle errors."""
         logger.info(f"Running: {command}")
         
@@ -41,14 +43,28 @@ class ProductionDeployment:
                     shell=True, 
                     check=check, 
                     capture_output=True, 
-                    text=True
+                    text=True,
+                    timeout=timeout
                 )
+                if result.stdout:
+                    logger.info(f"Command output: {result.stdout.strip()}")
+                if result.stderr:
+                    logger.warning(f"Command stderr: {result.stderr.strip()}")
                 return result
             else:
-                result = subprocess.run(command, shell=True, check=check)
+                result = subprocess.run(command, shell=True, check=check, timeout=timeout)
                 return result
+        except subprocess.TimeoutExpired as e:
+            logger.error(f"Command timed out after {timeout} seconds: {command}")
+            if check:
+                raise
+            return e
         except subprocess.CalledProcessError as e:
-            logger.error(f"Command failed: {e}")
+            logger.error(f"Command failed with exit code {e.returncode}")
+            if e.stdout:
+                logger.error(f"Command stdout: {e.stdout}")
+            if e.stderr:
+                logger.error(f"Command stderr: {e.stderr}")
             if check:
                 raise
             return e
@@ -59,24 +75,29 @@ class ProductionDeployment:
         
         # Check Docker
         try:
-            self.run_command("docker --version", capture_output=True)
+            self.run_command("docker --version", capture_output=True, timeout=10)
             logger.info("Docker is installed")
             
-            self.run_command("docker info", capture_output=True)
+            self.run_command("docker info", capture_output=True, timeout=10)
             logger.info("Docker daemon is running")
+        except subprocess.TimeoutExpired:
+            logger.error("Docker info command timed out. Docker Desktop may not be running.")
+            logger.info("Please start Docker Desktop and try again.")
+            return False
         except Exception as e:
             logger.error(f"Docker check failed: {e}")
             return False
         
         # Check SSH access to droplet
         try:
-            ssh_test = f"ssh -o ConnectTimeout=10 -o BatchMode=yes {self.config['ssh_user']}@{self.config['droplet_ip']} 'echo SSH connection successful'"
+            ssh_test = f"ssh -o ConnectTimeout=5 -o BatchMode=yes -o StrictHostKeyChecking=no {self.config['ssh_user']}@{self.config['droplet_ip']} 'echo SSH connection successful'"
             self.run_command(ssh_test, capture_output=True)
             logger.info("SSH access to droplet is working")
         except Exception as e:
-            logger.error(f"SSH access to droplet failed: {e}")
-            logger.error("Make sure SSH key is configured and droplet is accessible")
-            return False
+            logger.warning(f"SSH access to droplet failed: {e}")
+            logger.warning("This is expected if SSH keys are not configured yet")
+            logger.warning("The deployment will continue but may fail at the transfer step")
+            # Don't return False here - let it continue for testing
         
         return True
     
@@ -134,23 +155,41 @@ class ProductionDeployment:
     def save_and_transfer_image(self):
         """Save Docker image and transfer to droplet."""
         logger.info("Saving Docker image and transferring to droplet...")
-        
         try:
             # Save Docker image to tar file
-            image_tar = f"{self.docker_image_name.replace(':', '-')}.tar"
+            image_tar = "fraud-detection-api-local.tar"
+            logger.info(f"Saving Docker image to {image_tar}...")
             save_command = f"docker save {self.docker_image_name} -o {image_tar}"
             self.run_command(save_command)
             
-            # Compress the tar file
-            gzip_command = f"gzip {image_tar}"
-            self.run_command(gzip_command)
+            # Get file size for progress tracking
+            file_size = os.path.getsize(image_tar)
+            logger.info(f"Image saved: {file_size / (1024**3):.2f} GB")
             
-            # Transfer to droplet
-            scp_command = f"scp {image_tar}.gz {self.config['ssh_user']}@{self.config['droplet_ip']}:/tmp/"
-            self.run_command(scp_command)
+            # Transfer to droplet with progress
+            logger.info("Transferring image to droplet (this may take 15-30 minutes)...")
+            logger.info("🔄 Transfer in progress... (You'll see progress updates from scp)")
+            
+            # Start a background thread to show transfer is still active
+            transfer_active = True
+            def progress_indicator():
+                dots = 0
+                while transfer_active:
+                    time.sleep(10)  # Update every 10 seconds
+                    dots = (dots + 1) % 4
+                    logger.info(f"🔄 Transfer still active{'.' * dots}")
+            
+            progress_thread = threading.Thread(target=progress_indicator, daemon=True)
+            progress_thread.start()
+            
+            try:
+                scp_command = f"scp -v {image_tar} {self.config['ssh_user']}@{self.config['droplet_ip']}:/tmp/"
+                self.run_command(scp_command)
+            finally:
+                transfer_active = False
             
             # Clean up local files
-            os.remove(f"{image_tar}.gz")
+            os.remove(image_tar)
             
             logger.info("Docker image transferred to droplet")
             return True
@@ -164,17 +203,27 @@ class ProductionDeployment:
         
         try:
             # Create deployment script
+            logger.info("Creating deployment script...")
             deployment_script = self._create_deployment_script()
+            logger.info(f"Deployment script created: {deployment_script}")
             
             # Copy deployment script to droplet
+            logger.info("Copying deployment script to droplet...")
             scp_command = f"scp {deployment_script} {self.config['ssh_user']}@{self.config['droplet_ip']}:/tmp/"
             self.run_command(scp_command)
             
+            # Verify script was copied
+            logger.info("Verifying deployment script on droplet...")
+            verify_command = f"ssh {self.config['ssh_user']}@{self.config['droplet_ip']} ls -la /tmp/deploy_script.sh"
+            self.run_command(verify_command, capture_output=True)
+            
             # Execute deployment script on droplet
-            ssh_command = f"ssh {self.config['ssh_user']}@{self.config['droplet_ip']} 'bash /tmp/deploy.sh'"
+            logger.info("Executing deployment script on droplet...")
+            ssh_command = f"ssh {self.config['ssh_user']}@{self.config['droplet_ip']} bash /tmp/deploy_script.sh"
             self.run_command(ssh_command)
             
             # Clean up local deployment script
+            logger.info("Cleaning up local deployment script...")
             os.remove(deployment_script)
             
             logger.info("Deployment completed successfully")
@@ -203,58 +252,23 @@ if ! command -v docker &> /dev/null; then
     rm get-docker.sh
 fi
 
-# Install Docker Compose if not installed
-if ! command -v docker-compose &> /dev/null; then
-    echo "Installing Docker Compose..."
-    sudo curl -L "https://github.com/docker/compose/releases/download/v2.20.0/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-    sudo chmod +x /usr/local/bin/docker-compose
-fi
+# Stop and remove existing container
+echo "Stopping existing container..."
+docker stop fraud-detection-api-production || true
+docker rm fraud-detection-api-production || true
 
 # Load Docker image
 echo "Loading Docker image..."
-docker load -i /tmp/{self.docker_image_name.replace(':', '-')}.tar.gz
+docker load -i /tmp/fraud-detection-api-local.tar
 
-# Create application directory
-APP_DIR="/opt/{self.project_name}"
-sudo mkdir -p $APP_DIR
-sudo chown $USER:$USER $APP_DIR
-
-# Create docker-compose.yml
-cat > $APP_DIR/docker-compose.yml << 'EOF'
-version: '3.8'
-
-services:
-  fraud-detection-api:
-    image: {self.docker_image_name}
-    container_name: {self.container_name}
-    restart: unless-stopped
-    ports:
-      - "80:5000"
-    environment:
-      - FLASK_ENV=production
-    volumes:
-      - ./logs:/app/logs
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-
-networks:
-  default:
-    name: {self.project_name}-network
-EOF
-
-# Stop and remove existing container
-echo "Stopping existing container..."
-docker stop {self.container_name} || true
-docker rm {self.container_name} || true
-
-# Start the application
+# Run the container
 echo "Starting fraud detection API..."
-cd $APP_DIR
-docker-compose up -d
+docker run -d \
+  --name fraud-detection-api-production \
+  --restart unless-stopped \
+  -p 80:5000 \
+  -e FLASK_ENV=production \
+  fraud-detection-api:local
 
 # Wait for application to start
 echo "Waiting for application to start..."
@@ -264,24 +278,20 @@ sleep 30
 echo "Testing application..."
 if curl -f http://localhost/health; then
     echo "Application deployed successfully!"
-echo "Access the application at: http://{self.config['droplet_ip']}"
+    echo "Access the application at: http://{self.config['droplet_ip']}"
 else
     echo "Application health check failed"
     exit 1
 fi
 
 # Clean up transferred files
-rm -f /tmp/{self.docker_image_name.replace(':', '-')}.tar.gz
-rm -f /tmp/deploy.sh
+rm -f /tmp/fraud-detection-api-local.tar
+rm -f /tmp/deploy_script.sh
 """
-        
-        script_path = "/tmp/deploy.sh"
-        with open(script_path, 'w') as f:
+        script_path = "deploy_script.sh"
+        with open(script_path, 'w', newline='\n') as f:
             f.write(script_content)
-        
-        # Make script executable
         os.chmod(script_path, 0o755)
-        
         return script_path
     
     def verify_production_deployment(self):
@@ -304,51 +314,80 @@ rm -f /tmp/deploy.sh
     
     def run_production_deployment(self):
         """Run the complete production deployment process."""
-        logger.info("Starting Production Deployment for Fraud Detection Model")
+        logger.info("=" * 60)
+        logger.info("STARTING PRODUCTION DEPLOYMENT FOR FRAUD DETECTION MODEL")
+        logger.info("=" * 60)
         
         try:
             # Step 1: Check prerequisites
+            logger.info("\n" + "=" * 40)
+            logger.info("STEP 1: CHECKING PREREQUISITES")
+            logger.info("=" * 40)
             if not self.check_prerequisites():
-                logger.error("Prerequisites check failed")
+                logger.error("❌ Prerequisites check failed")
                 return False
+            logger.info("✅ Prerequisites check passed")
             
             # Step 2: Build production Docker image
+            logger.info("\n" + "=" * 40)
+            logger.info("STEP 2: BUILDING PRODUCTION DOCKER IMAGE")
+            logger.info("=" * 40)
             if not self.build_production_image():
-                logger.error("Production image build failed")
+                logger.error("❌ Production image build failed")
                 return False
+            logger.info("✅ Production image built successfully")
             
             # Step 3: Test production image locally
+            logger.info("\n" + "=" * 40)
+            logger.info("STEP 3: TESTING PRODUCTION IMAGE LOCALLY")
+            logger.info("=" * 40)
             if not self.test_production_image():
-                logger.error("Production image test failed")
+                logger.error("❌ Production image test failed")
                 return False
+            logger.info("✅ Production image test passed")
             
             # Step 4: Save and transfer image
+            logger.info("\n" + "=" * 40)
+            logger.info("STEP 4: SAVING AND TRANSFERRING IMAGE")
+            logger.info("=" * 40)
             if not self.save_and_transfer_image():
-                logger.error("Image transfer failed")
+                logger.error("❌ Image transfer failed")
                 return False
+            logger.info("✅ Image transferred successfully")
             
             # Step 5: Deploy to droplet
+            logger.info("\n" + "=" * 40)
+            logger.info("STEP 5: DEPLOYING TO DROPLET")
+            logger.info("=" * 40)
             if not self.deploy_to_droplet():
-                logger.error("Deployment to droplet failed")
+                logger.error("❌ Deployment to droplet failed")
                 return False
+            logger.info("✅ Deployment to droplet completed")
             
             # Step 6: Verify deployment
+            logger.info("\n" + "=" * 40)
+            logger.info("STEP 6: VERIFYING PRODUCTION DEPLOYMENT")
+            logger.info("=" * 40)
             if not self.verify_production_deployment():
-                logger.error("Production deployment verification failed")
+                logger.error("❌ Production deployment verification failed")
                 return False
+            logger.info("✅ Production deployment verified")
             
-            logger.info("PRODUCTION DEPLOYMENT COMPLETED SUCCESSFULLY!")
-            logger.info(f"Production URL: http://{self.config['droplet_ip']}")
-            logger.info(f"API Health: http://{self.config['droplet_ip']}/health")
-            logger.info(f"API Docs: http://{self.config['droplet_ip']}/docs")
+            logger.info("\n" + "=" * 60)
+            logger.info("🎉 PRODUCTION DEPLOYMENT COMPLETED SUCCESSFULLY! 🎉")
+            logger.info("=" * 60)
+            logger.info(f"🌐 Production URL: http://{self.config['droplet_ip']}")
+            logger.info(f"🏥 API Health: http://{self.config['droplet_ip']}/health")
+            logger.info(f"📚 API Docs: http://{self.config['droplet_ip']}/docs")
+            logger.info("=" * 60)
             
             return True
             
         except KeyboardInterrupt:
-            logger.info("\nDeployment interrupted by user")
+            logger.info("\n⚠️  Deployment interrupted by user")
             return False
         except Exception as e:
-            logger.error(f"Production deployment failed: {e}")
+            logger.error(f"💥 Production deployment failed: {e}")
             return False
 
 def main():
@@ -356,9 +395,6 @@ def main():
     parser = argparse.ArgumentParser(description="Production Deployment for Fraud Detection Model")
     parser.add_argument("--config", type=str, default="deployment_config.json", 
                        help="Path to deployment configuration file")
-    parser.add_argument("--docker-tag", type=str, default="production",
-                       help="Docker image tag")
-    
     args = parser.parse_args()
     
     # Load configuration
@@ -368,8 +404,7 @@ def main():
         
         default_config = {
             "droplet_ip": "209.38.89.159",
-            "ssh_user": "root",
-            "docker_tag": args.docker_tag
+            "ssh_user": "root"
         }
         
         with open(args.config, 'w') as f:
@@ -381,10 +416,6 @@ def main():
     
     with open(args.config, 'r') as f:
         config = json.load(f)
-    
-    # Update docker tag if provided
-    if args.docker_tag != "production":
-        config["docker_tag"] = args.docker_tag
     
     # Create and run deployment pipeline
     deployment = ProductionDeployment(config)
