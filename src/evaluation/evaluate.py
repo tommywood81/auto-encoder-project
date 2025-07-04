@@ -37,8 +37,8 @@ def evaluate_autoencoder(model, X_train_ae, X_test, y_test, percentile=None):
     threshold = np.percentile(train_errors, percentile)
     
     print(f"📏 Threshold ({percentile}th percentile): {threshold:.4f}")
-    print(f"📊 Mean reconstruction error (normal): {train_errors.mean():.4f}")
-    print(f"📊 Mean reconstruction error (test): {test_errors.mean():.4f}")
+    print(f"Mean reconstruction error (normal): {train_errors.mean():.4f}")
+    print(f"Mean reconstruction error (test): {test_errors.mean():.4f}")
     
     # Make predictions
     y_pred = (test_errors > threshold).astype(int)
@@ -47,11 +47,11 @@ def evaluate_autoencoder(model, X_train_ae, X_test, y_test, percentile=None):
     print("\n📄 Classification Report:")
     print(classification_report(y_test, y_pred, target_names=['Normal', 'Fraud']))
     
-    print(f"📈 ROC-AUC Score: {roc_auc_score(y_test, test_errors):.4f}")
+    print(f"ROC-AUC Score: {roc_auc_score(y_test, test_errors):.4f}")
     
     # Confusion matrix
     cm = confusion_matrix(y_test, y_pred)
-    print(f"\n📊 Confusion Matrix:")
+    print(f"\nConfusion Matrix:")
     print(f"True Negatives: {cm[0, 0]}")
     print(f"False Positives: {cm[0, 1]}")
     print(f"False Negatives: {cm[1, 0]}")

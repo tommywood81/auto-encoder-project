@@ -83,17 +83,10 @@ def load_model():
         # Initialize autoencoder
         autoencoder = BaselineAutoencoder(config)
         
-        # Load the trained model
-        model_path = os.path.join(config.data.models_dir, "autoencoder.h5")
+        # Load the best trained model (final_model.h5)
+        model_path = os.path.join(config.data.models_dir, "final_model.h5")
         if not os.path.exists(model_path):
-            # Try alternative model names
-            for model_file in ["baseline_autoencoder.h5", "autoencoder_fraud_detection.pth"]:
-                model_path = os.path.join(config.data.models_dir, model_file)
-                if os.path.exists(model_path):
-                    break
-        
-        if not os.path.exists(model_path):
-            raise FileNotFoundError(f"No model file found in {config.data.models_dir}")
+            raise FileNotFoundError(f"Best model not found: {model_path}")
         
         autoencoder.load_model(model_path)
         
@@ -127,14 +120,15 @@ def load_model():
         autoencoder.scaler.fit(train_data)
         
         # Store components
-        model = autoencoder.model
+        model = autoencoder  # Store the full autoencoder object
         scaler = autoencoder.scaler
         threshold = autoencoder.threshold or np.percentile(
             autoencoder.predict_anomaly_scores(train_data), 95.0
         )
         test_data = test_data_full
         
-        logger.info(f"Model loaded successfully!")
+        logger.info(f"Best model loaded successfully!")
+        logger.info(f"Model: final_model.h5 (combined strategy)")
         logger.info(f"Feature columns: {feature_columns}")
         logger.info(f"Test data shape: {test_data.shape}")
         logger.info(f"Threshold: {threshold:.6f}")

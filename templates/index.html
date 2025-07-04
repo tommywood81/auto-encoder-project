@@ -230,14 +230,14 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>🛡️ E-commerce Fraud Detection</h1>
+            <h1>E-commerce Fraud Detection</h1>
             <p>AI-powered anomaly detection using Autoencoders</p>
             <div id="api-status" class="api-status status-error">API: Checking...</div>
         </div>
 
         <div class="content">
             <div class="section">
-                <h2>📊 Test Data Points</h2>
+                <h2>Test Data Points</h2>
                 <p>Select a transaction from the test dataset to analyze for fraud detection:</p>
                 <div id="data-grid" class="data-grid">
                     <div class="loading">Loading test data...</div>
@@ -245,13 +245,13 @@
             </div>
 
             <div class="section">
-                <h2>🔍 Fraud Analysis</h2>
+                <h2>Fraud Analysis</h2>
                 <button id="analyze-btn" class="btn" disabled>Analyze Selected Transaction</button>
                 <div id="result-container"></div>
             </div>
 
             <div class="section">
-                <h2>📈 Model Information</h2>
+                <h2>Model Information</h2>
                 <div id="model-info">Loading model information...</div>
             </div>
         </div>
@@ -393,7 +393,7 @@
                     <div class="result-header">
                         <h3>Fraud Detection Result</h3>
                         <span class="prediction-badge ${prediction.is_fraudulent ? 'prediction-fraud' : 'prediction-legit'}">
-                            ${prediction.is_fraudulent ? '🚨 FRAUDULENT' : '✅ LEGITIMATE'}
+                            ${prediction.is_fraudulent ? 'FRAUDULENT' : 'LEGITIMATE'}
                         </span>
                     </div>
                     

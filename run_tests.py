@@ -30,7 +30,7 @@ def run_all_tests():
     
     # Print summary
     print("\n" + "=" * 50)
-    print("📊 TEST SUMMARY")
+    print("TEST SUMMARY")
     print("=" * 50)
     print(f"Tests run: {result.testsRun}")
     print(f"Failures: {len(result.failures)}")
@@ -38,21 +38,21 @@ def run_all_tests():
     print(f"Skipped: {len(result.skipped) if hasattr(result, 'skipped') else 0}")
     
     if result.failures:
-        print("\n❌ FAILURES:")
+        print("\nFAILURES:")
         for test, traceback in result.failures:
             print(f"  - {test}: {traceback.split('AssertionError:')[-1].strip()}")
     
     if result.errors:
-        print("\n🚨 ERRORS:")
+        print("\nERRORS:")
         for test, traceback in result.errors:
             print(f"  - {test}: {traceback.split('Exception:')[-1].strip()}")
     
     # Overall result
     if result.wasSuccessful():
-        print("\n✅ ALL TESTS PASSED!")
+        print("\nALL TESTS PASSED!")
         return True
     else:
-        print("\n❌ SOME TESTS FAILED!")
+        print("\nSOME TESTS FAILED!")
         return False
 
 def run_specific_test(test_name):
@@ -69,7 +69,7 @@ def run_specific_test(test_name):
         result = runner.run(suite)
         return result.wasSuccessful()
     except ImportError as e:
-        print(f"❌ Could not import test module {test_name}: {e}")
+        print(f"Could not import test module {test_name}: {e}")
         return False
 
 def main():

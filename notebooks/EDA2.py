@@ -21,7 +21,7 @@ print("E-COMMERCE FRAUD DETECTION - EXPLORATORY DATA ANALYSIS")
 print("=" * 80)
 
 # Load the data
-print("\n📊 LOADING DATA...")
+print("\nLOADING DATA...")
 df = pd.read_csv('data/ingested/raw_ecommerce_data.csv')
 print(f"Dataset shape: {df.shape}")
 print(f"Memory usage: {df.memory_usage(deep=True).sum() / 1024**2:.1f} MB")
@@ -32,27 +32,27 @@ print(f"Columns: {list(df.columns)}")
 print(f"Data types:\n{df.dtypes.value_counts()}")
 
 # Target variable analysis
-print(f"\n🎯 TARGET VARIABLE ANALYSIS:")
+print(f"\nTARGET VARIABLE ANALYSIS:")
 fraud_dist = df['Is Fraudulent'].value_counts()
 print(f"Fraudulent transactions: {fraud_dist[1]} ({fraud_dist[1]/len(df)*100:.2f}%)")
 print(f"Legitimate transactions: {fraud_dist[0]} ({fraud_dist[0]/len(df)*100:.2f}%)")
 print(f"Class imbalance ratio: {fraud_dist[0]/fraud_dist[1]:.1f}:1")
 
 # This is a classic imbalanced dataset - we'll need to handle this carefully
-print("\n⚠️  NOTE: This is a heavily imbalanced dataset. We'll need to:")
+print("\nNOTE: This is a heavily imbalanced dataset. We'll need to:")
 print("   - Use appropriate evaluation metrics (precision, recall, F1)")
 print("   - Consider class weights in our models")
 print("   - Use anomaly detection approach with autoencoders")
 
 # Missing values check
-print(f"\n🔍 MISSING VALUES ANALYSIS:")
+print(f"\nMISSING VALUES ANALYSIS:")
 missing = df.isnull().sum()
 if missing.sum() > 0:
     print("Missing values found:")
     for col, count in missing[missing > 0].items():
         print(f"  {col}: {count} ({count/len(df)*100:.2f}%)")
 else:
-    print("✅ No missing values - great for production!")
+    print("No missing values - great for production!")
 
 # Transaction Amount Analysis
 print(f"\n💰 TRANSACTION AMOUNT ANALYSIS:")
@@ -83,7 +83,7 @@ print(f"  Median: ${legit_amounts.median():.2f}")
 print(f"  Std: ${legit_amounts.std():.2f}")
 
 # DECISION: We'll cap transaction amounts at 99th percentile to handle outliers
-print(f"\n🎯 DECISION: Cap transaction amounts at 99th percentile (${q99:.2f})")
+print(f"\nDECISION: Cap transaction amounts at 99th percentile (${q99:.2f})")
 print("   Rationale: Very high amounts could be outliers or data errors")
 print("   Impact: Prevents extreme values from skewing our models")
 
@@ -97,11 +97,11 @@ print(f"Max age: {df['Customer Age'].max():.1f} years")
 # Check for unrealistic ages
 unrealistic_ages = df[(df['Customer Age'] < 13) | (df['Customer Age'] > 100)]
 if len(unrealistic_ages) > 0:
-    print(f"⚠️  Found {len(unrealistic_ages)} transactions with unrealistic ages")
+    print(f"Found {len(unrealistic_ages)} transactions with unrealistic ages")
     print("   This could be data entry errors or fraud indicators")
 
 # DECISION: Clip ages to realistic range
-print(f"\n🎯 DECISION: Clip customer ages to 13-100 range")
+print(f"\nDECISION: Clip customer ages to 13-100 range")
 print("   Rationale: Ages outside this range are likely data errors")
 print("   Impact: Ensures data quality for production")
 
@@ -120,12 +120,12 @@ for method in df['Payment Method'].unique():
     print(f"  {method}: {fraud_rate:.2f}% fraud rate")
 
 # DECISION: Keep all payment methods but monitor closely
-print(f"\n🎯 DECISION: Keep all payment methods in the model")
+print(f"\nDECISION: Keep all payment methods in the model")
 print("   Rationale: Different payment methods have different fraud patterns")
 print("   Impact: Model can learn payment-specific fraud signals")
 
 # Product Category Analysis
-print(f"\n🛍️  PRODUCT CATEGORY ANALYSIS:")
+print(f"\nPRODUCT CATEGORY ANALYSIS:")
 category_counts = df['Product Category'].value_counts()
 print("Product category distribution:")
 for category, count in category_counts.items():
@@ -139,7 +139,7 @@ for category in df['Product Category'].unique():
     print(f"  {category}: {fraud_rate:.2f}% fraud rate")
 
 # DECISION: Keep all product categories
-print(f"\n🎯 DECISION: Keep all product categories")
+print(f"\nDECISION: Keep all product categories")
 print("   Rationale: Different categories have different fraud patterns")
 print("   Impact: Model can learn category-specific fraud signals")
 
@@ -158,7 +158,7 @@ for device in df['Device Used'].unique():
     print(f"  {device}: {fraud_rate:.2f}% fraud rate")
 
 # DECISION: Keep device information
-print(f"\n🎯 DECISION: Keep device information")
+print(f"\nDECISION: Keep device information")
 print("   Rationale: Mobile vs desktop can indicate different fraud patterns")
 print("   Impact: Model can learn device-specific fraud signals")
 
@@ -173,7 +173,7 @@ print(f"\nFraud rate by hour (top 5 highest):")
 print(hour_fraud.nlargest(5))
 
 # DECISION: Create time-based features
-print(f"\n🎯 DECISION: Create time-based features")
+print(f"\nDECISION: Create time-based features")
 print("   Rationale: Fraud patterns vary by time of day")
 print("   Impact: Model can learn temporal fraud patterns")
 
@@ -186,10 +186,10 @@ print(f"Max quantity: {df['Quantity'].max()}")
 # Check for unrealistic quantities
 high_quantities = df[df['Quantity'] > 10]
 if len(high_quantities) > 0:
-    print(f"⚠️  Found {len(high_quantities)} transactions with quantity > 10")
+    print(f"Found {len(high_quantities)} transactions with quantity > 10")
 
 # DECISION: Cap quantities at 99th percentile
-print(f"\n🎯 DECISION: Cap quantities at 99th percentile")
+print(f"\nDECISION: Cap quantities at 99th percentile")
 print("   Rationale: Very high quantities could be data errors or bulk fraud")
 print("   Impact: Prevents extreme values from skewing models")
 
@@ -207,7 +207,7 @@ print(f"\nFraud rate by account age:")
 print(age_fraud)
 
 # DECISION: Create account age features
-print(f"\n🎯 DECISION: Create account age features")
+print(f"\nDECISION: Create account age features")
 print("   Rationale: New accounts are more likely to be fraudulent")
 print("   Impact: Model can learn account maturity patterns")
 
@@ -223,7 +223,7 @@ print(f"\nTop 10 locations by fraud rate:")
 print(location_fraud.nlargest(10))
 
 # DECISION: Use frequency encoding for locations
-print(f"\n🎯 DECISION: Use frequency encoding for customer locations")
+print(f"\nDECISION: Use frequency encoding for customer locations")
 print("   Rationale: Too many unique locations for one-hot encoding")
 print("   Impact: Captures location popularity as a fraud signal")
 
@@ -312,5 +312,5 @@ print("3. Build and evaluate multiple models")
 print("4. Create model interpretability reports")
 print("5. Design production deployment strategy")
 
-print(f"\n✅ EDA COMPLETED - READY FOR PIPELINE DEVELOPMENT")
+print(f"\nEDA COMPLETED - READY FOR PIPELINE DEVELOPMENT")
 print("="*80) 

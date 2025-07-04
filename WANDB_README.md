@@ -1,21 +1,21 @@
-# 🍰 Autoencoder Experiment Tracking Pipeline
+# Autoencoder Experiment Tracking Pipeline
 **With W&B integration, modular sweep scripts, and cake-level logic**
 
 ---
 
-## 🎯 What We've Built
+## What We've Built
 
 We've implemented a complete **autoencoder fraud detection pipeline** with Weights & Biases (W&B) integration for experiment tracking and hyperparameter tuning. The system automatically:
 
-- 👀 Tests different **feature strategies** (ingredients)
-- ⚙️ Tunes **model hyperparameters** (baking settings)
-- 📊 Tracks all experiments in W&B
-- 🧠 Makes smart decisions about when to proceed
-- 🏆 Trains the final production model
+- Tests different **feature strategies** (ingredients)
+- Tunes **model hyperparameters** (baking settings)
+- Tracks all experiments in W&B
+- Makes smart decisions about when to proceed
+- Trains the final production model
 
 ---
 
-## 📦 Project Structure
+## Project Structure
 
 ```
 auto-encoder-project/
@@ -38,7 +38,7 @@ auto-encoder-project/
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
 ### 1. Install Dependencies
 ```bash
@@ -67,9 +67,9 @@ python train_final_model.py --entity your-username
 
 ---
 
-## 🧁 Step-by-Step Pipeline
+## Step-by-Step Pipeline
 
-### 🍰 Step 1: Feature Sweep (`sweep_features_wandb.py`)
+### Step 1: Feature Sweep (`sweep_features_wandb.py`)
 
 **Goal**: Find the best feature combination for fraud detection.
 
@@ -92,7 +92,7 @@ python sweep_features_wandb.py --entity your-username
 
 ---
 
-### 🔧 Step 2: Hyperparameter Tuning (`sweep_parameters_wandb.py`)
+### Step 2: Hyperparameter Tuning (`sweep_parameters_wandb.py`)
 
 **Goal**: Optimize model hyperparameters using the best feature strategy.
 
@@ -128,7 +128,7 @@ python sweep_parameters_wandb.py --entity your-username --stage broad
 
 ---
 
-### 🧠 Step 3: Main Controller (`main_controller.py`)
+### Step 3: Main Controller (`main_controller.py`)
 
 **Goal**: Orchestrate the entire pipeline with smart decision-making.
 
@@ -155,14 +155,14 @@ python main_controller.py --entity your-username --baseline-threshold 0.75
 ```
 
 **Smart Features**:
-- ⚡ **Performance-aware**: Only tunes if features actually improve performance
-- 📊 **W&B Integration**: Uses W&B API to check results automatically
-- 🔄 **Resumable**: Can restart from any stage
-- 📈 **Monitoring**: Real-time progress tracking
+- **Performance-aware**: Only tunes if features actually improve performance
+- **W&B Integration**: Uses W&B API to check results automatically
+- **Resumable**: Can restart from any stage
+- **Monitoring**: Real-time progress tracking
 
 ---
 
-### 🏆 Step 4: Final Training (`train_final_model.py`)
+### Step 4: Final Training (`train_final_model.py`)
 
 **Goal**: Train the production-ready model with best configuration.
 
@@ -185,7 +185,7 @@ python train_final_model.py --entity your-username
 
 ---
 
-## 📊 W&B Dashboard
+## W&B Dashboard
 
 ### What You'll See
 
@@ -221,7 +221,7 @@ python train_final_model.py --entity your-username
 
 ---
 
-## 🔧 Configuration Management
+## Configuration Management
 
 ### Configuration Files
 
@@ -268,7 +268,7 @@ config = loader.get_wandb_config("baseline", entity="your-username")
 
 ---
 
-## 🎯 Advanced Usage
+## Advanced Usage
 
 ### Custom Hyperparameter Ranges
 
@@ -307,7 +307,7 @@ wandb.log({"custom_metric": custom_metric})
 
 ---
 
-## 🚀 Production Deployment
+## Production Deployment
 
 ### Model Deployment
 
@@ -338,7 +338,7 @@ COPY models/model_info.yaml /app/models/
 
 ---
 
-## 📈 Monitoring and Maintenance
+## Monitoring and Maintenance
 
 ### Experiment Tracking
 
@@ -364,7 +364,7 @@ python main_controller.py --entity your-username --summary
 
 ---
 
-## 🎉 Benefits
+## Benefits
 
 ### For Data Scientists
 - **Automated Experimentation**: No manual config management
@@ -386,7 +386,7 @@ python main_controller.py --entity your-username --summary
 
 ---
 
-## 🔍 Troubleshooting
+## Troubleshooting
 
 ### Common Issues
 
@@ -417,7 +417,7 @@ python main_controller.py --entity your-username --summary
 
 ---
 
-## 🎯 Next Steps
+## Next Steps
 
 1. **Run the Pipeline**: Start with `python main_controller.py --entity your-username`
 2. **Explore W&B**: Check your W&B dashboard for results
@@ -427,4 +427,4 @@ python main_controller.py --entity your-username --summary
 
 ---
 
-**Happy Experimenting! 🍰🚀** 
+**Happy Experimenting!** 

@@ -82,6 +82,6 @@ jobs:
     steps:
     - name: Notify deployment success
       run: |
-        echo "🎉 Successfully deployed to Docker Hub!"
+        echo "Successfully deployed to Docker Hub!"
         echo "Image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.version }}"
         echo "Latest: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest" 

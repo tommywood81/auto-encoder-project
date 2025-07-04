@@ -24,28 +24,28 @@ This project explores how autoencoders can detect fraudulent e-commerce transact
 - [Contact](#-contact)
 - [License](#-license)
 
-## ✨ Features
+## Features
 
-### 🎯 Core Capabilities
+### Core Capabilities
 - **Unsupervised Learning**: Detects fraud without labeled fraud examples
 - **Production-Ready Pipeline**: Modular, configurable, and scalable architecture
 - **Multiple Feature Strategies**: Test different approaches systematically
 - **Automated Experimentation**: Feature sweep pipeline for performance comparison
 
-### 🏗️ Technical Features
+### Technical Features
 - **Strategy Pattern**: Flexible feature engineering with easy extensibility
 - **Configuration Management**: Type-safe, version-controlled experiment settings
 - **Modular Design**: Isolated components for data cleaning, feature engineering, and model training
 - **Comprehensive Logging**: Full pipeline monitoring and debugging support
 
-### 📊 Feature Engineering Strategies
+### Feature Engineering Strategies
 - **Baseline**: Core transaction features (9 features)
 - **Temporal**: Time-based patterns and night-time detection
 - **Behavioural**: Purchase behavior analysis and amount-per-item calculations
 - **Demographic Risk**: Age-based risk scoring
 - **Combined**: All unique features from all strategies (12 features)
 
-## 🚀 Installation
+## Installation
 
 ### Prerequisites
 - Python 3.8+
@@ -109,18 +109,18 @@ FEATURE SWEEP RESULTS
 ================================================================================
 Strategy             Status     ROC AUC    Notes                          
 --------------------------------------------------------------------------------
-combined             ✅ SUCCESS 0.6511     Success                        
-behavioural          ✅ SUCCESS 0.6235     Success                        
-demographic_risk     ✅ SUCCESS 0.6164     Success                        
-temporal             ✅ SUCCESS 0.6119     Success                        
-baseline             ✅ SUCCESS 0.5954     Success                        
+combined             SUCCESS 0.6511     Success
+behavioural          SUCCESS 0.6235     Success
+demographic_risk     SUCCESS 0.6164     Success
+temporal             SUCCESS 0.6119     Success
+baseline             SUCCESS 0.5954     Success                        
 
-🏆 BEST PERFORMING STRATEGY: combined
+BEST PERFORMING STRATEGY: combined
    ROC AUC: 0.6511
    Improvement over baseline: +9.36%
 ```
 
-## 🏛️ Architecture
+## Architecture
 
 ### System Overview
 
@@ -243,7 +243,7 @@ def run_pipeline(strategy: str):
 
 Each step is isolated and can be tested independently, making the system robust and maintainable.
 
-## 📈 Results
+## Results
 
 ### Dataset Overview
 

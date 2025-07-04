@@ -48,15 +48,15 @@ def run_pipeline(strategy: str) -> Tuple[bool, float, str]:
     Returns:
         Tuple of (success, roc_auc, error_message)
     """
-    logger.info(f"🚀 Starting pipeline with strategy: {strategy}")
+    logger.info(f"Starting pipeline with strategy: {strategy}")
     print(f"   📋 Strategy: {strategy}")
     
     try:
         # Run the pipeline with real-time output
         cmd = [sys.executable, "run_pipeline.py", "--strategy", strategy]
         logger.info(f"📋 Executing command: {' '.join(cmd)}")
-        print(f"   🔧 Running: python run_pipeline.py --strategy {strategy}")
-        print(f"   📊 Pipeline output:")
+        print(f"   Running: python run_pipeline.py --strategy {strategy}")
+        print(f"   Pipeline output:")
         print("   " + "-" * 60)
         
         # Run with output capture for parsing
@@ -83,7 +83,7 @@ def run_pipeline(strategy: str) -> Tuple[bool, float, str]:
         if result.returncode != 0:
             error_msg = f"Pipeline failed for {strategy}"
             logger.error(error_msg)
-            print(f"   ❌ FAILED: {strategy}")
+            print(f"   FAILED: {strategy}")
             return False, 0.0, error_msg
         
         # Extract ROC AUC from the output
@@ -94,23 +94,23 @@ def run_pipeline(strategy: str) -> Tuple[bool, float, str]:
             roc_auc = extract_roc_auc(result.stderr)
         
         if roc_auc > 0:
-            logger.info(f"✅ Strategy {strategy} completed successfully with ROC AUC: {roc_auc:.4f}")
-            print(f"   ✅ SUCCESS: {strategy} - Pipeline completed (ROC AUC: {roc_auc:.4f})")
+            logger.info(f"Strategy {strategy} completed successfully with ROC AUC: {roc_auc:.4f}")
+            print(f"   SUCCESS: {strategy} - Pipeline completed (ROC AUC: {roc_auc:.4f})")
             return True, roc_auc, "Success"
         else:
-            logger.warning(f"⚠️ Strategy {strategy} completed but ROC AUC not found")
-            print(f"   ⚠️ WARNING: {strategy} - Pipeline completed but ROC AUC not found")
+            logger.warning(f"Strategy {strategy} completed but ROC AUC not found")
+            print(f"   WARNING: {strategy} - Pipeline completed but ROC AUC not found")
             return True, 0.0, "ROC AUC not found in output"
             
     except subprocess.TimeoutExpired:
         error_msg = f"Pipeline timed out for {strategy}"
         logger.error(error_msg)
-        print(f"   ⏰ TIMEOUT: {strategy}")
+        print(f"   TIMEOUT: {strategy}")
         return False, 0.0, error_msg
     except Exception as e:
         error_msg = f"Unexpected error for {strategy}: {str(e)}"
         logger.error(error_msg)
-        print(f"   💥 ERROR: {strategy} - {str(e)}")
+        print(f"   ERROR: {strategy} - {str(e)}")
         return False, 0.0, error_msg
 
 def extract_roc_auc(output: str) -> float:
@@ -159,7 +159,7 @@ def print_results(results: Dict[str, Tuple[bool, float, str]]):
     print("-" * 80)
     
     for strategy, (success, roc_auc, error_msg) in sorted_results:
-        status = "✅ SUCCESS" if success else "❌ FAILED"
+        status = "SUCCESS" if success else "FAILED"
         roc_str = f"{roc_auc:.4f}" if success else "N/A"
         notes = error_msg[:27] + "..." if len(error_msg) > 30 else error_msg
         
@@ -172,7 +172,7 @@ def print_results(results: Dict[str, Tuple[bool, float, str]]):
     
     if successful_results:
         best_strategy, best_roc = successful_results[0]
-        print(f"\n🏆 BEST PERFORMING STRATEGY: {best_strategy}")
+        print(f"\nBEST PERFORMING STRATEGY: {best_strategy}")
         print(f"   ROC AUC: {best_roc:.4f}")
         
         # Compare with baseline
@@ -193,18 +193,18 @@ def print_results(results: Dict[str, Tuple[bool, float, str]]):
         else:
             print(f"   Could not compare with baseline (baseline failed)")
     else:
-        print(f"\n❌ No strategies completed successfully!")
+        print(f"\nNo strategies completed successfully!")
 
 def main():
     """Main function to run the feature sweep."""
-    print("🚀 Starting Feature Sweep for Fraud Detection Pipeline")
+    print("Starting Feature Sweep for Fraud Detection Pipeline")
     print("="*80)
-    print("📊 This will test all feature strategies with 10 epochs each")
-    print("⏱️  Estimated time: ~10-15 minutes")
+    print("This will test all feature strategies with 10 epochs each")
+    print("Estimated time: ~10-15 minutes")
     print("="*80)
     
     # Show what strategies will be tested
-    print("\n📋 FEATURE STRATEGIES TO TEST:")
+    print("\nFEATURE STRATEGIES TO TEST:")
     for i, strategy in enumerate(STRATEGIES, 1):
         print(f"   {i}. {strategy}")
     print()
@@ -214,9 +214,9 @@ def main():
     
     for i, strategy in enumerate(STRATEGIES, 1):
         print(f"\n{'='*20} STAGE {i}/{len(STRATEGIES)}: {strategy.upper()} {'='*20}")
-        logger.info(f"🔄 Running stage {i}/{len(STRATEGIES)}: {strategy}")
-        print(f"🔄 STAGE {i}/{len(STRATEGIES)}: Testing {strategy.upper()} strategy")
-        print(f"   📝 Description: {STRATEGY_DESCRIPTIONS[strategy]}")
+        logger.info(f"Running stage {i}/{len(STRATEGIES)}: {strategy}")
+        print(f"STAGE {i}/{len(STRATEGIES)}: Testing {strategy.upper()} strategy")
+        print(f"   Description: {STRATEGY_DESCRIPTIONS[strategy]}")
         
         success, roc_auc, error_msg = run_pipeline(strategy)
         results[strategy] = (success, roc_auc, error_msg)
@@ -227,12 +227,12 @@ def main():
         remaining_strategies = len(STRATEGIES) - i
         estimated_remaining = remaining_strategies * avg_time_per_strategy
         
-        print(f"⏱️  Elapsed: {elapsed_time:.1f}s | Est. remaining: {estimated_remaining:.1f}s")
-        print(f"📈 Progress: {i}/{len(STRATEGIES)} strategies completed")
+        print(f"Elapsed: {elapsed_time:.1f}s | Est. remaining: {estimated_remaining:.1f}s")
+        print(f"Progress: {i}/{len(STRATEGIES)} strategies completed")
         
         # Small delay between runs
         if i < len(STRATEGIES):  # Don't delay after the last one
-            print("⏳ Waiting 2 seconds before next strategy...")
+            print("Waiting 2 seconds before next strategy...")
             time.sleep(2)
     
     # Calculate total time
@@ -242,14 +242,14 @@ def main():
     print_results(results)
     
     # Summary
-    print(f"\n📊 SUMMARY:")
+    print(f"\nSUMMARY:")
     print(f"   Total time: {total_time:.1f} seconds")
     print(f"   Strategies tested: {len(STRATEGIES)}")
     print(f"   Successful runs: {sum(1 for r in results.values() if r[0])}")
     print(f"   Failed runs: {sum(1 for r in results.values() if not r[0])}")
     print(f"   Average time per strategy: {total_time/len(STRATEGIES):.1f} seconds")
     
-    print(f"\n✅ Feature sweep completed!")
+    print(f"\nFeature sweep completed!")
     print("="*80)
 
 if __name__ == "__main__":
