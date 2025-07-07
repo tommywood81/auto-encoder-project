@@ -1,0 +1,40 @@
+Feature Engineering Strategy Test Results
+==================================================
+
+Test Date: 2025-07-08 07:12:54
+Target AUC-ROC: 0.75
+
+Strategy Results:
+--------------------
+baseline: AUC-ROC=0.6392, Features=9
+temporal: AUC-ROC=0.6112, Features=10
+behavioural: AUC-ROC=0.6183, Features=10
+demographic_risk: AUC-ROC=0.6281, Features=10
+advanced: AUC-ROC=0.6252, Features=26
+statistical: AUC-ROC=0.6454, Features=25
+fraud_specific: AUC-ROC=0.6247, Features=22
+combined: AUC-ROC=0.6025, Features=57
+ensemble: AUC-ROC=0.6254, Features=30
+deep: AUC-ROC=0.6316, Features=40
+clustering: AUC-ROC=0.6703, Features=35
+pca: AUC-ROC=0.6394, Features=34
+time_series: AUC-ROC=0.6144, Features=40
+ultra_advanced: AUC-ROC=0.6409, Features=85
+neural: AUC-ROC=0.6399, Features=29
+graph: AUC-ROC=0.6159, Features=35
+hybrid: AUC-ROC=0.6415, Features=45
+meta: AUC-ROC=0.6205, Features=42
+quantum: AUC-ROC=0.6276, Features=32
+evolutionary: AUC-ROC=0.5823, Features=32
+wavelet: AUC-ROC=0.6232, Features=38
+entropy: AUC-ROC=0.5957, Features=37
+fractal: AUC-ROC=0.6447, Features=35
+topological: AUC-ROC=0.6283, Features=34
+harmonic: AUC-ROC=0.6187, Features=35
+morphological: AUC-ROC=0.6462, Features=40
+spectral: AUC-ROC=0.5951, Features=34
+geometric: AUC-ROC=0.6239, Features=39
+
+Best Strategy: clustering
+Best AUC-ROC: 0.6703
+Target Met: False

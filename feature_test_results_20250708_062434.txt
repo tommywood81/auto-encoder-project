@@ -1,0 +1,25 @@
+Feature Engineering Strategy Test Results
+==================================================
+
+Test Date: 2025-07-08 06:24:34
+Target AUC-ROC: 0.75
+
+Strategy Results:
+--------------------
+baseline: AUC-ROC=0.6188, Features=9
+temporal: AUC-ROC=0.6040, Features=10
+behavioural: AUC-ROC=0.6458, Features=10
+demographic_risk: AUC-ROC=0.6135, Features=10
+advanced: AUC-ROC=0.6477, Features=26
+statistical: AUC-ROC=0.6368, Features=25
+fraud_specific: AUC-ROC=0.6430, Features=22
+combined: AUC-ROC=0.6120, Features=57
+ensemble: AUC-ROC=0.6270, Features=30
+deep: AUC-ROC=0.6162, Features=40
+clustering: AUC-ROC=0.6158, Features=35
+pca: AUC-ROC=0.6543, Features=34
+time_series: AUC-ROC=0.5875, Features=40
+
+Best Strategy: pca
+Best AUC-ROC: 0.6543
+Target Met: False

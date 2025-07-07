@@ -99,7 +99,7 @@ class LocalDeployment:
             
             # Wait for container to start
             logger.info("Waiting for server to start...")
-            time.sleep(10)
+            time.sleep(15)
             
             # Test health endpoint
             if self.test_health_endpoint():
@@ -135,50 +135,61 @@ class LocalDeployment:
         logger.info("Testing model inference...")
         
         try:
-            # Get test data
-            response = requests.get(f"http://localhost:{self.port}/test-data", timeout=30)
+            # Get available dates
+            response = requests.get(f"http://localhost:{self.port}/available-dates", timeout=30)
             if response.status_code != 200:
-                logger.error("Failed to get test data")
+                logger.error("Failed to get available dates")
                 return False
             
-            test_data = response.json()
-            if not test_data.get('test_data'):
-                logger.error("No test data available")
+            dates_data = response.json()
+            if not dates_data.get('dates'):
+                logger.error("No available dates")
                 return False
             
-            # Test single prediction
-            sample_features = test_data['test_data'][0]['features']
-            prediction_response = requests.post(
-                f"http://localhost:{self.port}/predict",
-                json={"features": sample_features},
+            # Test date analysis with first available date
+            test_date = dates_data['dates'][0]
+            logger.info(f"Testing analysis for date: {test_date}")
+            
+            analysis_response = requests.post(
+                f"http://localhost:{self.port}/analyze-date",
+                json={"date": test_date},
                 timeout=30
             )
             
-            if prediction_response.status_code == 200:
-                prediction = prediction_response.json()
-                logger.info(f"Single prediction test passed: {prediction}")
-                
-                # Test batch prediction
-                batch_data = {"transactions": [item['features'] for item in test_data['test_data'][:3]]}
-                batch_response = requests.post(
-                    f"http://localhost:{self.port}/predict-batch",
-                    json=batch_data,
-                    timeout=30
-                )
-                
-                if batch_response.status_code == 200:
-                    batch_prediction = batch_response.json()
-                    logger.info(f"Batch prediction test passed: {len(batch_prediction['predictions'])} predictions")
-                    return True
-                else:
-                    logger.error("Batch prediction test failed")
-                    return False
+            if analysis_response.status_code == 200:
+                analysis = analysis_response.json()
+                logger.info(f"Date analysis test passed:")
+                logger.info(f"  - Total transactions: {analysis['total_transactions']}")
+                logger.info(f"  - Flagged transactions: {analysis['flagged_transactions']}")
+                logger.info(f"  - AUC-ROC: {analysis['auc_roc']:.3f}")
+                return True
             else:
-                logger.error("Single prediction test failed")
+                logger.error(f"Date analysis test failed: {analysis_response.status_code}")
                 return False
                 
         except Exception as e:
             logger.error(f"Model inference test failed: {e}")
+            return False
+    
+    def test_model_info(self):
+        """Test model information endpoint."""
+        logger.info("Testing model info endpoint...")
+        
+        try:
+            response = requests.get(f"http://localhost:{self.port}/model-info", timeout=30)
+            if response.status_code == 200:
+                model_info = response.json()
+                logger.info(f"Model info test passed:")
+                logger.info(f"  - Model type: {model_info['model_type']}")
+                logger.info(f"  - Strategy: {model_info['strategy']}")
+                logger.info(f"  - Features: {model_info['feature_count']}")
+                logger.info(f"  - Threshold: {model_info['threshold']}")
+                return True
+            else:
+                logger.error(f"Model info test failed: {response.status_code}")
+                return False
+        except Exception as e:
+            logger.error(f"Model info test failed: {e}")
             return False
     
     def stop_local_server(self):
@@ -198,46 +209,47 @@ class LocalDeployment:
         """Run the complete local deployment process."""
         logger.info("Starting Local Deployment for Fraud Detection Model")
         
-        try:
-            # Step 1: Check prerequisites
-            if not self.check_prerequisites():
-                logger.error("Prerequisites check failed")
-                return False
-            
-            # Step 2: Build Docker image
-            if not self.build_docker_image():
-                logger.error("Docker build failed")
-                return False
-            
-            # Step 3: Start local server
-            if not self.start_local_server():
-                logger.error("Failed to start local server")
-                return False
-            
-            # Step 4: Test model inference
-            if not self.test_model_inference():
-                logger.error("Model inference test failed")
-                return False
-            
-            logger.info("LOCAL DEPLOYMENT COMPLETED SUCCESSFULLY!")
-            logger.info(f"Access the web interface at: http://localhost:{self.port}")
-            logger.info(f"API documentation at: http://localhost:{self.port}/docs")
-            logger.info("Use Ctrl+C to stop the server when done testing")
-            
-            return True
-            
-        except KeyboardInterrupt:
-            logger.info("\nDeployment interrupted by user")
-            self.stop_local_server()
+        # Check prerequisites
+        if not self.check_prerequisites():
+            logger.error("Prerequisites check failed")
             return False
-        except Exception as e:
-            logger.error(f"Local deployment failed: {e}")
-            self.stop_local_server()
+        
+        # Build Docker image
+        if not self.build_docker_image():
+            logger.error("Docker build failed")
             return False
+        
+        # Start local server
+        if not self.start_local_server():
+            logger.error("Failed to start local server")
+            return False
+        
+        # Test endpoints
+        logger.info("Testing API endpoints...")
+        
+        if not self.test_health_endpoint():
+            logger.error("Health endpoint test failed")
+            return False
+        
+        if not self.test_model_info():
+            logger.error("Model info test failed")
+            return False
+        
+        if not self.test_model_inference():
+            logger.error("Model inference test failed")
+            return False
+        
+        logger.info("✅ All tests passed! Local deployment successful.")
+        logger.info(f"🌐 Web Dashboard: http://localhost:{self.port}")
+        logger.info(f"🔧 API Health: http://localhost:{self.port}/health")
+        logger.info(f"📊 Model Info: http://localhost:{self.port}/model-info")
+        
+        return True
+
 
 def main():
-    """Main function."""
-    parser = argparse.ArgumentParser(description="Local Deployment for Fraud Detection Model")
+    """Main function for local deployment."""
+    parser = argparse.ArgumentParser(description="Local deployment for fraud detection model")
     parser.add_argument("--port", type=int, default=5000, help="Port to run the server on")
     parser.add_argument("--stop", action="store_true", help="Stop the local server")
     
@@ -246,11 +258,12 @@ def main():
     deployment = LocalDeployment(port=args.port)
     
     if args.stop:
-        success = deployment.stop_local_server()
-        sys.exit(0 if success else 1)
+        deployment.stop_local_server()
     else:
         success = deployment.run_local_deployment()
-        sys.exit(0 if success else 1)
+        if not success:
+            sys.exit(1)
+
 
 if __name__ == "__main__":
     main() 

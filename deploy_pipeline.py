@@ -129,14 +129,32 @@ class ProductionDeployment:
             
             # Wait for container to start
             logger.info("Waiting for container to start...")
-            time.sleep(15)
+            time.sleep(20)
             
             # Test health endpoint
             try:
                 response = requests.get("http://localhost:5000/health", timeout=30)
                 if response.status_code == 200:
-                    logger.info("Production image test successful")
-                    return True
+                    logger.info("Production image health check successful")
+                    
+                    # Test model info endpoint
+                    model_info_response = requests.get("http://localhost:5000/model-info", timeout=30)
+                    if model_info_response.status_code == 200:
+                        model_info = model_info_response.json()
+                        logger.info(f"Model info test successful: {model_info['model_type']} with {model_info['feature_count']} features")
+                        
+                        # Test available dates endpoint
+                        dates_response = requests.get("http://localhost:5000/available-dates", timeout=30)
+                        if dates_response.status_code == 200:
+                            dates_data = dates_response.json()
+                            logger.info(f"Available dates test successful: {len(dates_data['dates'])} dates available")
+                            return True
+                        else:
+                            logger.error("Available dates test failed")
+                            return False
+                    else:
+                        logger.error("Model info test failed")
+                        return False
                 else:
                     logger.error(f"Health check failed: {response.status_code}")
                     return False
