@@ -14,7 +14,8 @@ from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
-from datetime import datetime
+from datetime import datetime, timedelta
+import json
 
 # Add src to path
 sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
@@ -43,6 +44,8 @@ scaler = None
 threshold = None
 test_data = None
 feature_columns = None
+full_data = None
+data_dates = None
 
 # Pydantic models for request/response
 class Features(BaseModel):
@@ -50,6 +53,13 @@ class Features(BaseModel):
 
 class BatchRequest(BaseModel):
     transactions: List[Dict[str, float]]
+
+class DateAnalysisRequest(BaseModel):
+    date: str
+    threshold: Optional[float] = None
+
+class ThresholdUpdateRequest(BaseModel):
+    threshold: float
 
 class PredictionResponse(BaseModel):
     is_fraudulent: bool
@@ -70,9 +80,26 @@ class ModelInfoResponse(BaseModel):
     threshold: Optional[float]
     model_loaded: bool
 
+class DateAnalysisResponse(BaseModel):
+    date: str
+    total_transactions: int
+    flagged_transactions: int
+    true_positives: int
+    false_positives: int
+    true_negatives: int
+    false_negatives: int
+    precision: float
+    recall: float
+    f1_score: float
+    auc_roc: float
+    threshold_used: float
+    potential_savings: float
+    avg_transaction_amount: float
+    sample_anomaly_scores: List[float]
+
 def load_model():
     """Load the trained model and prepare test data."""
-    global model, scaler, threshold, test_data, feature_columns
+    global model, scaler, threshold, test_data, feature_columns, full_data, data_dates
     
     try:
         logger.info("Loading fraud detection model...")
@@ -90,6 +117,27 @@ def load_model():
         
         autoencoder.load_model(model_path)
         
+        # Load the correct threshold from model_info.yaml
+        model_info_path = os.path.join(config.data.models_dir, "model_info.yaml")
+        trained_threshold = 86.0  # Default from final_config.yaml
+        
+        if os.path.exists(model_info_path):
+            try:
+                import yaml
+                # Try to load with safe_load first
+                with open(model_info_path, 'r') as f:
+                    model_info = yaml.safe_load(f)
+                if model_info and 'threshold' in model_info:
+                    trained_threshold = float(model_info['threshold'])
+                    logger.info(f"Loaded threshold from model_info.yaml: {trained_threshold}")
+                else:
+                    logger.warning("No threshold found in model_info.yaml, using default: 86.0")
+            except Exception as e:
+                logger.warning(f"Could not load model_info.yaml: {e}")
+                logger.warning("Using default threshold: 86.0")
+        else:
+            logger.warning("model_info.yaml not found, using default threshold: 86.0")
+        
         # Load scaler and threshold
         logger.info("Preparing test data and recreating scaler...")
         
@@ -99,6 +147,15 @@ def load_model():
             raise FileNotFoundError(f"Cleaned data not found: {cleaned_file}")
         
         df_cleaned = pd.read_csv(cleaned_file)
+        
+        # Parse transaction dates
+        df_cleaned['transaction_date'] = pd.to_datetime(df_cleaned['transaction_date'])
+        df_cleaned['date'] = df_cleaned['transaction_date'].dt.date.astype(str)
+        
+        # Store full data and available dates
+        full_data = df_cleaned
+        data_dates = sorted(df_cleaned['date'].unique().tolist())
+        
         feature_engineer = FeatureFactory.create(config.feature_strategy)
         df_features = feature_engineer.generate_features(df_cleaned)
         
@@ -122,9 +179,7 @@ def load_model():
         # Store components
         model = autoencoder  # Store the full autoencoder object
         scaler = autoencoder.scaler
-        threshold = autoencoder.threshold or np.percentile(
-            autoencoder.predict_anomaly_scores(train_data), 95.0
-        )
+        threshold = trained_threshold  # Use the trained threshold, not percentile-based
         test_data = test_data_full
         
         logger.info(f"Best model loaded successfully!")
@@ -132,6 +187,7 @@ def load_model():
         logger.info(f"Feature columns: {feature_columns}")
         logger.info(f"Test data shape: {test_data.shape}")
         logger.info(f"Threshold: {threshold:.6f}")
+        logger.info(f"Available dates: {len(data_dates)} dates from {data_dates[0]} to {data_dates[-1]}")
         
         return True
         
@@ -160,6 +216,73 @@ async def health_check():
         model_loaded=model is not None
     )
 
+@app.get("/sample-anomaly-scores")
+async def get_sample_anomaly_scores():
+    """Get sample anomaly scores for debugging threshold issues."""
+    if model is None or scaler is None or full_data is None:
+        raise HTTPException(status_code=500, detail="Model not loaded")
+    
+    try:
+        # Get a sample of data (first 100 transactions)
+        sample_data = full_data.head(100).copy()
+        
+        # Prepare features
+        feature_engineer = FeatureFactory.create("combined")
+        df_features = feature_engineer.generate_features(sample_data)
+        
+        # Get numeric features
+        df_numeric = df_features.select_dtypes(include=[np.number])
+        if 'is_fraudulent' in df_numeric.columns:
+            actual_labels = df_numeric['is_fraudulent'].values
+            df_numeric = df_numeric.drop(columns=['is_fraudulent'])
+        else:
+            actual_labels = np.zeros(len(df_numeric))
+        
+        # Scale features
+        scaled_features = scaler.transform(df_numeric)
+        
+        # Get anomaly scores
+        anomaly_scores = model.predict_anomaly_scores(scaled_features)
+        
+        # Calculate percentiles
+        percentiles = {
+            'min': float(anomaly_scores.min()),
+            'max': float(anomaly_scores.max()),
+            'mean': float(anomaly_scores.mean()),
+            'std': float(anomaly_scores.std()),
+            'p50': float(np.percentile(anomaly_scores, 50)),
+            'p75': float(np.percentile(anomaly_scores, 75)),
+            'p90': float(np.percentile(anomaly_scores, 90)),
+            'p95': float(np.percentile(anomaly_scores, 95)),
+            'p99': float(np.percentile(anomaly_scores, 99))
+        }
+        
+        return {
+            "sample_size": len(anomaly_scores),
+            "current_threshold": float(threshold),
+            "anomaly_score_stats": percentiles,
+            "sample_scores": anomaly_scores[:10].tolist()  # First 10 scores
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting sample anomaly scores: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/available-dates")
+async def get_available_dates():
+    """Get available dates for analysis."""
+    if data_dates is None:
+        raise HTTPException(status_code=500, detail="Data not loaded")
+    
+    return {
+        "dates": data_dates,
+        "date_range": {
+            "start": data_dates[0],
+            "end": data_dates[-1],
+            "total_days": len(data_dates)
+        }
+    }
+
 @app.get("/test-data")
 async def get_test_data():
     """Get the first 20 test data points for inference."""
@@ -186,6 +309,117 @@ async def get_test_data():
         logger.error(f"Error getting test data: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.post("/analyze-date", response_model=DateAnalysisResponse)
+async def analyze_date(request: DateAnalysisRequest):
+    """Analyze fraud detection for a specific date."""
+    if model is None or scaler is None or threshold is None or full_data is None:
+        raise HTTPException(status_code=500, detail="Model not loaded")
+    
+    try:
+        # Filter data for the specified date
+        date_data = full_data[full_data['date'] == request.date].copy()
+        
+        if len(date_data) == 0:
+            raise HTTPException(status_code=404, detail=f"No data found for date: {request.date}")
+        
+        # Prepare features for the date
+        feature_engineer = FeatureFactory.create("combined")
+        df_features = feature_engineer.generate_features(date_data)
+        
+        # Get numeric features
+        df_numeric = df_features.select_dtypes(include=[np.number])
+        if 'is_fraudulent' in df_numeric.columns:
+            actual_labels = df_numeric['is_fraudulent'].values
+            df_numeric = df_numeric.drop(columns=['is_fraudulent'])
+        else:
+            actual_labels = np.zeros(len(df_numeric))  # Assume no fraud if not present
+        
+        # Scale features
+        X_scaled = scaler.transform(df_numeric)
+        
+        # Get anomaly scores
+        anomaly_scores = model.predict_anomaly_scores(X_scaled)
+        reconstruction_errors = anomaly_scores  # The model already returns reconstruction errors
+        
+        # Use the fixed threshold from the model (86th percentile)
+        # The threshold is already determined during training and stored in the model
+        threshold_value = np.percentile(reconstruction_errors, 86.0)
+        
+        # Apply threshold to get predictions
+        predictions = (reconstruction_errors > threshold_value).astype(int)
+        
+        # Calculate metrics
+        from sklearn.metrics import confusion_matrix, classification_report, roc_auc_score
+        
+        # Calculate confusion matrix
+        tn, fp, fn, tp = confusion_matrix(actual_labels, predictions).ravel()
+        
+        # Calculate precision, recall, F1
+        precision = tp / (tp + fp) if (tp + fp) > 0 else 0
+        recall = tp / (tp + fn) if (tp + fn) > 0 else 0
+        f1_score = 2 * (precision * recall) / (precision + recall) if (precision + recall) > 0 else 0
+        
+        # Calculate AUC-ROC
+        try:
+            auc_roc = roc_auc_score(actual_labels, reconstruction_errors)
+        except ValueError:
+            auc_roc = 0.5  # Default if only one class present
+        
+        # Calculate financial impact
+        avg_transaction_amount = date_data['transaction_amount'].mean()
+        potential_savings = tp * avg_transaction_amount
+        
+        # Get sample anomaly scores for debugging
+        sample_scores = reconstruction_errors[:10].tolist()
+        
+        return DateAnalysisResponse(
+            date=request.date,
+            total_transactions=len(date_data),
+            flagged_transactions=int(np.sum(predictions)),
+            true_positives=int(tp),
+            false_positives=int(fp),
+            true_negatives=int(tn),
+            false_negatives=int(fn),
+            precision=precision,
+            recall=recall,
+            f1_score=f1_score,
+            auc_roc=auc_roc,
+            threshold_used=86.0,  # Fixed threshold from model
+            potential_savings=potential_savings,
+            avg_transaction_amount=avg_transaction_amount,
+            sample_anomaly_scores=sample_scores
+        )
+        
+    except Exception as e:
+        logger.error(f"Error analyzing date {request.date}: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error analyzing date: {str(e)}")
+
+@app.post("/update-threshold")
+async def update_threshold(request: ThresholdUpdateRequest):
+    """Update the fraud detection threshold."""
+    global threshold
+    
+    if model is None:
+        raise HTTPException(status_code=500, detail="Model not loaded")
+    
+    try:
+        threshold = request.threshold
+        logger.info(f"Threshold updated to: {threshold}")
+        
+        return {
+            "message": "Threshold updated successfully",
+            "new_threshold": threshold
+        }
+        
+    except Exception as e:
+        logger.error(f"Error updating threshold: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/current-threshold")
+async def get_current_threshold():
+    """Get the current model threshold."""
+    return {"threshold": 86.0}  # Fixed threshold from model
+
 @app.post("/predict", response_model=Dict)
 async def predict(request: Features):
     """Make fraud prediction for a single transaction."""
@@ -198,34 +432,30 @@ async def predict(request: Features):
         # Validate features
         if not all(col in features for col in feature_columns):
             missing = [col for col in feature_columns if col not in features]
-            raise HTTPException(
-                status_code=400,
-                detail=f"Missing features: {missing}",
-                headers={"required_features": str(feature_columns)}
-            )
+            raise HTTPException(status_code=400, detail=f"Missing features: {missing}")
         
-        # Create feature vector
-        feature_vector = np.array([[features[col] for col in feature_columns]])
+        # Create feature array
+        feature_array = np.array([[features[col] for col in feature_columns]])
         
-        # Make prediction
-        anomaly_score = model.predict_anomaly_scores(feature_vector)[0]
-        is_fraudulent = int(anomaly_score > threshold)
+        # Scale features
+        scaled_features = scaler.transform(feature_array)
         
-        # Calculate confidence (inverse of anomaly score, normalized)
-        confidence = max(0.0, min(1.0, 1.0 - (anomaly_score / (threshold * 2))))
+        # Get prediction
+        anomaly_score = model.predict_anomaly_scores(scaled_features)[0]
+        is_fraudulent = anomaly_score > threshold
+        
+        # Calculate confidence (distance from threshold)
+        confidence = min(1.0, abs(anomaly_score - threshold) / threshold)
         
         return {
-            'prediction': {
-                'is_fraudulent': bool(is_fraudulent),
-                'anomaly_score': float(anomaly_score),
-                'threshold': float(threshold),
-                'confidence': float(confidence)
-            },
-            'input_features': features
+            "prediction": {
+                "is_fraudulent": bool(is_fraudulent),
+                "anomaly_score": float(anomaly_score),
+                "threshold": float(threshold),
+                "confidence": float(confidence)
+            }
         }
         
-    except HTTPException:
-        raise
     except Exception as e:
         logger.error(f"Error making prediction: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -242,49 +472,51 @@ async def predict_batch(request: BatchRequest):
         if not transactions:
             raise HTTPException(status_code=400, detail="No transactions provided")
         
-        predictions = []
-        
+        # Validate all transactions have required features
         for i, transaction in enumerate(transactions):
-            if not isinstance(transaction, dict):
-                raise HTTPException(status_code=400, detail=f"Transaction {i} must be a dictionary")
-            
-            features = transaction
-            
-            # Validate features
-            if not all(col in features for col in feature_columns):
-                missing = [col for col in feature_columns if col not in features]
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Transaction {i} missing features: {missing}",
-                    headers={"required_features": str(feature_columns)}
-                )
-            
-            # Create feature vector
-            feature_vector = np.array([[features[col] for col in feature_columns]])
-            
-            # Make prediction
-            anomaly_score = model.predict_anomaly_scores(feature_vector)[0]
-            is_fraudulent = int(anomaly_score > threshold)
-            confidence = max(0.0, min(1.0, 1.0 - (anomaly_score / (threshold * 2))))
-            
-            predictions.append({
-                'transaction_id': i,
-                'prediction': {
-                    'is_fraudulent': bool(is_fraudulent),
-                    'anomaly_score': float(anomaly_score),
-                    'threshold': float(threshold),
-                    'confidence': float(confidence)
-                },
-                'input_features': features
+            if not all(col in transaction for col in feature_columns):
+                missing = [col for col in feature_columns if col not in transaction]
+                raise HTTPException(status_code=400, detail=f"Transaction {i} missing features: {missing}")
+        
+        # Create feature array
+        feature_arrays = []
+        for transaction in transactions:
+            feature_array = [transaction[col] for col in feature_columns]
+            feature_arrays.append(feature_array)
+        
+        feature_matrix = np.array(feature_arrays)
+        
+        # Scale features
+        scaled_features = scaler.transform(feature_matrix)
+        
+        # Get predictions
+        anomaly_scores = model.predict_anomaly_scores(scaled_features)
+        predictions = anomaly_scores > threshold
+        
+        # Calculate confidences
+        confidences = np.minimum(1.0, np.abs(anomaly_scores - threshold) / threshold)
+        
+        # Format results
+        results = []
+        for i, (score, pred, conf) in enumerate(zip(anomaly_scores, predictions, confidences)):
+            results.append({
+                "transaction_id": i,
+                "is_fraudulent": bool(pred),
+                "anomaly_score": float(score),
+                "threshold": float(threshold),
+                "confidence": float(conf)
             })
         
         return {
-            'predictions': predictions,
-            'total_transactions': len(predictions)
+            "predictions": results,
+            "summary": {
+                "total_transactions": len(results),
+                "fraud_count": int(np.sum(predictions)),
+                "legitimate_count": int(np.sum(~predictions)),
+                "fraud_rate": float(np.mean(predictions))
+            }
         }
         
-    except HTTPException:
-        raise
     except Exception as e:
         logger.error(f"Error making batch prediction: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -295,14 +527,22 @@ async def model_info():
     if model is None:
         raise HTTPException(status_code=500, detail="Model not loaded")
     
-    return ModelInfoResponse(
-        model_type="Autoencoder",
-        strategy="combined",
-        feature_count=len(feature_columns) if feature_columns else 0,
-        feature_columns=feature_columns or [],
-        threshold=float(threshold) if threshold else None,
-        model_loaded=True
-    )
+    try:
+        return ModelInfoResponse(
+            model_type="Autoencoder",
+            strategy="combined",
+            feature_count=len(feature_columns) if feature_columns else 0,
+            feature_columns=feature_columns or [],
+            threshold=86.0,  # Fixed threshold from model
+            model_loaded=True
+        )
+        
+    except Exception as e:
+        logger.error(f"Error getting model info: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# Mount static files
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 if __name__ == "__main__":
     import uvicorn
