@@ -1,117 +1,118 @@
 #!/usr/bin/env python3
 """
-Fraud Detection Pipeline Runner.
-Supports config-driven feature strategies via CLI arguments.
+Main pipeline for fraud detection using autoencoders.
 """
 
 import argparse
 import logging
-import os
 import sys
-from datetime import datetime
+import os
+from typing import Dict, Any
 
 # Add src to path
 sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
 
 from src.config import PipelineConfig
-from src.data import DataCleaner
-from src.feature_factory import FeatureFactory
+from src.data.data_cleaning import DataCleaner
+from src.feature_factory.feature_factory import FeatureFactory
 from src.models import BaselineAutoencoder
+from src.evaluation.evaluator import FraudEvaluator
 
-# Set up logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 
-def run_pipeline(strategy: str):
+def run_pipeline(strategy: str) -> Dict[str, Any]:
     """Run the complete fraud detection pipeline with given strategy."""
+    
     logger.info(f"Starting fraud detection pipeline with strategy: {strategy}")
     
     # Load configuration
     config = PipelineConfig.get_config(strategy)
     logger.info(f"Configuration loaded: {config.name}")
-    logger.info(f"Feature strategy: {config.feature_strategy}")
     
-    # Step 1: Data Cleaning
-    logger.info("Step 1: Data Cleaning")
+    # Data cleaning
+    logger.info("Step 1: Data cleaning...")
     cleaner = DataCleaner(config)
     df_cleaned = cleaner.clean_data(save_output=True)
-    logger.info(f"Data cleaning completed. Shape: {df_cleaned.shape}")
+    logger.info(f"Data cleaned: {len(df_cleaned)} transactions")
     
-    # Step 2: Feature Engineering
-    logger.info("Step 2: Feature Engineering")
+    # Feature engineering
+    logger.info("Step 2: Feature engineering...")
     feature_engineer = FeatureFactory.create(config.feature_strategy)
     df_features = feature_engineer.generate_features(df_cleaned)
+    logger.info(f"Features generated: {len(df_features.columns)} features")
     
-    # Log feature information
-    feature_info = feature_engineer.get_feature_info()
-    logger.info(f"Feature strategy: {feature_info['strategy']}")
-    logger.info(f"Feature count: {feature_info['feature_count']}")
-    logger.info(f"Features: {list(feature_info['features'].keys())}")
-    
-    # Save engineered features
-    os.makedirs(config.data.engineered_dir, exist_ok=True)
-    output_file = os.path.join(config.data.engineered_dir, f"{config.feature_strategy}_features.csv")
-    df_features.to_csv(output_file, index=False)
-    logger.info(f"Features saved to: {output_file}")
-    
-    # Step 3: Model Training
-    logger.info("Step 3: Model Training")
+    # Model training
+    logger.info("Step 3: Model training...")
     autoencoder = BaselineAutoencoder(config)
     results = autoencoder.train()
+    logger.info("Model training completed")
     
-    # Log results
-    logger.info("Pipeline completed successfully!")
-    logger.info(f"ROC AUC: {results['roc_auc']:.4f}")
-    logger.info(f"Anomaly threshold: {results['threshold']:.6f}")
+    # Model evaluation
+    logger.info("Step 4: Model evaluation...")
+    # For now, we'll use a simple approach since the evaluator expects different inputs
+    # We'll extract ROC AUC from the training results
+    roc_auc = results.get('roc_auc', 0.0)
+    logger.info(f"Model evaluation completed - ROC AUC: {roc_auc:.4f}")
     
-    # Log configuration summary
-    config_summary = config.to_dict()
-    logger.info("Configuration summary:")
-    for key, value in config_summary.items():
-        logger.info(f"  {key}: {value}")
+    return {
+        'strategy': strategy,
+        'roc_auc': roc_auc,
+        'config': config,
+        'results': results
+    }
+
+
+def list_strategies():
+    """List all available feature engineering strategies."""
+    strategies = FeatureFactory.get_available_strategies()
     
-    return results
+    print("\nAvailable Feature Engineering Strategies:")
+    print("=" * 60)
+    
+    for strategy, description in strategies.items():
+        print(f"  - {strategy}: {description}")
+    
+    print("\nUsage:")
+    print("  python run_pipeline.py --strategy <strategy_name>")
+    print("\nExample:")
+    print("  python run_pipeline.py --strategy combined")
 
 
 def main():
-    """Main entry point with CLI argument parsing."""
+    """Main function."""
     parser = argparse.ArgumentParser(description="Fraud Detection Pipeline")
     parser.add_argument(
         "--strategy",
         type=str,
-        default="baseline",
-        choices=["baseline", "temporal", "behavioural", "demographic_risk", "combined"],
+        default="baseline_numeric",
+        choices=["baseline_numeric", "categorical", "temporal", "behavioral", "demographics", "fraud_flags", "rolling", "rank_encoding", "time_interactions", "combined"],
         help="Feature engineering strategy to use"
     )
     parser.add_argument(
         "--list-strategies",
         action="store_true",
-        help="List available strategies"
+        help="List all available strategies"
     )
     
     args = parser.parse_args()
     
-    # List available strategies
     if args.list_strategies:
-        print("Available strategies:")
-        print("  - baseline: Basic transaction features only (9 features)")
-        print("  - temporal: Basic features + temporal patterns (10 features)")
-        print("  - behavioural: Core features + amount per item (10 features)")
-        print("  - demographic_risk: Core features + customer age risk scores (10 features)")
-        print("  - combined: All unique features from all strategies (no duplicates)")
+        list_strategies()
         return
     
-    # Run pipeline
     try:
         results = run_pipeline(args.strategy)
-        logger.info("Pipeline completed successfully!")
+        print(f"\nPipeline completed successfully!")
+        print(f"Strategy: {results['strategy']}")
+        print(f"ROC AUC: {results['roc_auc']:.4f}")
+        
     except Exception as e:
         logger.error(f"Pipeline failed: {str(e)}")
-        raise
+        print(f"Pipeline failed: {str(e)}")
+        sys.exit(1)
 
 
 if __name__ == "__main__":

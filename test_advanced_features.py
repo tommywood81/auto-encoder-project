@@ -116,10 +116,12 @@ def main():
     print("🚀 Starting advanced feature engineering strategy testing...")
     logger.info("Starting advanced feature engineering strategy testing...")
     
+    # Load baseline configuration
+    config = PipelineConfig.get_baseline_numeric_config()
+
     # Load and clean data
     print("📂 Loading and cleaning data...")
     logger.info("Loading and cleaning data...")
-    config = PipelineConfig.get_baseline_config()
     data_cleaner = DataCleaner(config)
     df_cleaned = data_cleaner.clean_data(save_output=False)
     

@@ -62,12 +62,12 @@ class PipelineConfig:
     features: FeatureConfig
     
     @classmethod
-    def get_baseline_config(cls) -> 'PipelineConfig':
-        """Get baseline configuration."""
+    def get_baseline_numeric_config(cls) -> 'PipelineConfig':
+        """Get baseline numeric configuration."""
         return cls(
-            name="baseline",
-            description="Basic transaction features only",
-            feature_strategy="baseline",
+            name="baseline_numeric",
+            description="Log and ratio features from raw numerics",
+            feature_strategy="baseline_numeric",
             data=DataConfig(
                 raw_file="data/raw/Fraudulent_E-Commerce_Transaction_Data_2.csv",
                 cleaned_dir="data/cleaned",
@@ -81,7 +81,49 @@ class PipelineConfig:
                 hidden_dim=64,
                 latent_dim=32,
                 learning_rate=0.01,
-                epochs=10,
+                epochs=25,
+                batch_size=32,
+                validation_split=0.2,
+                threshold_percentile=95.0,
+                save_model=True
+            ),
+            features=FeatureConfig(
+                transaction_amount=True,
+                customer_age=True,
+                quantity=True,
+                account_age_days=True,
+                payment_method=True,
+                product_category=True,
+                device_used=True,
+                customer_location=True,
+                transaction_amount_log=True,
+                customer_location_freq=True,
+                temporal_features=False,
+                behavioural_features=False
+            )
+        )
+    
+    @classmethod
+    def get_categorical_config(cls) -> 'PipelineConfig':
+        """Get categorical configuration."""
+        return cls(
+            name="categorical",
+            description="Encoded payment, product, and device columns",
+            feature_strategy="categorical",
+            data=DataConfig(
+                raw_file="data/raw/Fraudulent_E-Commerce_Transaction_Data_2.csv",
+                cleaned_dir="data/cleaned",
+                engineered_dir="data/engineered",
+                models_dir="models",
+                test_size=0.2,
+                random_state=42
+            ),
+            model=ModelConfig(
+                name="autoencoder",
+                hidden_dim=64,
+                latent_dim=32,
+                learning_rate=0.01,
+                epochs=25,
                 batch_size=32,
                 validation_split=0.2,
                 threshold_percentile=95.0,
@@ -108,7 +150,7 @@ class PipelineConfig:
         """Get temporal configuration."""
         return cls(
             name="temporal",
-            description="Basic transaction features + temporal patterns",
+            description="Late-night and burst transaction flags",
             feature_strategy="temporal",
             data=DataConfig(
                 raw_file="data/raw/Fraudulent_E-Commerce_Transaction_Data_2.csv",
@@ -123,7 +165,7 @@ class PipelineConfig:
                 hidden_dim=64,
                 latent_dim=32,
                 learning_rate=0.01,
-                epochs=10,
+                epochs=25,
                 batch_size=32,
                 validation_split=0.2,
                 threshold_percentile=95.0,
@@ -146,12 +188,12 @@ class PipelineConfig:
         )
     
     @classmethod
-    def get_behavioural_config(cls) -> 'PipelineConfig':
-        """Get behavioural configuration."""
+    def get_behavioral_config(cls) -> 'PipelineConfig':
+        """Get behavioral configuration."""
         return cls(
-            name="behavioural",
-            description="Core features + amount per item",
-            feature_strategy="behavioural",
+            name="behavioral",
+            description="Behavioral ratios per age/account age",
+            feature_strategy="behavioral",
             data=DataConfig(
                 raw_file="data/raw/Fraudulent_E-Commerce_Transaction_Data_2.csv",
                 cleaned_dir="data/cleaned",
@@ -165,7 +207,7 @@ class PipelineConfig:
                 hidden_dim=64,
                 latent_dim=32,
                 learning_rate=0.01,
-                epochs=10,
+                epochs=25,
                 batch_size=32,
                 validation_split=0.2,
                 threshold_percentile=95.0,
@@ -188,14 +230,17 @@ class PipelineConfig:
         )
     
     @classmethod
-    def get_demographic_risk_config(cls) -> 'PipelineConfig':
-        """Get demographic risk configuration."""
+    def get_demographics_config(cls) -> 'PipelineConfig':
+        """Get demographics configuration."""
         return cls(
-            name="demographic_risk",
-            description="Core features + customer age risk scores",
-            feature_strategy="demographic_risk",
+            name="demographics",
+            description="Customer age bucketed into risk bands",
+            feature_strategy="demographics",
             data=DataConfig(
                 raw_file="data/raw/Fraudulent_E-Commerce_Transaction_Data_2.csv",
+                cleaned_dir="data/cleaned",
+                engineered_dir="data/engineered",
+                models_dir="models",
                 test_size=0.2,
                 random_state=42
             ),
@@ -204,13 +249,191 @@ class PipelineConfig:
                 hidden_dim=64,
                 latent_dim=32,
                 learning_rate=0.01,
-                epochs=10,
+                epochs=25,
                 batch_size=32,
                 validation_split=0.2,
                 threshold_percentile=95.0,
                 save_model=True
             ),
             features=FeatureConfig(
+                transaction_amount=True,
+                customer_age=True,
+                quantity=True,
+                account_age_days=True,
+                payment_method=True,
+                product_category=True,
+                device_used=True,
+                customer_location=True,
+                transaction_amount_log=True,
+                customer_location_freq=True,
+                temporal_features=False,
+                behavioural_features=False
+            )
+        )
+    
+    @classmethod
+    def get_fraud_flags_config(cls) -> 'PipelineConfig':
+        """Get fraud flags configuration."""
+        return cls(
+            name="fraud_flags",
+            description="Rule-based fraud risk indicators",
+            feature_strategy="fraud_flags",
+            data=DataConfig(
+                raw_file="data/raw/Fraudulent_E-Commerce_Transaction_Data_2.csv",
+                cleaned_dir="data/cleaned",
+                engineered_dir="data/engineered",
+                models_dir="models",
+                test_size=0.2,
+                random_state=42
+            ),
+            model=ModelConfig(
+                name="autoencoder",
+                hidden_dim=64,
+                latent_dim=32,
+                learning_rate=0.01,
+                epochs=25,
+                batch_size=32,
+                validation_split=0.2,
+                threshold_percentile=95.0,
+                save_model=True
+            ),
+            features=FeatureConfig(
+                transaction_amount=True,
+                customer_age=True,
+                quantity=True,
+                account_age_days=True,
+                payment_method=True,
+                product_category=True,
+                device_used=True,
+                customer_location=True,
+                transaction_amount_log=True,
+                customer_location_freq=True,
+                temporal_features=False,
+                behavioural_features=False
+            )
+        )
+    
+    @classmethod
+    def get_rolling_config(cls) -> 'PipelineConfig':
+        """Get rolling configuration."""
+        return cls(
+            name="rolling",
+            description="Rolling mean and std of amount per customer",
+            feature_strategy="rolling",
+            data=DataConfig(
+                raw_file="data/raw/Fraudulent_E-Commerce_Transaction_Data_2.csv",
+                cleaned_dir="data/cleaned",
+                engineered_dir="data/engineered",
+                models_dir="models",
+                test_size=0.2,
+                random_state=42
+            ),
+            model=ModelConfig(
+                name="autoencoder",
+                hidden_dim=64,
+                latent_dim=32,
+                learning_rate=0.01,
+                epochs=25,
+                batch_size=32,
+                validation_split=0.2,
+                threshold_percentile=95.0,
+                save_model=True
+            ),
+            features=FeatureConfig(
+                transaction_amount=True,
+                customer_age=True,
+                quantity=True,
+                account_age_days=True,
+                payment_method=True,
+                product_category=True,
+                device_used=True,
+                customer_location=True,
+                transaction_amount_log=True,
+                customer_location_freq=True,
+                temporal_features=False,
+                behavioural_features=False
+            )
+        )
+    
+    @classmethod
+    def get_rank_encoding_config(cls) -> 'PipelineConfig':
+        """Get rank encoding configuration."""
+        return cls(
+            name="rank_encoding",
+            description="Rank-based encodings of amount and account age",
+            feature_strategy="rank_encoding",
+            data=DataConfig(
+                raw_file="data/raw/Fraudulent_E-Commerce_Transaction_Data_2.csv",
+                cleaned_dir="data/cleaned",
+                engineered_dir="data/engineered",
+                models_dir="models",
+                test_size=0.2,
+                random_state=42
+            ),
+            model=ModelConfig(
+                name="autoencoder",
+                hidden_dim=64,
+                latent_dim=32,
+                learning_rate=0.01,
+                epochs=25,
+                batch_size=32,
+                validation_split=0.2,
+                threshold_percentile=95.0,
+                save_model=True
+            ),
+            features=FeatureConfig(
+                transaction_amount=True,
+                customer_age=True,
+                quantity=True,
+                account_age_days=True,
+                payment_method=True,
+                product_category=True,
+                device_used=True,
+                customer_location=True,
+                transaction_amount_log=True,
+                customer_location_freq=True,
+                temporal_features=False,
+                behavioural_features=False
+            )
+        )
+    
+    @classmethod
+    def get_time_interactions_config(cls) -> 'PipelineConfig':
+        """Get time interactions configuration."""
+        return cls(
+            name="time_interactions",
+            description="Crossed and interaction features using hour",
+            feature_strategy="time_interactions",
+            data=DataConfig(
+                raw_file="data/raw/Fraudulent_E-Commerce_Transaction_Data_2.csv",
+                cleaned_dir="data/cleaned",
+                engineered_dir="data/engineered",
+                models_dir="models",
+                test_size=0.2,
+                random_state=42
+            ),
+            model=ModelConfig(
+                name="autoencoder",
+                hidden_dim=64,
+                latent_dim=32,
+                learning_rate=0.01,
+                epochs=25,
+                batch_size=32,
+                validation_split=0.2,
+                threshold_percentile=95.0,
+                save_model=True
+            ),
+            features=FeatureConfig(
+                transaction_amount=True,
+                customer_age=True,
+                quantity=True,
+                account_age_days=True,
+                payment_method=True,
+                product_category=True,
+                device_used=True,
+                customer_location=True,
+                transaction_amount_log=True,
+                customer_location_freq=True,
                 temporal_features=False,
                 behavioural_features=False
             )
@@ -221,7 +444,7 @@ class PipelineConfig:
         """Get combined configuration - all features from all strategies."""
         return cls(
             name="combined",
-            description="All unique features from all strategies (no duplicates)",
+            description="All feature engineering strategies combined",
             feature_strategy="combined",
             data=DataConfig(
                 raw_file="data/raw/Fraudulent_E-Commerce_Transaction_Data_2.csv",
@@ -236,7 +459,7 @@ class PipelineConfig:
                 hidden_dim=64,
                 latent_dim=32,
                 learning_rate=0.01,
-                epochs=10,
+                epochs=25,
                 batch_size=32,
                 validation_split=0.2,
                 threshold_percentile=95.0,
@@ -261,18 +484,29 @@ class PipelineConfig:
     @classmethod
     def get_config(cls, strategy: str) -> 'PipelineConfig':
         """Get configuration by strategy name."""
-        if strategy == "baseline":
-            return cls.get_baseline_config()
+        if strategy == "baseline_numeric":
+            return cls.get_baseline_numeric_config()
+        elif strategy == "categorical":
+            return cls.get_categorical_config()
         elif strategy == "temporal":
             return cls.get_temporal_config()
-        elif strategy == "behavioural":
-            return cls.get_behavioural_config()
-        elif strategy == "demographic_risk":
-            return cls.get_demographic_risk_config()
+        elif strategy == "behavioral":
+            return cls.get_behavioral_config()
+        elif strategy == "demographics":
+            return cls.get_demographics_config()
+        elif strategy == "fraud_flags":
+            return cls.get_fraud_flags_config()
+        elif strategy == "rolling":
+            return cls.get_rolling_config()
+        elif strategy == "rank_encoding":
+            return cls.get_rank_encoding_config()
+        elif strategy == "time_interactions":
+            return cls.get_time_interactions_config()
         elif strategy == "combined":
             return cls.get_combined_config()
         else:
-            raise ValueError(f"Unknown strategy: {strategy}. Available: baseline, temporal, behavioural, demographic_risk, combined")
+            available = "baseline_numeric, categorical, temporal, behavioral, demographics, fraud_flags, rolling, rank_encoding, time_interactions, combined"
+            raise ValueError(f"Unknown strategy: {strategy}. Available: {available}")
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert config to dictionary for logging."""
