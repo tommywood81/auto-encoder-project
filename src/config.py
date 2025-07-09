@@ -81,7 +81,7 @@ class PipelineConfig:
                 hidden_dim=64,
                 latent_dim=32,
                 learning_rate=0.01,
-                epochs=25,
+                epochs=50,
                 batch_size=32,
                 validation_split=0.2,
                 threshold_percentile=95.0,
@@ -103,6 +103,8 @@ class PipelineConfig:
             )
         )
     
+
+    
     @classmethod
     def get_categorical_config(cls) -> 'PipelineConfig':
         """Get categorical configuration."""
@@ -123,7 +125,7 @@ class PipelineConfig:
                 hidden_dim=64,
                 latent_dim=32,
                 learning_rate=0.01,
-                epochs=25,
+                epochs=50,
                 batch_size=32,
                 validation_split=0.2,
                 threshold_percentile=95.0,
@@ -165,7 +167,7 @@ class PipelineConfig:
                 hidden_dim=64,
                 latent_dim=32,
                 learning_rate=0.01,
-                epochs=25,
+                epochs=50,
                 batch_size=32,
                 validation_split=0.2,
                 threshold_percentile=95.0,
@@ -207,7 +209,7 @@ class PipelineConfig:
                 hidden_dim=64,
                 latent_dim=32,
                 learning_rate=0.01,
-                epochs=25,
+                epochs=50,
                 batch_size=32,
                 validation_split=0.2,
                 threshold_percentile=95.0,
@@ -249,7 +251,7 @@ class PipelineConfig:
                 hidden_dim=64,
                 latent_dim=32,
                 learning_rate=0.01,
-                epochs=25,
+                epochs=50,
                 batch_size=32,
                 validation_split=0.2,
                 threshold_percentile=95.0,
@@ -291,7 +293,7 @@ class PipelineConfig:
                 hidden_dim=64,
                 latent_dim=32,
                 learning_rate=0.01,
-                epochs=25,
+                epochs=50,
                 batch_size=32,
                 validation_split=0.2,
                 threshold_percentile=95.0,
@@ -333,7 +335,7 @@ class PipelineConfig:
                 hidden_dim=64,
                 latent_dim=32,
                 learning_rate=0.01,
-                epochs=25,
+                epochs=50,
                 batch_size=32,
                 validation_split=0.2,
                 threshold_percentile=95.0,
@@ -375,7 +377,7 @@ class PipelineConfig:
                 hidden_dim=64,
                 latent_dim=32,
                 learning_rate=0.01,
-                epochs=25,
+                epochs=50,
                 batch_size=32,
                 validation_split=0.2,
                 threshold_percentile=95.0,
@@ -417,7 +419,7 @@ class PipelineConfig:
                 hidden_dim=64,
                 latent_dim=32,
                 learning_rate=0.01,
-                epochs=25,
+                epochs=50,
                 batch_size=32,
                 validation_split=0.2,
                 threshold_percentile=95.0,
@@ -459,7 +461,7 @@ class PipelineConfig:
                 hidden_dim=64,
                 latent_dim=32,
                 learning_rate=0.01,
-                epochs=25,
+                epochs=50,
                 batch_size=32,
                 validation_split=0.2,
                 threshold_percentile=95.0,
