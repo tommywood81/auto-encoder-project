@@ -74,7 +74,7 @@ python train_final_model.py --entity your-username
 **Goal**: Find the best feature combination for fraud detection.
 
 **What it does**:
-- Tests 5 feature strategies: `baseline`, `temporal`, `behavioural`, `demographic_risk`, `combined`
+- Tests 5 feature strategies: `baseline`, `temporal`, `behavioral`, `demographic_risk`, `combined`
 - Uses fixed model settings (10 epochs, basic hyperparameters)
 - Tracks ROC AUC for each strategy in W&B
 - Saves best strategy to `configs/best_features.yaml`

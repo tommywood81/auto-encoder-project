@@ -48,7 +48,7 @@ class FeatureConfig:
     transaction_amount_log: bool
     customer_location_freq: bool
     temporal_features: bool
-    behavioural_features: bool
+    behavioral_features: bool
 
 
 @dataclass
@@ -99,7 +99,7 @@ class PipelineConfig:
                 transaction_amount_log=True,
                 customer_location_freq=True,
                 temporal_features=False,
-                behavioural_features=False
+                behavioral_features=False
             )
         )
     
@@ -143,7 +143,7 @@ class PipelineConfig:
                 transaction_amount_log=True,
                 customer_location_freq=True,
                 temporal_features=False,
-                behavioural_features=False
+                behavioral_features=False
             )
         )
     
@@ -185,7 +185,7 @@ class PipelineConfig:
                 transaction_amount_log=True,
                 customer_location_freq=True,
                 temporal_features=True,
-                behavioural_features=False
+                behavioral_features=False
             )
         )
     
@@ -227,7 +227,7 @@ class PipelineConfig:
                 transaction_amount_log=True,
                 customer_location_freq=True,
                 temporal_features=False,
-                behavioural_features=True
+                behavioral_features=True
             )
         )
     
@@ -269,7 +269,7 @@ class PipelineConfig:
                 transaction_amount_log=True,
                 customer_location_freq=True,
                 temporal_features=False,
-                behavioural_features=False
+                behavioral_features=False
             )
         )
     
@@ -311,7 +311,7 @@ class PipelineConfig:
                 transaction_amount_log=True,
                 customer_location_freq=True,
                 temporal_features=False,
-                behavioural_features=False
+                behavioral_features=False
             )
         )
     
@@ -353,7 +353,7 @@ class PipelineConfig:
                 transaction_amount_log=True,
                 customer_location_freq=True,
                 temporal_features=False,
-                behavioural_features=False
+                behavioral_features=False
             )
         )
     
@@ -395,7 +395,7 @@ class PipelineConfig:
                 transaction_amount_log=True,
                 customer_location_freq=True,
                 temporal_features=False,
-                behavioural_features=False
+                behavioral_features=False
             )
         )
     
@@ -437,7 +437,7 @@ class PipelineConfig:
                 transaction_amount_log=True,
                 customer_location_freq=True,
                 temporal_features=False,
-                behavioural_features=False
+                behavioral_features=False
             )
         )
     
@@ -479,7 +479,7 @@ class PipelineConfig:
                 transaction_amount_log=True,
                 customer_location_freq=True,
                 temporal_features=True,
-                behavioural_features=True
+                behavioral_features=True
             )
         )
     
@@ -530,6 +530,6 @@ class PipelineConfig:
             },
             'features': {
                 'temporal_features': self.features.temporal_features,
-                'behavioural_features': self.features.behavioural_features
+                'behavioral_features': self.features.behavioral_features
             }
         } 

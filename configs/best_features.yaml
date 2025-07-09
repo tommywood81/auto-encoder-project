@@ -1,5 +1,5 @@
 features:
-  strategy: behavioural
+  strategy: behavioral
 model:
   activation_fn: relu
   batch_size: 128
@@ -17,4 +17,4 @@ wandb:
   project: fraud-detection-autoencoder
   tags:
   - best_features
-  - best_strategy_behavioural
+  - best_strategy_behavioral

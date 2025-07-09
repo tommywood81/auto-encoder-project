@@ -1,0 +1,76 @@
+_wandb:
+    value:
+        cli_version: 0.21.0
+        e:
+            9xrdgmcioobkigyl7oz33yug2yzdp6oj:
+                codePath: sweeps\sweep_parameters_wandb.py
+                codePathLocal: sweeps\sweep_parameters_wandb.py
+                email: tommywood81@gmail.com
+                executable: C:\Users\tommy\projects\auto-encoder-project\env\Scripts\python.exe
+                git:
+                    commit: 5297beed7397a6111724f108966727a8529a9a36
+                    remote: https://github.com/tommywood81/auto-encoder-project.git
+                host: LAPTOP-U7F1NDJK
+                os: Windows-10-10.0.26100-SP0
+                program: C:\Users\tommy\projects\auto-encoder-project\sweeps\sweep_parameters_wandb.py
+                python: CPython 3.11.3
+                root: C:\Users\tommy\projects\auto-encoder-project
+                startedAt: "2025-07-09T14:55:21.445258Z"
+                writerId: 9xrdgmcioobkigyl7oz33yug2yzdp6oj
+        m: []
+        python_version: 3.11.3
+        t:
+            "1":
+                - 2
+                - 3
+                - 5
+                - 53
+            "2":
+                - 2
+                - 3
+                - 5
+                - 53
+            "3":
+                - 2
+                - 13
+                - 15
+                - 16
+            "4": 3.11.3
+            "5": 0.21.0
+            "8":
+                - 2
+                - 3
+            "12": 0.21.0
+            "13": windows-amd64
+features:
+    value:
+        strategy:
+            - baseline_numeric
+            - categorical
+            - behavioral
+            - fraud_flags
+            - demographics
+            - rank_encoding
+model:
+    value:
+        activation_fn: relu
+        batch_size: 128
+        epochs: 10
+        latent_dim: 8
+        learning_rate: 0.01
+        threshold: 90
+training:
+    value:
+        early_stopping_patience: 5
+        min_delta: 0.001
+        reduce_lr_patience: 3
+        validation_split: 0.2
+wandb:
+    value:
+        entity: null
+        feature_group: baseline_numeric+categorical+behavioral+fraud_flags+demographics+rank_encoding
+        group: hyper-parameter-tuning-top-3
+        project: fraud-detection-autoencoder
+        tags:
+            - param_sweep
+            - stage_broad

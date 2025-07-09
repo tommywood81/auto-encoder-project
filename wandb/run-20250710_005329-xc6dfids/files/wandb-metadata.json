@@ -1,0 +1,17 @@
+{
+  "os": "Windows-10-10.0.26100-SP0",
+  "python": "CPython 3.11.3",
+  "startedAt": "2025-07-09T14:53:29.417609Z",
+  "program": "C:\\Users\\tommy\\projects\\auto-encoder-project\\sweeps\\sweep_parameters_wandb.py",
+  "codePath": "sweeps\\sweep_parameters_wandb.py",
+  "codePathLocal": "sweeps\\sweep_parameters_wandb.py",
+  "git": {
+    "remote": "https://github.com/tommywood81/auto-encoder-project.git",
+    "commit": "5297beed7397a6111724f108966727a8529a9a36"
+  },
+  "email": "tommywood81@gmail.com",
+  "root": "C:\\Users\\tommy\\projects\\auto-encoder-project",
+  "host": "LAPTOP-U7F1NDJK",
+  "executable": "C:\\Users\\tommy\\projects\\auto-encoder-project\\env\\Scripts\\python.exe",
+  "writerId": "fx7jvpzdbb0wnrg33asvlbg3oq27oyxd"
+}

@@ -41,7 +41,7 @@ This project explores how autoencoders can detect fraudulent e-commerce transact
 ### Feature Engineering Strategies
 - **Baseline**: Core transaction features (9 features)
 - **Temporal**: Time-based patterns and night-time detection
-- **Behavioural**: Purchase behavior analysis and amount-per-item calculations
+- **Behavioral**: Purchase behavior analysis and amount-per-item calculations
 - **Demographic Risk**: Age-based risk scoring
 - **Combined**: All unique features from all strategies (12 features)
 
@@ -902,7 +902,7 @@ python sweep_features.py
 |----------|-------------|----------|
 | `baseline` | Core transaction features only | 9 features |
 | `temporal` | Basic features + temporal patterns | 10 features |
-| `behavioural` | Core features + amount per item | 10 features |
+| `behavioral` | Core features + amount per item | 10 features |
 | `demographic_risk` | Core features + age risk scores | 10 features |
 | `combined` | All unique features from all strategies | 12 features |
 
@@ -914,7 +914,7 @@ FEATURE SWEEP RESULTS
 Strategy             Status     ROC AUC    Notes                          
 --------------------------------------------------------------------------------
 combined             SUCCESS 0.6511     Success
-behavioural          SUCCESS 0.6235     Success
+behavioral          SUCCESS 0.6235     Success
 demographic_risk     SUCCESS 0.6164     Success
 temporal             SUCCESS 0.6119     Success
 baseline             SUCCESS 0.5954     Success                        
@@ -969,8 +969,8 @@ class PipelineConfig:
             return cls.get_baseline_config()
         elif strategy == "temporal":
             return cls.get_temporal_config()
-        elif strategy == "behavioural":
-            return cls.get_behavioural_config()
+        elif strategy == "behavioral":
+    return cls.get_behavioral_config()
         elif strategy == "demographic_risk":
             return cls.get_demographic_risk_config()
         elif strategy == "combined":
@@ -1006,7 +1006,7 @@ class FeatureFactory:
     STRATEGY_CLASSES = {
         "baseline": BaselineFeatures,
         "temporal": TemporalFeatures,
-        "behavioural": BehaviouralFeatures,
+        "behavioral": BehavioralFeatures,
         "demographic_risk": DemographicRiskFeatures,
         "combined": CombinedFeatures
     }
@@ -1087,7 +1087,7 @@ Our systematic testing revealed that combining all feature strategies provides t
 | Strategy | ROC AUC | Improvement | What It Tests |
 |----------|---------|-------------|---------------|
 | **Combined** | **0.6511** | **+9.36%** | All features together |
-| Behavioural | 0.6235 | +4.72% | Purchase behavior patterns |
+| Behavioral | 0.6235 | +4.72% | Purchase behavior patterns |
 | Demographic Risk | 0.6164 | +3.52% | Age-based risk scoring |
 | Temporal | 0.6119 | +2.77% | Time-based patterns |
 | Baseline | 0.5954 | - | Core transaction features |
