@@ -146,8 +146,10 @@ def train_model_with_config(config: Dict, entity: Optional[str] = None, stage: s
             logger.info(f"Starting model training...")
             results = autoencoder.train()
             history = results['history']
-            logger.info(f"Training completed. Final loss: {history['loss'][-1]:.6f}")
-            logger.info(f"Training history length: {len(history['loss'])} epochs")
+            # Access history correctly - it's a History object, not a dict
+            final_loss = history.history['loss'][-1] if 'loss' in history.history else 0.0
+            logger.info(f"Training completed. Final loss: {final_loss:.6f}")
+            logger.info(f"Training history length: {len(history.history['loss'])} epochs")
             
             # Evaluate model
             from sklearn.metrics import roc_auc_score, precision_score, recall_score, confusion_matrix
@@ -183,22 +185,31 @@ def train_model_with_config(config: Dict, entity: Optional[str] = None, stage: s
             logger.info(f"Precision: {precision:.4f}, Recall: {recall:.4f}")
             
             # Find best epoch
-            best_epoch = np.argmin(history['loss'])
-            logger.info(f"Best epoch: {best_epoch} (loss: {history['loss'][best_epoch]:.6f})")
+            loss_history = history.history['loss']
+            best_epoch = np.argmin(loss_history)
+            logger.info(f"Best epoch: {best_epoch} (loss: {loss_history[best_epoch]:.6f})")
             
-            # Log metrics
-            metrics = {
+            # Log final metrics and hyperparameters (no per-epoch logging)
+            final_metrics = {
                 "final_auc": roc_auc,
                 "precision": precision,
                 "recall": recall,
                 "threshold": threshold,
                 "best_epoch": best_epoch,
-                "final_loss": history['loss'][-1],
-                "best_loss": history['loss'][best_epoch]
+                "final_loss": loss_history[-1],
+                "best_loss": loss_history[best_epoch],
+                "total_epochs": len(loss_history),
+                # Log hyperparameters for easy comparison
+                "latent_dim": config['model']['latent_dim'],
+                "learning_rate": config['model']['learning_rate'],
+                "activation_fn": config['model']['activation_fn'],
+                "batch_size": config['model']['batch_size'],
+                "threshold_percentile": config['model']['threshold'],
+                "epochs": config['model']['epochs']
             }
             
-            logger.info(f"Logging metrics to W&B: {metrics}")
-            wandb.log(metrics)
+            logger.info(f"Logging final metrics to W&B: {final_metrics}")
+            wandb.log(final_metrics)
             
             # Log confusion matrix
             logger.info(f"Logging confusion matrix to W&B")
@@ -211,19 +222,19 @@ def train_model_with_config(config: Dict, entity: Optional[str] = None, stage: s
                 )
             })
             
-            # Log training history
-            logger.info(f"Logging training history to W&B ({len(history['loss'])} epochs)")
-            for epoch in range(len(history['loss'])):
-                wandb.log({
-                    "epoch": epoch,
-                    "loss": history['loss'][epoch],
-                    "val_loss": history.get('val_loss', [0])[epoch] if epoch < len(history.get('val_loss', [])) else 0
-                })
+            # Log feature information
+            wandb.log({
+                "feature_count": X.shape[1],
+                "sample_count": X.shape[0],
+                "fraud_ratio": y.mean(),
+                "feature_strategy": config['features']['strategy'],
+                "sweep_stage": stage
+            })
             
             logger.info(f"Training completed successfully with ROC AUC: {roc_auc:.4f}")
             logger.info(f"Run URL: {run.url}")
             
-            return True, roc_auc, metrics
+            return True, roc_auc, final_metrics
             
     except Exception as e:
         error_msg = f"Training failed: {str(e)}"
