@@ -119,6 +119,10 @@ def train_model_with_config(config: Dict, entity: Optional[str] = None, run_name
             autoencoder = BaselineAutoencoder(pipeline_config)
             logger.info(f"Autoencoder initialized successfully")
             
+            # Disable automatic model saving to prevent autoencoder.h5 creation
+            autoencoder.config.model.save_model = False
+            logger.info("Disabled automatic model saving to prevent autoencoder.h5 creation")
+            
             # Train the model
             logger.info(f"Starting model training...")
             results = autoencoder.train()
@@ -259,6 +263,10 @@ def train_model_with_config_no_wandb(config: Dict) -> Tuple[bool, float, Dict, A
         logger.info(f"Initializing autoencoder with config: {pipeline_config}")
         autoencoder = BaselineAutoencoder(pipeline_config)
         logger.info(f"Autoencoder initialized successfully")
+        
+        # Disable automatic model saving to prevent autoencoder.h5 creation
+        autoencoder.config.model.save_model = False
+        logger.info("Disabled automatic model saving to prevent autoencoder.h5 creation")
         
         # Train the model
         logger.info(f"Starting model training...")
