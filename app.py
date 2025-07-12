@@ -97,6 +97,29 @@ class DateAnalysisResponse(BaseModel):
     avg_transaction_amount: float
     sample_anomaly_scores: List[float]
 
+# Add new Pydantic models for business-focused responses
+class AnomalousTransaction(BaseModel):
+    transaction_id: str
+    customer_id: str
+    transaction_amount: float
+    anomaly_score: float
+    is_fraudulent: bool
+    transaction_date: str
+    merchant_category: str
+    risk_level: str
+    review_priority: str
+
+class BusinessAnalysisResponse(BaseModel):
+    date: str
+    total_transactions: int
+    flagged_transactions: int
+    top_anomalous_count: int
+    potential_savings: float
+    avg_transaction_amount: float
+    risk_distribution: Dict[str, int]
+    anomalous_transactions: List[AnomalousTransaction]
+    business_insights: Dict[str, str]
+
 def load_model():
     """Load the trained model and prepare test data."""
     global model, scaler, threshold, test_data, feature_columns, full_data, data_dates
@@ -117,8 +140,8 @@ def load_model():
         
         autoencoder.load_model(model_path)
         
-        # Load the correct threshold from model_info.yaml
-        model_info_path = os.path.join(config.data.models_dir, "model_info.yaml")
+        # Load the correct threshold from final_model_info.yaml
+        model_info_path = os.path.join(config.data.models_dir, "final_model_info.yaml")
         trained_threshold = 86.0  # Default from final_config.yaml
         
         if os.path.exists(model_info_path):
@@ -129,14 +152,14 @@ def load_model():
                     model_info = yaml.safe_load(f)
                 if model_info and 'threshold' in model_info:
                     trained_threshold = float(model_info['threshold'])
-                    logger.info(f"Loaded threshold from model_info.yaml: {trained_threshold}")
+                    logger.info(f"Loaded threshold from final_model_info.yaml: {trained_threshold}")
                 else:
-                    logger.warning("No threshold found in model_info.yaml, using default: 86.0")
+                    logger.warning("No threshold found in final_model_info.yaml, using default: 86.0")
             except Exception as e:
-                logger.warning(f"Could not load model_info.yaml: {e}")
+                logger.warning(f"Could not load final_model_info.yaml: {e}")
                 logger.warning("Using default threshold: 86.0")
         else:
-            logger.warning("model_info.yaml not found, using default threshold: 86.0")
+            logger.warning("final_model_info.yaml not found, using default threshold: 86.0")
         
         # Load scaler and threshold
         logger.info("Preparing test data and recreating scaler...")
@@ -311,88 +334,251 @@ async def get_test_data():
 
 @app.post("/analyze-date", response_model=DateAnalysisResponse)
 async def analyze_date(request: DateAnalysisRequest):
-    """Analyze fraud detection for a specific date."""
-    if model is None or scaler is None or threshold is None or full_data is None:
-        raise HTTPException(status_code=500, detail="Model not loaded")
+    """Analyze transactions for a specific date with business focus."""
+    if model is None:
+        raise HTTPException(status_code=503, detail="Model not loaded")
     
     try:
-        # Filter data for the specified date
-        date_data = full_data[full_data['date'] == request.date].copy()
+        # Filter data for the requested date
+        date_data = full_data[full_data['date'] == request.date]
         
         if len(date_data) == 0:
-            raise HTTPException(status_code=404, detail=f"No data found for date: {request.date}")
+            raise HTTPException(status_code=404, detail=f"No data found for date {request.date}")
         
-        # Prepare features for the date
+        logger.info(f"Analyzing {len(date_data)} transactions for date {request.date}")
+        
+        # Engineer features for the date
         feature_engineer = FeatureFactory.create("combined")
         df_features = feature_engineer.generate_features(date_data)
         
         # Get numeric features
         df_numeric = df_features.select_dtypes(include=[np.number])
         if 'is_fraudulent' in df_numeric.columns:
-            actual_labels = df_numeric['is_fraudulent'].values
             df_numeric = df_numeric.drop(columns=['is_fraudulent'])
-        else:
-            actual_labels = np.zeros(len(df_numeric))  # Assume no fraud if not present
         
-        # Scale features
-        X_scaled = scaler.transform(df_numeric)
+        # Scale the features
+        scaled_features = scaler.transform(df_numeric)
         
-        # Get anomaly scores
-        anomaly_scores = model.predict_anomaly_scores(X_scaled)
-        reconstruction_errors = anomaly_scores  # The model already returns reconstruction errors
+        # Get reconstruction errors
+        reconstructed = model.model.predict(scaled_features)
+        mse = np.mean(np.power(scaled_features - reconstructed, 2), axis=1)
         
-        # Use the fixed threshold from the model (86th percentile)
-        # The threshold is already determined during training and stored in the model
-        threshold_value = np.percentile(reconstruction_errors, 86.0)
+        # Calculate anomaly scores (normalized reconstruction error)
+        anomaly_scores = mse / np.max(mse)
         
-        # Apply threshold to get predictions
-        predictions = (reconstruction_errors > threshold_value).astype(int)
+        # Get actual fraud labels
+        actual_fraud = date_data['is_fraudulent'].values
+        
+        # Calculate threshold-based predictions
+        predictions = anomaly_scores > (threshold / 100.0)
         
         # Calculate metrics
-        from sklearn.metrics import confusion_matrix, classification_report, roc_auc_score
+        true_positives = np.sum((predictions == 1) & (actual_fraud == 1))
+        false_positives = np.sum((predictions == 1) & (actual_fraud == 0))
+        true_negatives = np.sum((predictions == 0) & (actual_fraud == 0))
+        false_negatives = np.sum((predictions == 0) & (actual_fraud == 1))
         
-        # Calculate confusion matrix
-        tn, fp, fn, tp = confusion_matrix(actual_labels, predictions).ravel()
-        
-        # Calculate precision, recall, F1
-        precision = tp / (tp + fp) if (tp + fp) > 0 else 0
-        recall = tp / (tp + fn) if (tp + fn) > 0 else 0
+        precision = true_positives / (true_positives + false_positives) if (true_positives + false_positives) > 0 else 0
+        recall = true_positives / (true_positives + false_negatives) if (true_positives + false_negatives) > 0 else 0
         f1_score = 2 * (precision * recall) / (precision + recall) if (precision + recall) > 0 else 0
         
         # Calculate AUC-ROC
-        try:
-            auc_roc = roc_auc_score(actual_labels, reconstruction_errors)
-        except ValueError:
-            auc_roc = 0.5  # Default if only one class present
+        from sklearn.metrics import roc_auc_score
+        auc_roc = roc_auc_score(actual_fraud, anomaly_scores)
         
-        # Calculate financial impact
+        # Calculate business metrics
         avg_transaction_amount = date_data['transaction_amount'].mean()
-        potential_savings = tp * avg_transaction_amount
+        potential_savings = true_positives * avg_transaction_amount
         
-        # Get sample anomaly scores for debugging
-        sample_scores = reconstruction_errors[:10].tolist()
+        # Get top 5% most anomalous transactions for manual review
+        top_5_percent_count = max(1, int(len(anomaly_scores) * 0.05))
+        top_indices = np.argsort(anomaly_scores)[-top_5_percent_count:]
+        
+        # Create anomalous transactions list for manual review
+        anomalous_transactions = []
+        for idx in reversed(top_indices):  # Most anomalous first
+            transaction = date_data.iloc[idx]
+            anomaly_score = anomaly_scores[idx]
+            is_fraud = actual_fraud[idx]
+            
+            # Determine risk level and review priority
+            if anomaly_score > 0.9:
+                risk_level = "Critical"
+                review_priority = "Immediate"
+            elif anomaly_score > 0.7:
+                risk_level = "High"
+                review_priority = "High"
+            elif anomaly_score > 0.5:
+                risk_level = "Medium"
+                review_priority = "Medium"
+            else:
+                risk_level = "Low"
+                review_priority = "Low"
+            
+            anomalous_transactions.append({
+                "transaction_id": str(transaction.get('transaction_id', f"TXN_{idx}")),
+                "customer_id": str(transaction.get('customer_id', f"CUST_{idx}")),
+                "transaction_amount": float(transaction['transaction_amount']),
+                "anomaly_score": float(anomaly_score),
+                "is_fraudulent": bool(is_fraud),
+                "transaction_date": str(transaction['transaction_date']),
+                "merchant_category": str(transaction.get('merchant_category', 'Unknown')),
+                "risk_level": risk_level,
+                "review_priority": review_priority
+            })
+        
+        # Calculate risk distribution
+        risk_distribution = {
+            "Critical": len([t for t in anomalous_transactions if t["risk_level"] == "Critical"]),
+            "High": len([t for t in anomalous_transactions if t["risk_level"] == "High"]),
+            "Medium": len([t for t in anomalous_transactions if t["risk_level"] == "Medium"]),
+            "Low": len([t for t in anomalous_transactions if t["risk_level"] == "Low"])
+        }
+        
+        # Generate business insights
+        business_insights = {
+            "fraud_rate": f"{(np.sum(actual_fraud) / len(actual_fraud) * 100):.2f}%",
+            "detection_rate": f"{(true_positives / np.sum(actual_fraud) * 100):.2f}%" if np.sum(actual_fraud) > 0 else "0%",
+            "false_alarm_rate": f"{(false_positives / (len(actual_fraud) - np.sum(actual_fraud)) * 100):.2f}%" if (len(actual_fraud) - np.sum(actual_fraud)) > 0 else "0%",
+            "avg_anomaly_score": f"{np.mean(anomaly_scores):.3f}",
+            "max_anomaly_score": f"{np.max(anomaly_scores):.3f}"
+        }
         
         return DateAnalysisResponse(
             date=request.date,
             total_transactions=len(date_data),
             flagged_transactions=int(np.sum(predictions)),
-            true_positives=int(tp),
-            false_positives=int(fp),
-            true_negatives=int(tn),
-            false_negatives=int(fn),
-            precision=precision,
-            recall=recall,
-            f1_score=f1_score,
-            auc_roc=auc_roc,
-            threshold_used=86.0,  # Fixed threshold from model
-            potential_savings=potential_savings,
-            avg_transaction_amount=avg_transaction_amount,
-            sample_anomaly_scores=sample_scores
+            true_positives=int(true_positives),
+            false_positives=int(false_positives),
+            true_negatives=int(true_negatives),
+            false_negatives=int(false_negatives),
+            precision=float(precision),
+            recall=float(recall),
+            f1_score=float(f1_score),
+            auc_roc=float(auc_roc),
+            threshold_used=float(threshold),
+            potential_savings=float(potential_savings),
+            avg_transaction_amount=float(avg_transaction_amount),
+            sample_anomaly_scores=anomaly_scores[:10].tolist()
         )
         
     except Exception as e:
         logger.error(f"Error analyzing date {request.date}: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Error analyzing date: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Analysis failed: {str(e)}")
+
+@app.post("/get-anomalous-transactions", response_model=BusinessAnalysisResponse)
+async def get_anomalous_transactions(request: DateAnalysisRequest):
+    """Get the top 5% most anomalous transactions for manual fraud review."""
+    if model is None:
+        raise HTTPException(status_code=503, detail="Model not loaded")
+    
+    try:
+        # Filter data for the requested date
+        date_data = full_data[full_data['date'] == request.date]
+        
+        if len(date_data) == 0:
+            raise HTTPException(status_code=404, detail=f"No data found for date {request.date}")
+        
+        logger.info(f"Getting anomalous transactions for {len(date_data)} transactions on {request.date}")
+        
+        # Engineer features for the date
+        feature_engineer = FeatureFactory.create("combined")
+        df_features = feature_engineer.generate_features(date_data)
+        
+        # Get numeric features
+        df_numeric = df_features.select_dtypes(include=[np.number])
+        if 'is_fraudulent' in df_numeric.columns:
+            df_numeric = df_numeric.drop(columns=['is_fraudulent'])
+        
+        # Scale the features
+        scaled_features = scaler.transform(df_numeric)
+        
+        # Get reconstruction errors
+        reconstructed = model.model.predict(scaled_features)
+        mse = np.mean(np.power(scaled_features - reconstructed, 2), axis=1)
+        
+        # Calculate anomaly scores (normalized reconstruction error)
+        anomaly_scores = mse / np.max(mse)
+        
+        # Get actual fraud labels
+        actual_fraud = date_data['is_fraudulent'].values
+        
+        # Get top 5% most anomalous transactions for manual review
+        top_5_percent_count = max(1, int(len(anomaly_scores) * 0.05))
+        top_indices = np.argsort(anomaly_scores)[-top_5_percent_count:]
+        
+        # Create anomalous transactions list for manual review
+        anomalous_transactions = []
+        for idx in reversed(top_indices):  # Most anomalous first
+            transaction = date_data.iloc[idx]
+            anomaly_score = anomaly_scores[idx]
+            is_fraud = actual_fraud[idx]
+            
+            # Determine risk level and review priority
+            if anomaly_score > 0.9:
+                risk_level = "Critical"
+                review_priority = "Immediate"
+            elif anomaly_score > 0.7:
+                risk_level = "High"
+                review_priority = "High"
+            elif anomaly_score > 0.5:
+                risk_level = "Medium"
+                review_priority = "Medium"
+            else:
+                risk_level = "Low"
+                review_priority = "Low"
+            
+            anomalous_transactions.append(AnomalousTransaction(
+                transaction_id=str(transaction.get('transaction_id', f"TXN_{idx}")),
+                customer_id=str(transaction.get('customer_id', f"CUST_{idx}")),
+                transaction_amount=float(transaction['transaction_amount']),
+                anomaly_score=float(anomaly_score),
+                is_fraudulent=bool(is_fraud),
+                transaction_date=str(transaction['transaction_date']),
+                merchant_category=str(transaction.get('merchant_category', 'Unknown')),
+                risk_level=risk_level,
+                review_priority=review_priority
+            ))
+        
+        # Calculate risk distribution
+        risk_distribution = {
+            "Critical": len([t for t in anomalous_transactions if t.risk_level == "Critical"]),
+            "High": len([t for t in anomalous_transactions if t.risk_level == "High"]),
+            "Medium": len([t for t in anomalous_transactions if t.risk_level == "Medium"]),
+            "Low": len([t for t in anomalous_transactions if t.risk_level == "Low"])
+        }
+        
+        # Calculate business metrics
+        avg_transaction_amount = date_data['transaction_amount'].mean()
+        predictions = anomaly_scores > (threshold / 100.0)
+        true_positives = np.sum((predictions == 1) & (actual_fraud == 1))
+        potential_savings = true_positives * avg_transaction_amount
+        
+        # Generate business insights
+        business_insights = {
+            "fraud_rate": f"{(np.sum(actual_fraud) / len(actual_fraud) * 100):.2f}%",
+            "detection_rate": f"{(true_positives / np.sum(actual_fraud) * 100):.2f}%" if np.sum(actual_fraud) > 0 else "0%",
+            "false_alarm_rate": f"{(np.sum((predictions == 1) & (actual_fraud == 0)) / (len(actual_fraud) - np.sum(actual_fraud)) * 100):.2f}%" if (len(actual_fraud) - np.sum(actual_fraud)) > 0 else "0%",
+            "avg_anomaly_score": f"{np.mean(anomaly_scores):.3f}",
+            "max_anomaly_score": f"{np.max(anomaly_scores):.3f}",
+            "review_efficiency": f"{(len([t for t in anomalous_transactions if t.is_fraudulent]) / len(anomalous_transactions) * 100):.1f}%"
+        }
+        
+        return BusinessAnalysisResponse(
+            date=request.date,
+            total_transactions=len(date_data),
+            flagged_transactions=int(np.sum(predictions)),
+            top_anomalous_count=len(anomalous_transactions),
+            potential_savings=float(potential_savings),
+            avg_transaction_amount=float(avg_transaction_amount),
+            risk_distribution=risk_distribution,
+            anomalous_transactions=anomalous_transactions,
+            business_insights=business_insights
+        )
+        
+    except Exception as e:
+        logger.error(f"Error getting anomalous transactions for {request.date}: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to get anomalous transactions: {str(e)}")
 
 @app.post("/update-threshold")
 async def update_threshold(request: ThresholdUpdateRequest):

@@ -34,10 +34,11 @@ COPY --chown=appuser:appuser app.py .
 COPY --chown=appuser:appuser src/ src/
 COPY --chown=appuser:appuser data/cleaned/ data/cleaned/
 COPY --chown=appuser:appuser templates/ templates/
+COPY --chown=appuser:appuser static/ static/
 
 # Copy only the best model (final_model.h5) and model info
 COPY --chown=appuser:appuser models/final_model.h5 models/
-COPY --chown=appuser:appuser models/model_info.yaml models/
+COPY --chown=appuser:appuser models/final_model_info.yaml models/
 
 # Create logs directory
 RUN mkdir -p /app/logs && chown -R appuser:appuser /app

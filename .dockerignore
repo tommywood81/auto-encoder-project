@@ -8,6 +8,7 @@
 !models/
 !data/cleaned/
 !templates/
+!static/
 
 # Exclude unnecessary files from src
 src/__pycache__/
