@@ -1,0 +1,63 @@
+_wandb:
+    value:
+        cli_version: 0.21.0
+        e:
+            k9o92e7vhi80v3s9cxb25kem7njpy5gg:
+                codePath: sweeps\final_model_sweep.py
+                codePathLocal: sweeps\final_model_sweep.py
+                email: tommywood81@gmail.com
+                executable: C:\Users\tommy\projects\auto-encoder-project\env\Scripts\python.exe
+                git:
+                    commit: eb99633cba9afc804bd11230c3496ccb4616f48e
+                    remote: https://github.com/tommywood81/auto-encoder-project.git
+                host: LAPTOP-U7F1NDJK
+                os: Windows-10-10.0.26100-SP0
+                program: C:\Users\tommy\projects\auto-encoder-project\sweeps\final_model_sweep.py
+                python: CPython 3.11.3
+                root: C:\Users\tommy\projects\auto-encoder-project
+                startedAt: "2025-07-12T01:06:14.521619Z"
+                writerId: k9o92e7vhi80v3s9cxb25kem7njpy5gg
+        m: []
+        python_version: 3.11.3
+        t:
+            "1":
+                - 2
+                - 3
+                - 5
+                - 53
+            "2":
+                - 2
+                - 3
+                - 5
+                - 53
+            "3":
+                - 2
+                - 13
+                - 15
+                - 16
+            "4": 3.11.3
+            "5": 0.21.0
+            "8":
+                - 2
+                - 3
+            "12": 0.21.0
+            "13": windows-amd64
+feature_strategy:
+    value: combined
+hyperparameters:
+    value:
+        learning_rate: 0.01
+        threshold: 95
+model_config:
+    value:
+        activation_fn: relu
+        batch_size: 128
+        early_stopping: true
+        epochs: 50
+        latent_dim: 16
+        learning_rate: 0.015
+        threshold: 99
+rank:
+    value: 3
+roc_auc:
+    value: 0.7198716833520065

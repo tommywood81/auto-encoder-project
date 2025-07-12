@@ -1,0 +1,17 @@
+{
+  "os": "Windows-10-10.0.26100-SP0",
+  "python": "CPython 3.11.3",
+  "startedAt": "2025-07-12T01:06:11.342090Z",
+  "program": "C:\\Users\\tommy\\projects\\auto-encoder-project\\sweeps\\final_model_sweep.py",
+  "codePath": "sweeps\\final_model_sweep.py",
+  "codePathLocal": "sweeps\\final_model_sweep.py",
+  "git": {
+    "remote": "https://github.com/tommywood81/auto-encoder-project.git",
+    "commit": "eb99633cba9afc804bd11230c3496ccb4616f48e"
+  },
+  "email": "tommywood81@gmail.com",
+  "root": "C:\\Users\\tommy\\projects\\auto-encoder-project",
+  "host": "LAPTOP-U7F1NDJK",
+  "executable": "C:\\Users\\tommy\\projects\\auto-encoder-project\\env\\Scripts\\python.exe",
+  "writerId": "apjf70aiqhi085xy3nyokambo2c45otf"
+}

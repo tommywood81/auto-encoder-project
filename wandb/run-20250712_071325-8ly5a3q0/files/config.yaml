@@ -1,0 +1,115 @@
+_wandb:
+    value:
+        cli_version: 0.21.0
+        e:
+            jvu4iag8kht2efuurtvqqjonaybceeyo:
+                codePath: sweeps\final_model_sweep.py
+                codePathLocal: sweeps\final_model_sweep.py
+                cpu_count: 4
+                cpu_count_logical: 8
+                cudaVersion: "11.0"
+                disk:
+                    /:
+                        total: "254855344128"
+                        used: "252239278080"
+                email: tommywood81@gmail.com
+                executable: C:\Users\tommy\projects\auto-encoder-project\env\Scripts\python.exe
+                git:
+                    commit: eb99633cba9afc804bd11230c3496ccb4616f48e
+                    remote: https://github.com/tommywood81/auto-encoder-project.git
+                gpu: GeForce GTX 1650
+                gpu_count: 1
+                gpu_nvidia:
+                    - architecture: Turing
+                      name: GeForce GTX 1650
+                      uuid: GPU-1fae71aa-5bd3-0913-de7a-02c43e0b27b4
+                host: LAPTOP-U7F1NDJK
+                memory:
+                    total: "34188873728"
+                os: Windows-10-10.0.26100-SP0
+                program: C:\Users\tommy\projects\auto-encoder-project\sweeps\final_model_sweep.py
+                python: CPython 3.11.3
+                root: C:\Users\tommy\projects\auto-encoder-project
+                startedAt: "2025-07-11T21:13:25.255759Z"
+                writerId: jvu4iag8kht2efuurtvqqjonaybceeyo
+        m: []
+        python_version: 3.11.3
+        t:
+            "1":
+                - 2
+                - 3
+                - 5
+                - 53
+            "2":
+                - 2
+                - 3
+                - 5
+                - 53
+            "3":
+                - 2
+                - 13
+                - 15
+                - 16
+            "4": 3.11.3
+            "5": 0.21.0
+            "8":
+                - 2
+                - 3
+            "12": 0.21.0
+            "13": windows-amd64
+        visualize:
+            confusion_matrix:
+                panel_config:
+                    fieldSettings:
+                        Actual: Actual
+                        Predicted: Predicted
+                        nPredictions: nPredictions
+                    panelDefId: wandb/confusion_matrix/v1
+                    stringSettings:
+                        title: Confusion Matrix Curve
+                    transform:
+                        name: tableWithLeafColNames
+                    userQuery:
+                        queryFields:
+                            - args:
+                                - name: runSets
+                                  value: ${runSets}
+                              fields:
+                                - fields: []
+                                  name: id
+                                - fields: []
+                                  name: name
+                                - fields: []
+                                  name: _defaultColorIndex
+                                - args:
+                                    - name: tableKey
+                                      value: confusion_matrix_table
+                                  fields: []
+                                  name: summaryTable
+                              name: runSets
+                panel_type: Vega2
+features:
+    value:
+        strategy: combined
+model:
+    value:
+        activation_fn: relu
+        batch_size: 128
+        early_stopping: true
+        epochs: 50
+        latent_dim: 16
+        learning_rate: 0.008
+        threshold: 95
+training:
+    value:
+        early_stopping_patience: 5
+        min_delta: 0.001
+        reduce_lr_patience: 3
+        validation_split: 0.2
+wandb:
+    value:
+        entity: null
+        project: fraud-detection-autoencoder
+        tags:
+            - final_sweep
+            - production_tuning

@@ -1,0 +1,1 @@
+{"model_architecture":{"latent_dim":16,"hidden_dims":[64,32],"activation_fn":"relu","dropout_rate":0.2},"_wandb":{"runtime":0},"learning_rate":0.005,"threshold_percentile":98,"training_config":{"early_stopping":true,"batch_size":128,"epochs":50},"roc_auc":0.7263553612076157,"_runtime":0,"_timestamp":1.7522851614396048e+09,"_step":0,"rank":2}
