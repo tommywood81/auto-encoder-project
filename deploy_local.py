@@ -101,7 +101,21 @@ class LocalDeployment:
             logger.info("Waiting for server to start...")
             time.sleep(15)
             
-            # Test health endpoint
+            # Wait for health endpoint to be ready with retries
+            max_retries = 10
+            retry_delay = 3
+            for attempt in range(max_retries):
+                logger.info(f"Health check attempt {attempt + 1}/{max_retries}")
+                if self.test_health_endpoint():
+                    break
+                elif attempt < max_retries - 1:
+                    logger.info(f"Health check failed, retrying in {retry_delay} seconds...")
+                    time.sleep(retry_delay)
+                else:
+                    logger.error("Health check failed after all retries")
+                    return False
+            
+            # Test health endpoint one more time to confirm
             if self.test_health_endpoint():
                 logger.info(f"Local server started successfully!")
                 logger.info(f"Web interface: http://localhost:{self.port}")
@@ -118,14 +132,20 @@ class LocalDeployment:
     def test_health_endpoint(self):
         """Test the health endpoint."""
         try:
-            response = requests.get(f"http://localhost:{self.port}/health", timeout=30)
+            response = requests.get(f"http://localhost:{self.port}/health", timeout=10)
             if response.status_code == 200:
                 health_data = response.json()
                 logger.info(f"Health check passed: {health_data}")
                 return True
             else:
-                logger.error(f"Health check failed: {response.status_code}")
+                logger.error(f"Health check failed with status code: {response.status_code}")
                 return False
+        except requests.exceptions.ConnectionError as e:
+            logger.error(f"Connection error during health check: {e}")
+            return False
+        except requests.exceptions.Timeout as e:
+            logger.error(f"Timeout during health check: {e}")
+            return False
         except requests.exceptions.RequestException as e:
             logger.error(f"Health check failed: {e}")
             return False
