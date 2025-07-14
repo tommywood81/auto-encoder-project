@@ -1065,7 +1065,7 @@ async def get_flagged_transactions(date: str = None, threshold_percentile: float
         # Sort by anomaly score (highest first)
         flagged_data = flagged_data.sort_values('anomaly_score', ascending=False)
         
-        # Format transactions with actual columns
+        # Format transactions with actual columns (ordered by importance, most important on right)
         flagged_transactions = []
         for idx, row in flagged_data.iterrows():
             transaction = {
@@ -1077,12 +1077,11 @@ async def get_flagged_transactions(date: str = None, threshold_percentile: float
                 'customer_age': int(row['customer_age']),
                 'customer_location': str(row['customer_location']),
                 'device_used': str(row['device_used']),
-                'is_fraudulent': bool(row['is_fraudulent']),
                 'account_age_days': int(row['account_age_days']),
                 'transaction_hour': int(row['transaction_hour']),
                 'is_between_11pm_and_6am': bool(row['is_between_11pm_and_6am']),
-                'anomaly_score': float(row['anomaly_score']),
-                'risk_level': get_risk_level(row['anomaly_score'])
+                'is_fraudulent': bool(row['is_fraudulent']),
+                'anomaly_score': float(row['anomaly_score'])
             }
             flagged_transactions.append(transaction)
         
@@ -1139,6 +1138,78 @@ async def get_model_features():
         "feature_columns": feature_columns,
         "feature_categories": feature_categories
     }
+
+@app.post("/api/predict")
+async def predict_with_threshold(request: DateAnalysisRequest):
+    """
+    Simple prediction endpoint for the demo dashboard.
+    Returns basic metrics about flagged vs non-flagged transactions.
+    """
+    if model is None or scaler is None:
+        raise HTTPException(status_code=503, detail="Model not loaded")
+    
+    try:
+        # Use provided threshold or default to 95 (trained model threshold)
+        threshold_value = request.threshold if request.threshold is not None else 95.0
+        
+        # Use all data for the demo
+        date_data = full_data.copy()
+        
+        logger.info(f"Running prediction on {len(date_data)} transactions with threshold {threshold_value}")
+        
+        # Engineer features
+        feature_engineer = FeatureFactory.create("combined")
+        df_features = feature_engineer.generate_features(date_data)
+        
+        # Get numeric features
+        df_numeric = df_features.select_dtypes(include=[np.number])
+        if 'is_fraudulent' in df_numeric.columns:
+            actual_labels = df_numeric['is_fraudulent'].values
+            df_numeric = df_numeric.drop(columns=['is_fraudulent'])
+        else:
+            actual_labels = np.zeros(len(df_numeric))
+        
+        # Scale features
+        scaled_features = scaler.transform(df_numeric)
+        
+        # Get reconstruction errors
+        reconstructed = model.model.predict(scaled_features)
+        mse = np.mean(np.power(scaled_features - reconstructed, 2), axis=1)
+        
+        # Calculate anomaly scores (normalized)
+        anomaly_scores = (mse - np.percentile(mse, 5)) / (np.percentile(mse, 95) - np.percentile(mse, 5))
+        anomaly_scores = np.clip(anomaly_scores, 0, 1)
+        
+        # Apply threshold (convert percentile to actual score)
+        threshold_score = np.percentile(anomaly_scores, threshold_value)
+        flagged_by_model = anomaly_scores > threshold_score
+        
+        # Calculate basic metrics
+        total_transactions = len(date_data)
+        flagged_transactions = int(np.sum(flagged_by_model))
+        not_flagged = total_transactions - flagged_transactions
+        
+        # Calculate fraud rate (percentage of transactions flagged)
+        fraud_rate = (flagged_transactions / total_transactions) * 100 if total_transactions > 0 else 0
+        
+        logger.info(f"Prediction complete: {flagged_transactions} flagged, {not_flagged} not flagged")
+        
+        return {
+            "date": request.date,
+            "threshold": threshold_value,
+            "metrics": {
+                "total_transactions": total_transactions,
+                "flagged_transactions": flagged_transactions,
+                "not_flagged": not_flagged,
+                "fraud_rate": fraud_rate
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"Error in predict_with_threshold: {str(e)}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"Prediction failed: {str(e)}")
 
 if __name__ == "__main__":
     import uvicorn
