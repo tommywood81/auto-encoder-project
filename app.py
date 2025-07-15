@@ -146,7 +146,7 @@ def load_model():
         
         # Load the correct threshold from final_model_info.yaml
         model_info_path = os.path.join(config.data.models_dir, "final_model_info.yaml")
-        trained_threshold = 86.0  # Default from final_config.yaml
+        trained_threshold = 97.0  # Default to 97th percentile
         
         if os.path.exists(model_info_path):
             try:
@@ -154,16 +154,19 @@ def load_model():
                 # Try to load with safe_load first
                 with open(model_info_path, 'r') as f:
                     model_info = yaml.safe_load(f)
-                if model_info and 'threshold' in model_info:
+                if model_info and 'threshold_percentile' in model_info:
+                    trained_threshold = float(model_info['threshold_percentile'])
+                    logger.info(f"Loaded threshold_percentile from final_model_info.yaml: {trained_threshold}")
+                elif model_info and 'threshold' in model_info:
                     trained_threshold = float(model_info['threshold'])
                     logger.info(f"Loaded threshold from final_model_info.yaml: {trained_threshold}")
                 else:
-                    logger.warning("No threshold found in final_model_info.yaml, using default: 86.0")
+                    logger.warning("No threshold found in final_model_info.yaml, using default: 97.0")
             except Exception as e:
                 logger.warning(f"Could not load final_model_info.yaml: {e}")
-                logger.warning("Using default threshold: 86.0")
+                logger.warning("Using default threshold: 97.0")
         else:
-            logger.warning("final_model_info.yaml not found, using default threshold: 86.0")
+            logger.warning("final_model_info.yaml not found, using default threshold: 97.0")
         
         # Load scaler and threshold
         logger.info("Preparing test data and recreating scaler...")
@@ -1149,8 +1152,8 @@ async def predict_with_threshold(request: DateAnalysisRequest):
         raise HTTPException(status_code=503, detail="Model not loaded")
     
     try:
-        # Use provided threshold or default to 95 (trained model threshold)
-        threshold_value = request.threshold if request.threshold is not None else 95.0
+        # Use provided threshold or default to the trained threshold from YAML
+        threshold_value = request.threshold if request.threshold is not None else threshold
         
         # Use all data for the demo
         date_data = full_data.copy()
@@ -1184,15 +1187,30 @@ async def predict_with_threshold(request: DateAnalysisRequest):
         threshold_score = np.percentile(anomaly_scores, threshold_value)
         flagged_by_model = anomaly_scores > threshold_score
         
+        # Debug logging
+        logger.info(f"Threshold percentile: {threshold_value}")
+        logger.info(f"Threshold score: {threshold_score:.6f}")
+        logger.info(f"Anomaly scores range: {anomaly_scores.min():.6f} to {anomaly_scores.max():.6f}")
+        logger.info(f"Anomaly scores mean: {anomaly_scores.mean():.6f}")
+        logger.info(f"Number of scores above threshold: {np.sum(anomaly_scores > threshold_score)}")
+        
         # Calculate basic metrics
         total_transactions = len(date_data)
         flagged_transactions = int(np.sum(flagged_by_model))
         not_flagged = total_transactions - flagged_transactions
         
+        # Calculate how many flagged transactions were actually fraud
+        flagged_actual_fraud = int(np.sum((flagged_by_model == 1) & (actual_labels == 1)))
+        flagged_false_alarms = flagged_transactions - flagged_actual_fraud
+        
         # Calculate fraud rate (percentage of transactions flagged)
         fraud_rate = (flagged_transactions / total_transactions) * 100 if total_transactions > 0 else 0
         
+        # Calculate precision (percentage of flagged that were actually fraud)
+        precision = (flagged_actual_fraud / flagged_transactions) * 100 if flagged_transactions > 0 else 0
+        
         logger.info(f"Prediction complete: {flagged_transactions} flagged, {not_flagged} not flagged")
+        logger.info(f"Of {flagged_transactions} flagged: {flagged_actual_fraud} actual fraud, {flagged_false_alarms} false alarms")
         
         return {
             "date": request.date,
@@ -1201,7 +1219,10 @@ async def predict_with_threshold(request: DateAnalysisRequest):
                 "total_transactions": total_transactions,
                 "flagged_transactions": flagged_transactions,
                 "not_flagged": not_flagged,
-                "fraud_rate": fraud_rate
+                "flagged_actual_fraud": flagged_actual_fraud,
+                "flagged_false_alarms": flagged_false_alarms,
+                "fraud_rate": fraud_rate,
+                "precision": precision
             }
         }
         

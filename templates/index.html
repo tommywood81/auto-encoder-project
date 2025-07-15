@@ -172,8 +172,24 @@
                 <span class="metric-value" id="not-flagged">-</span>
             </div>
             <div class="metric">
-                <span class="metric-label">Fraud Rate:</span>
-                <span class="metric-value" id="fraud-rate">-</span>
+                <span class="metric-label">Flagged as Fraud:</span>
+                <span class="metric-value" id="flagged-transactions">-</span>
+            </div>
+            <div class="metric">
+                <span class="metric-label">Not Flagged:</span>
+                <span class="metric-value" id="not-flagged">-</span>
+            </div>
+            <div class="metric">
+                <span class="metric-label">✅ Actual Fraud (Caught):</span>
+                <span class="metric-value" id="flagged-actual-fraud">-</span>
+            </div>
+            <div class="metric">
+                <span class="metric-label">⚠️ False Alarms:</span>
+                <span class="metric-value" id="flagged-false-alarms">-</span>
+            </div>
+            <div class="metric">
+                <span class="metric-label">Precision (% Correct):</span>
+                <span class="metric-value" id="precision">-</span>
             </div>
         </div>
         
@@ -197,7 +213,7 @@
                     },
                     body: JSON.stringify({
                         date: "All Dates",
-                        threshold: 95.0
+                        threshold: null  // Use the trained threshold from YAML
                     })
                 });
                 
@@ -210,8 +226,10 @@
                 // Update results
                 document.getElementById('total-transactions').textContent = data.metrics.total_transactions.toLocaleString();
                 document.getElementById('flagged-transactions').textContent = data.metrics.flagged_transactions.toLocaleString();
-                document.getElementById('not-flagged').textContent = (data.metrics.total_transactions - data.metrics.flagged_transactions).toLocaleString();
-                document.getElementById('fraud-rate').textContent = `${((data.metrics.flagged_transactions / data.metrics.total_transactions) * 100).toFixed(2)}%`;
+                document.getElementById('not-flagged').textContent = data.metrics.not_flagged.toLocaleString();
+                document.getElementById('flagged-actual-fraud').textContent = data.metrics.flagged_actual_fraud.toLocaleString();
+                document.getElementById('flagged-false-alarms').textContent = data.metrics.flagged_false_alarms.toLocaleString();
+                document.getElementById('precision').textContent = `${data.metrics.precision.toFixed(1)}%`;
                 
                 // Show results
                 document.getElementById('results').classList.add('show');
