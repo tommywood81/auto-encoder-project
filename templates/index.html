@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Autoencoder Fraud Detection Demo</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -15,34 +16,74 @@
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
             color: #333;
+            padding: 20px;
         }
 
-        .container {
+        .main-container {
+            max-width: 1200px;
+            margin: 0 auto;
             background: rgba(255, 255, 255, 0.95);
             backdrop-filter: blur(10px);
             border-radius: 20px;
-            padding: 40px;
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .header {
             text-align: center;
-            max-width: 600px;
-            width: 90%;
+            padding: 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
         }
 
         .title {
             font-size: 2.5em;
             font-weight: 700;
-            color: #2c3e50;
-            margin-bottom: 20px;
+            margin-bottom: 10px;
         }
 
         .subtitle {
             font-size: 1.2em;
-            color: #7f8c8d;
-            margin-bottom: 40px;
+            opacity: 0.9;
+        }
+
+        .tabs {
+            display: flex;
+            background: #f8f9fa;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: none;
+            background: transparent;
+            font-size: 1.1em;
+            font-weight: 600;
+            color: #6c757d;
+        }
+
+        .tab.active {
+            background: white;
+            color: #3498db;
+            border-bottom: 3px solid #3498db;
+        }
+
+        .tab:hover {
+            background: rgba(52, 152, 219, 0.1);
+        }
+
+        .tab-content {
+            display: none;
+            padding: 40px;
+        }
+
+        .tab-content.active {
+            display: block;
         }
 
         .predict-button {
@@ -107,6 +148,7 @@
         .loading {
             display: none;
             margin-top: 20px;
+            text-align: center;
         }
 
         .loading.show {
@@ -141,64 +183,172 @@
         .error.show {
             display: block;
         }
+
+        .visualization-container {
+            margin-top: 30px;
+            text-align: center;
+        }
+
+        .plot-container {
+            width: 100%;
+            height: 600px;
+            margin: 20px 0;
+        }
+
+        .info-box {
+            background: rgba(52, 152, 219, 0.1);
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            border-left: 5px solid #3498db;
+        }
+
+        .info-box h3 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+
+        .info-box p {
+            color: #555;
+            line-height: 1.6;
+        }
+
+        .no-visualization {
+            display: none;
+            text-align: center;
+            padding: 40px;
+            color: #6c757d;
+        }
+
+        .no-visualization.show {
+            display: block;
+        }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1 class="title">🧠 Autoencoder Fraud Detection</h1>
-        <p class="subtitle">Unsupervised anomaly detection for fraud prevention</p>
-        
-        <button class="predict-button" onclick="runPrediction()">
-            🔍 Run Prediction
-        </button>
-        
-        <div class="loading" id="loading">
-            <div class="spinner"></div>
-            <p>Analyzing transactions...</p>
+    <div class="main-container">
+        <div class="header">
+            <h1 class="title">🧠 Autoencoder Fraud Detection</h1>
+            <p class="subtitle">Unsupervised anomaly detection for fraud prevention</p>
         </div>
-        
-        <div class="results" id="results">
-            <h3>📊 Prediction Results</h3>
-            <div class="metric">
-                <span class="metric-label">Total Transactions:</span>
-                <span class="metric-value" id="total-transactions">-</span>
-            </div>
-            <div class="metric">
-                <span class="metric-label">Flagged as Fraud:</span>
-                <span class="metric-value" id="flagged-transactions">-</span>
-            </div>
-            <div class="metric">
-                <span class="metric-label">Not Flagged:</span>
-                <span class="metric-value" id="not-flagged">-</span>
-            </div>
-            <div class="metric">
-                <span class="metric-label">Flagged as Fraud:</span>
-                <span class="metric-value" id="flagged-transactions">-</span>
-            </div>
-            <div class="metric">
-                <span class="metric-label">Not Flagged:</span>
-                <span class="metric-value" id="not-flagged">-</span>
-            </div>
-            <div class="metric">
-                <span class="metric-label">✅ Actual Fraud (Caught):</span>
-                <span class="metric-value" id="flagged-actual-fraud">-</span>
-            </div>
-            <div class="metric">
-                <span class="metric-label">⚠️ False Alarms:</span>
-                <span class="metric-value" id="flagged-false-alarms">-</span>
-            </div>
-            <div class="metric">
-                <span class="metric-label">Precision (% Correct):</span>
-                <span class="metric-value" id="precision">-</span>
+
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('business')">📊 Business Use</button>
+            <button class="tab" onclick="switchTab('datascience')">🔬 Data Science</button>
+        </div>
+
+        <!-- Business Use Tab -->
+        <div id="business-tab" class="tab-content active">
+            <div style="text-align: center;">
+                <button class="predict-button" onclick="runPrediction()">
+                    🔍 Run Prediction & Generate Visualization
+                </button>
+                
+                <div class="loading" id="loading">
+                    <div class="spinner"></div>
+                    <p>Analyzing transactions and generating 3D visualization...</p>
+                </div>
+                
+                <div class="results" id="results">
+                    <h3>📊 Prediction Results</h3>
+                    <div class="metric">
+                        <span class="metric-label">Total Transactions:</span>
+                        <span class="metric-value" id="total-transactions">-</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Flagged as Fraud:</span>
+                        <span class="metric-value" id="flagged-transactions">-</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Not Flagged:</span>
+                        <span class="metric-value" id="not-flagged">-</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">✅ Actual Fraud (Caught):</span>
+                        <span class="metric-value" id="flagged-actual-fraud">-</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">⚠️ False Alarms:</span>
+                        <span class="metric-value" id="flagged-false-alarms">-</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Precision (% Correct):</span>
+                        <span class="metric-value" id="precision">-</span>
+                    </div>
+                </div>
+                
+                <div class="error" id="error">
+                    <p id="error-message">An error occurred while processing the request.</p>
+                </div>
             </div>
         </div>
-        
-        <div class="error" id="error">
-            <p id="error-message">An error occurred while processing the request.</p>
+
+        <!-- Data Science Tab -->
+        <div id="datascience-tab" class="tab-content">
+            <div class="info-box">
+                <h3>🔬 Latent Space Visualization</h3>
+                <p>This 3D plot shows how the autoencoder compresses transaction data into a lower-dimensional latent space. 
+                Normal transactions cluster together while anomalous (potentially fraudulent) transactions appear as outliers. 
+                The visualization helps understand how the model learns to distinguish between normal and suspicious patterns.</p>
+            </div>
+
+            <div class="info-box">
+                <h3>🧠 How This Works</h3>
+                <p><strong>Step 1 - Data Compression:</strong> The autoencoder takes all the transaction features (like amount, time, customer age, etc.) and squeezes them down into just 16 numbers called "latent dimensions" using its encoder part. Think of it like taking a big, detailed picture and making a smaller, simpler version that still captures the important parts.</p>
+                
+                <p><strong>Step 2 - Smart Dimension Picking:</strong> Instead of just using the first 3 dimensions (which might be boring and all the same), we look at all 16 dimensions and pick the 3 that have the most interesting differences between transactions. It's like choosing the 3 most colorful crayons from a box of 16 to draw the most interesting picture.</p>
+                
+                <p><strong>Step 3 - Making It Pretty:</strong> We then adjust the numbers so they're all on the same scale (like making sure all the colors are equally bright), which makes the 3D picture much easier to understand and more balanced.</p>
+                
+                <p><strong>Step 4 - Finding Patterns:</strong> Normal transactions (shown in green) tend to group together in clusters, while suspicious transactions (shown in red) stand out as outliers. This happens because the autoencoder learned during training that normal transactions should be easy to reconstruct, while unusual ones are harder to predict.</p>
+                
+                <p><strong>When This Happens:</strong> This visualization is created right after the autoencoder processes the transaction data through its encoder layer, but before it tries to reconstruct the data. It's like taking a snapshot of how the model "sees" each transaction in its simplified, compressed form.</p>
+            </div>
+
+            <div class="no-visualization" id="no-visualization">
+                <h3>📊 No Visualization Available</h3>
+                <p>Please run a prediction from the Business Use tab first to generate the 3D latent space visualization.</p>
+            </div>
+
+            <div class="visualization-container" id="visualization-container">
+                <h3>🎯 3D Latent Space Plot</h3>
+                <div id="plot" class="plot-container"></div>
+                
+                <div class="info-box" style="margin-top: 30px;">
+                    <h3>📊 Static Visualization</h3>
+                    <p>Below is a high-quality static image of the same 3D visualization, useful for reports and presentations.</p>
+                    <div id="plot-image-container" style="text-align: center; margin-top: 15px;">
+                        <img id="plot-image" style="max-width: 100%; height: auto; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.1);" />
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
     <script>
+        function switchTab(tabName) {
+            // Hide all tab contents
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            
+            // Remove active class from all tabs
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Show selected tab content
+            document.getElementById(tabName + '-tab').classList.add('active');
+            
+            // Add active class to clicked tab
+            event.target.classList.add('active');
+            
+            // If switching to datascience tab, check for visualization
+            if (tabName === 'datascience') {
+                checkVisualization();
+            }
+        }
+
         async function runPrediction() {
             // Show loading
             document.getElementById('loading').classList.add('show');
@@ -234,6 +384,9 @@
                 // Show results
                 document.getElementById('results').classList.add('show');
                 
+                // Generate 3D visualization
+                await generateVisualization();
+                
             } catch (error) {
                 console.error('Error:', error);
                 document.getElementById('error-message').textContent = `Error: ${error.message}`;
@@ -243,6 +396,147 @@
                 document.getElementById('loading').classList.remove('show');
             }
         }
+
+        async function generateVisualization() {
+            try {
+                const response = await fetch('/api/generate-3d-plot', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    console.log('3D visualization generated successfully');
+                } else {
+                    console.error('Failed to generate visualization:', data.error);
+                }
+                
+            } catch (error) {
+                console.error('Error generating visualization:', error);
+            }
+        }
+
+        async function checkVisualization() {
+            try {
+                const response = await fetch('/api/check-visualization');
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    
+                    if (data.available) {
+                        // Load and display the plot
+                        loadVisualization();
+                    } else {
+                        // Show no visualization message
+                        document.getElementById('visualization-container').style.display = 'none';
+                        document.getElementById('no-visualization').classList.add('show');
+                    }
+                } else {
+                    document.getElementById('visualization-container').style.display = 'none';
+                    document.getElementById('no-visualization').classList.add('show');
+                }
+                
+            } catch (error) {
+                console.error('Error checking visualization:', error);
+                document.getElementById('visualization-container').style.display = 'none';
+                document.getElementById('no-visualization').classList.add('show');
+            }
+        }
+
+        async function loadVisualization() {
+            try {
+                const response = await fetch('/api/get-3d-plot-data');
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    
+                    // Create 3D scatter plot with better colors
+                    const trace1 = {
+                        x: data.normal.x,
+                        y: data.normal.y,
+                        z: data.normal.z,
+                        mode: 'markers',
+                        type: 'scatter3d',
+                        name: 'Normal Transactions',
+                        marker: {
+                            size: 4,
+                            color: '#2E8B57', // Sea Green
+                            opacity: 0.6
+                        }
+                    };
+
+                    const trace2 = {
+                        x: data.anomalous.x,
+                        y: data.anomalous.y,
+                        z: data.anomalous.z,
+                        mode: 'markers',
+                        type: 'scatter3d',
+                        name: 'Anomalous Transactions',
+                        marker: {
+                            size: 6,
+                            color: '#DC143C', // Crimson Red
+                            opacity: 0.8
+                        }
+                    };
+
+                    const layout = {
+                        title: '3D Latent Space Visualization',
+                        scene: {
+                            xaxis: { title: 'Latent Dimension 1' },
+                            yaxis: { title: 'Latent Dimension 2' },
+                            zaxis: { title: 'Latent Dimension 3' }
+                        },
+                        width: 800,
+                        height: 600,
+                        margin: {
+                            l: 0,
+                            r: 0,
+                            b: 0,
+                            t: 50
+                        }
+                    };
+
+                    Plotly.newPlot('plot', [trace1, trace2], layout);
+                    
+                    // Load the static plot image
+                    const plotImage = document.getElementById('plot-image');
+                    plotImage.src = '/api/get-3d-plot-image?' + new Date().getTime(); // Add timestamp to prevent caching
+                    plotImage.onload = function() {
+                        console.log('Static plot image loaded successfully');
+                    };
+                    plotImage.onerror = function() {
+                        console.log('Static plot image not available');
+                        document.getElementById('plot-image-container').style.display = 'none';
+                    };
+                    
+                    // Show visualization
+                    document.getElementById('visualization-container').style.display = 'block';
+                    document.getElementById('no-visualization').classList.remove('show');
+                    
+                } else {
+                    throw new Error('Failed to load visualization data');
+                }
+                
+            } catch (error) {
+                console.error('Error loading visualization:', error);
+                document.getElementById('visualization-container').style.display = 'none';
+                document.getElementById('no-visualization').classList.add('show');
+            }
+        }
+
+        // Check for visualization when page loads
+        window.onload = function() {
+            if (document.getElementById('datascience-tab').classList.contains('active')) {
+                checkVisualization();
+            }
+        };
     </script>
 </body>
 </html> 

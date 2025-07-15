@@ -1232,6 +1232,236 @@ async def predict_with_threshold(request: DateAnalysisRequest):
         logger.error(f"Traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"Prediction failed: {str(e)}")
 
+@app.post("/api/generate-3d-plot")
+async def generate_3d_plot():
+    """Generate 3D latent space visualization and save it."""
+    if model is None or scaler is None:
+        raise HTTPException(status_code=503, detail="Model not loaded")
+    
+    try:
+        import json
+        from pathlib import Path
+        
+        # Create static directory if it doesn't exist
+        static_dir = Path("static")
+        static_dir.mkdir(exist_ok=True)
+        
+        # Use a sample of data for visualization (first 1000 transactions)
+        sample_data = full_data.head(1000).copy()
+        
+        logger.info(f"Generating 3D plot for {len(sample_data)} transactions")
+        
+        # Engineer features
+        feature_engineer = FeatureFactory.create("combined")
+        df_features = feature_engineer.generate_features(sample_data)
+        
+        # Get numeric features
+        df_numeric = df_features.select_dtypes(include=[np.number])
+        if 'is_fraudulent' in df_numeric.columns:
+            actual_labels = df_numeric['is_fraudulent'].values
+            df_numeric = df_numeric.drop(columns=['is_fraudulent'])
+        else:
+            actual_labels = np.zeros(len(df_numeric))
+        
+        # Scale features
+        scaled_features = scaler.transform(df_numeric)
+        
+        # Get latent representations from the encoder
+        # The autoencoder is built as Sequential([encoder, decoder])
+        # So the encoder is the first layer (index 0)
+        encoder = model.model.layers[0]
+        latent_representations = encoder.predict(scaled_features)
+        
+        # Select the 3 dimensions with highest variance for better 3D visualization
+        if latent_representations.shape[1] >= 3:
+            # Calculate variance for each dimension
+            variances = np.var(latent_representations, axis=0)
+            # Get indices of top 3 dimensions by variance
+            top_3_indices = np.argsort(variances)[-3:]
+            # Select those 3 dimensions
+            latent_3d = latent_representations[:, top_3_indices]
+            logger.info(f"Selected dimensions {top_3_indices} with variances {variances[top_3_indices]}")
+            
+            # Apply standardization to make the visualization more balanced
+            from sklearn.preprocessing import StandardScaler
+            latent_scaler = StandardScaler()
+            latent_3d = latent_scaler.fit_transform(latent_3d)
+            logger.info(f"Applied standardization to latent space")
+        else:
+            # If less than 3 dimensions, pad with zeros
+            latent_3d = np.zeros((latent_representations.shape[0], 3))
+            latent_3d[:, :latent_representations.shape[1]] = latent_representations
+        
+        # Calculate anomaly scores to determine normal vs anomalous
+        reconstructed = model.model.predict(scaled_features)
+        mse = np.mean(np.power(scaled_features - reconstructed, 2), axis=1)
+        anomaly_scores = (mse - np.percentile(mse, 5)) / (np.percentile(mse, 95) - np.percentile(mse, 5))
+        anomaly_scores = np.clip(anomaly_scores, 0, 1)
+        
+        # Determine normal vs anomalous based on threshold
+        threshold_score = np.percentile(anomaly_scores, threshold)
+        is_anomalous = anomaly_scores > threshold_score
+        
+        # Separate normal and anomalous points
+        normal_mask = ~is_anomalous
+        anomalous_mask = is_anomalous
+        
+        # Prepare data for JSON
+        plot_data = {
+            "normal": {
+                "x": latent_3d[normal_mask, 0].tolist(),
+                "y": latent_3d[normal_mask, 1].tolist(),
+                "z": latent_3d[normal_mask, 2].tolist()
+            },
+            "anomalous": {
+                "x": latent_3d[anomalous_mask, 0].tolist(),
+                "y": latent_3d[anomalous_mask, 1].tolist(),
+                "z": latent_3d[anomalous_mask, 2].tolist()
+            },
+            "metadata": {
+                "total_points": len(latent_3d),
+                "normal_points": int(np.sum(normal_mask)),
+                "anomalous_points": int(np.sum(anomalous_mask)),
+                "threshold": float(threshold_score),
+                "latent_dimensions": latent_representations.shape[1]
+            }
+        }
+        
+        # Save plot data to JSON file
+        plot_file = static_dir / "latent_space_3d.json"
+        with open(plot_file, 'w') as f:
+            json.dump(plot_data, f, indent=2)
+        
+        # Create and save the actual plot image
+        try:
+            import matplotlib.pyplot as plt
+            from mpl_toolkits.mplot3d import Axes3D
+            
+            # Create the 3D plot
+            fig = plt.figure(figsize=(12, 8))
+            ax = fig.add_subplot(111, projection='3d')
+            
+            # Plot normal transactions in green
+            ax.scatter(latent_3d[normal_mask, 0], latent_3d[normal_mask, 1], latent_3d[normal_mask, 2], 
+                      c='#2E8B57', s=20, alpha=0.6, label='Normal Transactions')
+            
+            # Plot anomalous transactions in red
+            ax.scatter(latent_3d[anomalous_mask, 0], latent_3d[anomalous_mask, 1], latent_3d[anomalous_mask, 2], 
+                      c='#DC143C', s=30, alpha=0.8, label='Anomalous Transactions')
+            
+            # Customize the plot
+            ax.set_xlabel('Latent Dimension 1', fontsize=12)
+            ax.set_ylabel('Latent Dimension 2', fontsize=12)
+            ax.set_zlabel('Latent Dimension 3', fontsize=12)
+            ax.set_title('3D Latent Space Visualization\nAutoencoder Fraud Detection', fontsize=14, fontweight='bold')
+            
+            # Add legend
+            ax.legend(fontsize=10)
+            
+            # Set background color
+            ax.xaxis.pane.fill = False
+            ax.yaxis.pane.fill = False
+            ax.zaxis.pane.fill = False
+            ax.xaxis.pane.set_edgecolor('w')
+            ax.yaxis.pane.set_edgecolor('w')
+            ax.zaxis.pane.set_edgecolor('w')
+            
+            # Save the plot
+            plot_image_path = static_dir / "latent_space_3d_plot.png"
+            plt.savefig(plot_image_path, dpi=300, bbox_inches='tight', facecolor='white')
+            plt.close()
+            
+            logger.info(f"3D plot image saved to {plot_image_path}")
+            
+        except Exception as e:
+            logger.warning(f"Could not create plot image: {e}")
+            plot_image_path = None
+        
+        logger.info(f"3D plot data saved to {plot_file}")
+        logger.info(f"Normal points: {plot_data['metadata']['normal_points']}, Anomalous points: {plot_data['metadata']['anomalous_points']}")
+        
+        return {
+            "success": True,
+            "message": "3D visualization generated successfully",
+            "file_path": str(plot_file),
+            "image_path": str(plot_image_path) if plot_image_path else None,
+            "metadata": plot_data["metadata"]
+        }
+        
+    except Exception as e:
+        logger.error(f"Error generating 3D plot: {str(e)}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
+@app.get("/api/check-visualization")
+async def check_visualization():
+    """Check if 3D visualization data is available."""
+    try:
+        from pathlib import Path
+        
+        plot_file = Path("static/latent_space_3d.json")
+        
+        if plot_file.exists():
+            return {
+                "available": True,
+                "file_path": str(plot_file)
+            }
+        else:
+            return {
+                "available": False,
+                "message": "No visualization data found"
+            }
+            
+    except Exception as e:
+        logger.error(f"Error checking visualization: {str(e)}")
+        return {
+            "available": False,
+            "error": str(e)
+        }
+
+@app.get("/api/get-3d-plot-data")
+async def get_3d_plot_data():
+    """Get 3D plot data for frontend visualization."""
+    try:
+        import json
+        from pathlib import Path
+        
+        plot_file = Path("static/latent_space_3d.json")
+        
+        if not plot_file.exists():
+            raise HTTPException(status_code=404, detail="Visualization data not found")
+        
+        with open(plot_file, 'r') as f:
+            plot_data = json.load(f)
+        
+        return plot_data
+        
+    except Exception as e:
+        logger.error(f"Error getting 3D plot data: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to load visualization data: {str(e)}")
+
+@app.get("/api/get-3d-plot-image")
+async def get_3d_plot_image():
+    """Get the 3D plot image for display."""
+    try:
+        from pathlib import Path
+        from fastapi.responses import FileResponse
+        
+        plot_image_path = Path("static/latent_space_3d_plot.png")
+        
+        if not plot_image_path.exists():
+            raise HTTPException(status_code=404, detail="Plot image not found")
+        
+        return FileResponse(plot_image_path, media_type="image/png")
+        
+    except Exception as e:
+        logger.error(f"Error serving plot image: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to serve plot image: {str(e)}")
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=5000) 
