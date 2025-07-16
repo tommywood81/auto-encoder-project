@@ -1155,8 +1155,14 @@ async def predict_with_threshold(request: DateAnalysisRequest):
         # Use provided threshold or default to the trained threshold from YAML
         threshold_value = request.threshold if request.threshold is not None else threshold
         
-        # Use all data for the demo
-        date_data = full_data.copy()
+        # Filter data for the requested date
+        if request.date == "All Dates":
+            date_data = full_data.copy()
+        else:
+            date_data = full_data[full_data['date'] == request.date].copy()
+            
+        if len(date_data) == 0:
+            raise HTTPException(status_code=404, detail=f"No data found for date {request.date}")
         
         logger.info(f"Running prediction on {len(date_data)} transactions with threshold {threshold_value}")
         
@@ -1234,13 +1240,14 @@ async def predict_with_threshold(request: DateAnalysisRequest):
 
 @app.post("/api/generate-3d-plot")
 async def generate_3d_plot():
-    """Generate 3D latent space visualization and save it."""
+    """Generate 3D latent space visualization using PCA and save it."""
     if model is None or scaler is None:
         raise HTTPException(status_code=503, detail="Model not loaded")
     
     try:
         import json
         from pathlib import Path
+        from sklearn.decomposition import PCA
         
         # Create static directory if it doesn't exist
         static_dir = Path("static")
@@ -1249,7 +1256,7 @@ async def generate_3d_plot():
         # Use a sample of data for visualization (first 1000 transactions)
         sample_data = full_data.head(1000).copy()
         
-        logger.info(f"Generating 3D plot for {len(sample_data)} transactions")
+        logger.info(f"Generating PCA 3D plot for {len(sample_data)} transactions")
         
         # Engineer features
         feature_engineer = FeatureFactory.create("combined")
@@ -1267,30 +1274,19 @@ async def generate_3d_plot():
         scaled_features = scaler.transform(df_numeric)
         
         # Get latent representations from the encoder
-        # The autoencoder is built as Sequential([encoder, decoder])
-        # So the encoder is the first layer (index 0)
         encoder = model.model.layers[0]
         latent_representations = encoder.predict(scaled_features)
         
-        # Select the 3 dimensions with highest variance for better 3D visualization
-        if latent_representations.shape[1] >= 3:
-            # Calculate variance for each dimension
-            variances = np.var(latent_representations, axis=0)
-            # Get indices of top 3 dimensions by variance
-            top_3_indices = np.argsort(variances)[-3:]
-            # Select those 3 dimensions
-            latent_3d = latent_representations[:, top_3_indices]
-            logger.info(f"Selected dimensions {top_3_indices} with variances {variances[top_3_indices]}")
-            
-            # Apply standardization to make the visualization more balanced
-            from sklearn.preprocessing import StandardScaler
-            latent_scaler = StandardScaler()
-            latent_3d = latent_scaler.fit_transform(latent_3d)
-            logger.info(f"Applied standardization to latent space")
-        else:
-            # If less than 3 dimensions, pad with zeros
-            latent_3d = np.zeros((latent_representations.shape[0], 3))
-            latent_3d[:, :latent_representations.shape[1]] = latent_representations
+        # Apply PCA to reduce 16 dimensions to 3
+        pca = PCA(n_components=3)
+        latent_3d_pca = pca.fit_transform(latent_representations)
+        
+        # Calculate explained variance
+        explained_variance = pca.explained_variance_ratio_
+        total_explained_variance = np.sum(explained_variance)
+        
+        logger.info(f"PCA explained variance ratios: {explained_variance}")
+        logger.info(f"Total explained variance: {total_explained_variance:.3f}")
         
         # Calculate anomaly scores to determine normal vs anomalous
         reconstructed = model.model.predict(scaled_features)
@@ -1309,21 +1305,25 @@ async def generate_3d_plot():
         # Prepare data for JSON
         plot_data = {
             "normal": {
-                "x": latent_3d[normal_mask, 0].tolist(),
-                "y": latent_3d[normal_mask, 1].tolist(),
-                "z": latent_3d[normal_mask, 2].tolist()
+                "x": latent_3d_pca[normal_mask, 0].tolist(),
+                "y": latent_3d_pca[normal_mask, 1].tolist(),
+                "z": latent_3d_pca[normal_mask, 2].tolist()
             },
             "anomalous": {
-                "x": latent_3d[anomalous_mask, 0].tolist(),
-                "y": latent_3d[anomalous_mask, 1].tolist(),
-                "z": latent_3d[anomalous_mask, 2].tolist()
+                "x": latent_3d_pca[anomalous_mask, 0].tolist(),
+                "y": latent_3d_pca[anomalous_mask, 1].tolist(),
+                "z": latent_3d_pca[anomalous_mask, 2].tolist()
             },
             "metadata": {
-                "total_points": len(latent_3d),
+                "total_points": len(latent_3d_pca),
                 "normal_points": int(np.sum(normal_mask)),
                 "anomalous_points": int(np.sum(anomalous_mask)),
                 "threshold": float(threshold_score),
-                "latent_dimensions": latent_representations.shape[1]
+                "latent_dimensions": latent_representations.shape[1],
+                "method": "pca",
+                "explained_variance": explained_variance.tolist(),
+                "total_explained_variance": float(total_explained_variance),
+                "explanation": f"This visualization uses Principal Component Analysis (PCA) to transform all 16 latent dimensions into 3 dimensions. PCA finds the directions of maximum variance in the data and projects the points onto these new axes. The first 3 principal components explain {total_explained_variance:.1%} of the total variance in the latent space. This method ensures we capture the most important patterns in the data while reducing dimensionality."
             }
         }
         
@@ -1337,41 +1337,52 @@ async def generate_3d_plot():
             import matplotlib.pyplot as plt
             from mpl_toolkits.mplot3d import Axes3D
             
-            # Create the 3D plot
-            fig = plt.figure(figsize=(12, 8))
+            # Create the 3D plot with enhanced styling
+            fig = plt.figure(figsize=(14, 10))
             ax = fig.add_subplot(111, projection='3d')
             
-            # Plot normal transactions in green
-            ax.scatter(latent_3d[normal_mask, 0], latent_3d[normal_mask, 1], latent_3d[normal_mask, 2], 
-                      c='#2E8B57', s=20, alpha=0.6, label='Normal Transactions')
+            # Plot normal transactions in green with better styling
+            ax.scatter(latent_3d_pca[normal_mask, 0], latent_3d_pca[normal_mask, 1], latent_3d_pca[normal_mask, 2], 
+                      c='#2E8B57', s=25, alpha=0.7, label='Normal Transactions', edgecolors='white', linewidth=0.5)
             
-            # Plot anomalous transactions in red
-            ax.scatter(latent_3d[anomalous_mask, 0], latent_3d[anomalous_mask, 1], latent_3d[anomalous_mask, 2], 
-                      c='#DC143C', s=30, alpha=0.8, label='Anomalous Transactions')
+            # Plot anomalous transactions in red with better styling
+            ax.scatter(latent_3d_pca[anomalous_mask, 0], latent_3d_pca[anomalous_mask, 1], latent_3d_pca[anomalous_mask, 2], 
+                      c='#DC143C', s=35, alpha=0.9, label='Anomalous Transactions', edgecolors='white', linewidth=0.5)
             
-            # Customize the plot
-            ax.set_xlabel('Latent Dimension 1', fontsize=12)
-            ax.set_ylabel('Latent Dimension 2', fontsize=12)
-            ax.set_zlabel('Latent Dimension 3', fontsize=12)
-            ax.set_title('3D Latent Space Visualization\nAutoencoder Fraud Detection', fontsize=14, fontweight='bold')
+            # Customize the plot with enhanced styling
+            ax.set_xlabel('Principal Component 1', fontsize=14, fontweight='bold')
+            ax.set_ylabel('Principal Component 2', fontsize=14, fontweight='bold')
+            ax.set_zlabel('Principal Component 3', fontsize=14, fontweight='bold')
+            ax.set_title(f'3D Latent Space Visualization (PCA)\nAutoencoder Fraud Detection\nExplained Variance: {total_explained_variance:.1%}', 
+                        fontsize=16, fontweight='bold', pad=20)
             
-            # Add legend
-            ax.legend(fontsize=10)
+            # Add legend with better styling
+            ax.legend(fontsize=12, loc='upper right', framealpha=0.9, fancybox=True, shadow=True)
             
-            # Set background color
+            # Enhanced background styling
             ax.xaxis.pane.fill = False
             ax.yaxis.pane.fill = False
             ax.zaxis.pane.fill = False
-            ax.xaxis.pane.set_edgecolor('w')
-            ax.yaxis.pane.set_edgecolor('w')
-            ax.zaxis.pane.set_edgecolor('w')
+            ax.xaxis.pane.set_edgecolor('#E0E0E0')
+            ax.yaxis.pane.set_edgecolor('#E0E0E0')
+            ax.zaxis.pane.set_edgecolor('#E0E0E0')
+            ax.xaxis.pane.set_alpha(0.1)
+            ax.yaxis.pane.set_alpha(0.1)
+            ax.zaxis.pane.set_alpha(0.1)
             
-            # Save the plot
+            # Grid styling
+            ax.grid(True, alpha=0.3, linestyle='-', linewidth=0.5)
+            
+            # Set background color
+            fig.patch.set_facecolor('white')
+            ax.set_facecolor('#F8F9FA')
+            
+            # Save the plot with high quality
             plot_image_path = static_dir / "latent_space_3d_plot.png"
-            plt.savefig(plot_image_path, dpi=300, bbox_inches='tight', facecolor='white')
+            plt.savefig(plot_image_path, dpi=300, bbox_inches='tight', facecolor='white', edgecolor='none')
             plt.close()
             
-            logger.info(f"3D plot image saved to {plot_image_path}")
+            logger.info(f"Enhanced 3D plot image saved to {plot_image_path}")
             
         except Exception as e:
             logger.warning(f"Could not create plot image: {e}")
@@ -1396,6 +1407,8 @@ async def generate_3d_plot():
             "success": False,
             "error": str(e)
         }
+
+
 
 @app.post("/api/generate-all-visualizations")
 async def generate_all_visualizations():
@@ -1782,6 +1795,8 @@ async def get_3d_plot_image():
     except Exception as e:
         logger.error(f"Error serving plot image: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to serve plot image: {str(e)}")
+
+
 
 @app.get("/api/get-visualization/{viz_type}")
 async def get_visualization(viz_type: str):
