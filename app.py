@@ -2084,6 +2084,11 @@ async def get_all_columns_transactions(request: DateAnalysisRequest):
         if len(date_data) == 0:
             raise HTTPException(status_code=404, detail=f"No data found for date {request.date}")
         
+        # Limit to first 100 transactions to prevent timeouts
+        if len(date_data) > 100:
+            date_data = date_data.head(100).copy()
+            logger.info(f"Limited to first 100 transactions to prevent timeout")
+        
         logger.info(f"Analyzing {len(date_data)} transactions for all columns view")
         
         # Engineer features
