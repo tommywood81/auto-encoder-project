@@ -1397,6 +1397,327 @@ async def generate_3d_plot():
             "error": str(e)
         }
 
+@app.post("/api/generate-all-visualizations")
+async def generate_all_visualizations():
+    """Generate all data science visualizations."""
+    if model is None or scaler is None:
+        raise HTTPException(status_code=503, detail="Model not loaded")
+    
+    try:
+        import json
+        from pathlib import Path
+        import matplotlib.pyplot as plt
+        import seaborn as sns
+        from sklearn.metrics import roc_curve, auc, confusion_matrix
+        from sklearn.preprocessing import StandardScaler
+        import pandas as pd
+        
+        # Create static directory if it doesn't exist
+        static_dir = Path("static")
+        static_dir.mkdir(exist_ok=True)
+        
+        # Use a larger sample for comprehensive analysis
+        sample_data = full_data.head(2000).copy()
+        
+        logger.info(f"Generating all visualizations for {len(sample_data)} transactions")
+        
+        # Engineer features
+        feature_engineer = FeatureFactory.create("combined")
+        df_features = feature_engineer.generate_features(sample_data)
+        
+        # Get numeric features
+        df_numeric = df_features.select_dtypes(include=[np.number])
+        if 'is_fraudulent' in df_numeric.columns:
+            actual_labels = df_numeric['is_fraudulent'].values
+            df_numeric = df_numeric.drop(columns=['is_fraudulent'])
+        else:
+            actual_labels = np.zeros(len(df_numeric))
+        
+        # Scale features
+        scaled_features = scaler.transform(df_numeric)
+        
+        # Get reconstruction errors and anomaly scores
+        reconstructed = model.model.predict(scaled_features)
+        mse = np.mean(np.power(scaled_features - reconstructed, 2), axis=1)
+        anomaly_scores = (mse - np.percentile(mse, 5)) / (np.percentile(mse, 95) - np.percentile(mse, 5))
+        anomaly_scores = np.clip(anomaly_scores, 0, 1)
+        
+        # Calculate threshold
+        threshold_score = np.percentile(anomaly_scores, threshold)
+        is_anomalous = anomaly_scores > threshold_score
+        
+        # Set up plotting style
+        plt.style.use('default')
+        sns.set_palette("husl")
+        
+        # 1. Reconstruction Error Distribution
+        fig, ax = plt.subplots(figsize=(10, 6))
+        normal_errors = mse[actual_labels == 0]
+        fraud_errors = mse[actual_labels == 1]
+        
+        ax.hist(normal_errors, bins=50, alpha=0.7, label='Normal Transactions', color='#2E8B57')
+        ax.hist(fraud_errors, bins=50, alpha=0.7, label='Fraudulent Transactions', color='#DC143C')
+        ax.set_xlabel('Reconstruction Error (MSE)')
+        ax.set_ylabel('Frequency')
+        ax.set_title('Reconstruction Error Distribution\nNormal vs Fraudulent Transactions')
+        ax.legend()
+        ax.grid(True, alpha=0.3)
+        plt.tight_layout()
+        plt.savefig(static_dir / "reconstruction_error_dist.png", dpi=300, bbox_inches='tight')
+        plt.close()
+        
+        # 2. Feature Importance Analysis (using correlation with anomaly scores)
+        feature_importance = []
+        for i, col in enumerate(df_numeric.columns):
+            correlation = np.corrcoef(df_numeric[col], anomaly_scores)[0, 1]
+            feature_importance.append((col, abs(correlation)))
+        
+        feature_importance.sort(key=lambda x: x[1], reverse=True)
+        top_features = feature_importance[:15]
+        
+        fig, ax = plt.subplots(figsize=(12, 8))
+        features, importances = zip(*top_features)
+        colors = plt.cm.viridis(np.linspace(0, 1, len(features)))
+        
+        bars = ax.barh(range(len(features)), importances, color=colors)
+        ax.set_yticks(range(len(features)))
+        ax.set_yticklabels(features)
+        ax.set_xlabel('Absolute Correlation with Anomaly Score')
+        ax.set_title('Feature Importance Analysis\nCorrelation with Anomaly Detection')
+        ax.grid(True, alpha=0.3)
+        plt.tight_layout()
+        plt.savefig(static_dir / "feature_importance.png", dpi=300, bbox_inches='tight')
+        plt.close()
+        
+        # 3. Anomaly Score vs Transaction Amount
+        fig, ax = plt.subplots(figsize=(10, 6))
+        normal_mask = actual_labels == 0
+        fraud_mask = actual_labels == 1
+        
+        ax.scatter(sample_data['transaction_amount'][normal_mask], anomaly_scores[normal_mask], 
+                  alpha=0.6, s=20, color='#2E8B57', label='Normal')
+        ax.scatter(sample_data['transaction_amount'][fraud_mask], anomaly_scores[fraud_mask], 
+                  alpha=0.8, s=30, color='#DC143C', label='Fraudulent')
+        ax.set_xlabel('Transaction Amount ($)')
+        ax.set_ylabel('Anomaly Score')
+        ax.set_title('Anomaly Score vs Transaction Amount')
+        ax.legend()
+        ax.grid(True, alpha=0.3)
+        plt.tight_layout()
+        plt.savefig(static_dir / "anomaly_vs_amount.png", dpi=300, bbox_inches='tight')
+        plt.close()
+        
+        # 4. Time-based Anomaly Patterns
+        sample_data['anomaly_score'] = anomaly_scores
+        hourly_anomaly = sample_data.groupby('transaction_hour')['anomaly_score'].mean()
+        
+        fig, ax = plt.subplots(figsize=(12, 6))
+        ax.plot(hourly_anomaly.index, hourly_anomaly.values, marker='o', linewidth=2, markersize=6)
+        ax.set_xlabel('Hour of Day')
+        ax.set_ylabel('Average Anomaly Score')
+        ax.set_title('Time-based Anomaly Patterns\nAverage Anomaly Score by Hour')
+        ax.grid(True, alpha=0.3)
+        ax.set_xticks(range(0, 24, 2))
+        plt.tight_layout()
+        plt.savefig(static_dir / "time_patterns.png", dpi=300, bbox_inches='tight')
+        plt.close()
+        
+        # 5. ROC Curve
+        fpr, tpr, _ = roc_curve(actual_labels, anomaly_scores)
+        roc_auc = auc(fpr, tpr)
+        
+        fig, ax = plt.subplots(figsize=(8, 8))
+        ax.plot(fpr, tpr, color='#2E8B57', lw=2, label=f'ROC curve (AUC = {roc_auc:.3f})')
+        ax.plot([0, 1], [0, 1], color='gray', lw=1, linestyle='--', label='Random')
+        ax.set_xlim([0.0, 1.0])
+        ax.set_ylim([0.0, 1.05])
+        ax.set_xlabel('False Positive Rate')
+        ax.set_ylabel('True Positive Rate')
+        ax.set_title('ROC Curve\nReceiver Operating Characteristic')
+        ax.legend(loc="lower right")
+        ax.grid(True, alpha=0.3)
+        plt.tight_layout()
+        plt.savefig(static_dir / "roc_curve.png", dpi=300, bbox_inches='tight')
+        plt.close()
+        
+        # 6. Confusion Matrix
+        predictions = (anomaly_scores > threshold_score).astype(int)
+        cm = confusion_matrix(actual_labels, predictions)
+        
+        fig, ax = plt.subplots(figsize=(8, 6))
+        sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', ax=ax,
+                   xticklabels=['Normal', 'Fraudulent'],
+                   yticklabels=['Normal', 'Fraudulent'])
+        ax.set_xlabel('Predicted')
+        ax.set_ylabel('Actual')
+        ax.set_title('Confusion Matrix\nThreshold = {:.3f}'.format(threshold_score))
+        plt.tight_layout()
+        plt.savefig(static_dir / "confusion_matrix.png", dpi=300, bbox_inches='tight')
+        plt.close()
+        
+        # 7. Feature Correlation Matrix (top features)
+        top_feature_names = [f[0] for f in top_features[:10]]
+        correlation_matrix = df_numeric[top_feature_names].corr()
+        
+        fig, ax = plt.subplots(figsize=(10, 8))
+        sns.heatmap(correlation_matrix, annot=True, cmap='coolwarm', center=0, ax=ax)
+        ax.set_title('Feature Correlation Matrix\nTop 10 Most Important Features')
+        plt.tight_layout()
+        plt.savefig(static_dir / "correlation_matrix.png", dpi=300, bbox_inches='tight')
+        plt.close()
+        
+        # 8. Threshold Sensitivity Analysis
+        thresholds = np.arange(0.1, 1.0, 0.05)
+        precision_scores = []
+        recall_scores = []
+        
+        for thresh in thresholds:
+            thresh_score = np.percentile(anomaly_scores, thresh * 100)
+            preds = (anomaly_scores > thresh_score).astype(int)
+            
+            tp = np.sum((preds == 1) & (actual_labels == 1))
+            fp = np.sum((preds == 1) & (actual_labels == 0))
+            fn = np.sum((preds == 0) & (actual_labels == 1))
+            
+            precision = tp / (tp + fp) if (tp + fp) > 0 else 0
+            recall = tp / (tp + fn) if (tp + fn) > 0 else 0
+            
+            precision_scores.append(precision)
+            recall_scores.append(recall)
+        
+        fig, ax = plt.subplots(figsize=(10, 6))
+        ax.plot(thresholds, precision_scores, marker='o', label='Precision', linewidth=2)
+        ax.plot(thresholds, recall_scores, marker='s', label='Recall', linewidth=2)
+        ax.set_xlabel('Threshold Percentile')
+        ax.set_ylabel('Score')
+        ax.set_title('Threshold Sensitivity Analysis\nPrecision vs Recall at Different Thresholds')
+        ax.legend()
+        ax.grid(True, alpha=0.3)
+        plt.tight_layout()
+        plt.savefig(static_dir / "threshold_sensitivity.png", dpi=300, bbox_inches='tight')
+        plt.close()
+        
+        # 9. Customer Segmentation by Anomaly Score
+        fig, axes = plt.subplots(2, 2, figsize=(15, 12))
+        
+        # Age groups
+        age_bins = [0, 25, 35, 45, 100]
+        age_labels = ['18-25', '26-35', '36-45', '45+']
+        sample_data['age_group'] = pd.cut(sample_data['customer_age'], bins=age_bins, labels=age_labels)
+        
+        age_anomaly = sample_data.groupby('age_group')['anomaly_score'].apply(list)
+        if len(age_anomaly) > 0:
+            # Filter out empty groups
+            valid_age_data = [(label, data) for label, data in zip(age_anomaly.index, age_anomaly.values) if len(data) > 0]
+            if valid_age_data:
+                labels, data = zip(*valid_age_data)
+                axes[0,0].boxplot(data, labels=labels)
+        axes[0,0].set_title('Anomaly Scores by Age Group')
+        axes[0,0].set_ylabel('Anomaly Score')
+        axes[0,0].grid(True, alpha=0.3)
+        
+        # Account age
+        account_bins = [0, 30, 90, 180, 1000]
+        account_labels = ['<30 days', '30-90 days', '90-180 days', '180+ days']
+        sample_data['account_group'] = pd.cut(sample_data['account_age_days'], bins=account_bins, labels=account_labels)
+        
+        account_anomaly = sample_data.groupby('account_group')['anomaly_score'].apply(list)
+        if len(account_anomaly) > 0:
+            # Filter out empty groups
+            valid_account_data = [(label, data) for label, data in zip(account_anomaly.index, account_anomaly.values) if len(data) > 0]
+            if valid_account_data:
+                labels, data = zip(*valid_account_data)
+                axes[0,1].boxplot(data, labels=labels)
+        axes[0,1].set_title('Anomaly Scores by Account Age')
+        axes[0,1].set_ylabel('Anomaly Score')
+        axes[0,1].grid(True, alpha=0.3)
+        
+        # Payment method
+        payment_anomaly = sample_data.groupby('payment_method')['anomaly_score'].apply(list)
+        if len(payment_anomaly) > 0:
+            # Filter out empty groups
+            valid_payment_data = [(label, data) for label, data in zip(payment_anomaly.index, payment_anomaly.values) if len(data) > 0]
+            if valid_payment_data:
+                labels, data = zip(*valid_payment_data)
+                axes[1,0].boxplot(data, labels=labels)
+        axes[1,0].set_title('Anomaly Scores by Payment Method')
+        axes[1,0].set_ylabel('Anomaly Score')
+        axes[1,0].grid(True, alpha=0.3)
+        
+        # Product category
+        category_anomaly = sample_data.groupby('product_category')['anomaly_score'].apply(list)
+        if len(category_anomaly) > 0:
+            # Filter out empty groups
+            valid_category_data = [(label, data) for label, data in zip(category_anomaly.index, category_anomaly.values) if len(data) > 0]
+            if valid_category_data:
+                labels, data = zip(*valid_category_data)
+                axes[1,1].boxplot(data, labels=labels)
+        axes[1,1].set_title('Anomaly Scores by Product Category')
+        axes[1,1].set_ylabel('Anomaly Score')
+        axes[1,1].grid(True, alpha=0.3)
+        
+        plt.tight_layout()
+        plt.savefig(static_dir / "customer_segmentation.png", dpi=300, bbox_inches='tight')
+        plt.close()
+        
+        # 10. Performance Metrics Summary
+        metrics_data = {
+            'metric': ['ROC AUC', 'Precision', 'Recall', 'F1-Score'],
+            'value': [
+                f"{roc_auc:.3f}",
+                f"{precision_scores[len(thresholds)//2]:.3f}",
+                f"{recall_scores[len(thresholds)//2]:.3f}",
+                f"{2 * precision_scores[len(thresholds)//2] * recall_scores[len(thresholds)//2] / (precision_scores[len(thresholds)//2] + recall_scores[len(thresholds)//2]):.3f}"
+            ]
+        }
+        
+        fig, ax = plt.subplots(figsize=(10, 6))
+        bars = ax.bar(metrics_data['metric'], [float(v) for v in metrics_data['value']], 
+                     color=['#2E8B57', '#DC143C', '#FFD700', '#4169E1'])
+        ax.set_ylabel('Score')
+        ax.set_title('Model Performance Metrics')
+        ax.grid(True, alpha=0.3)
+        
+        # Add value labels on bars
+        for bar, value in zip(bars, metrics_data['value']):
+            height = bar.get_height()
+            ax.text(bar.get_x() + bar.get_width()/2., height + 0.01,
+                   f'{value}', ha='center', va='bottom')
+        
+        plt.tight_layout()
+        plt.savefig(static_dir / "performance_metrics.png", dpi=300, bbox_inches='tight')
+        plt.close()
+        
+        # Save metadata
+        viz_metadata = {
+            "total_transactions": len(sample_data),
+            "fraud_rate": f"{np.mean(actual_labels)*100:.2f}%",
+            "roc_auc": roc_auc,
+            "threshold_used": threshold_score,
+            "top_features": [f[0] for f in top_features[:5]],
+            "generated_at": datetime.now().isoformat()
+        }
+        
+        with open(static_dir / "visualization_metadata.json", 'w') as f:
+            json.dump(viz_metadata, f, indent=2)
+        
+        logger.info("All visualizations generated successfully")
+        
+        return {
+            "success": True,
+            "message": "All visualizations generated successfully",
+            "metadata": viz_metadata
+        }
+        
+    except Exception as e:
+        logger.error(f"Error generating visualizations: {str(e)}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
 @app.get("/api/check-visualization")
 async def check_visualization():
     """Check if 3D visualization data is available."""
@@ -1461,6 +1782,61 @@ async def get_3d_plot_image():
     except Exception as e:
         logger.error(f"Error serving plot image: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to serve plot image: {str(e)}")
+
+@app.get("/api/get-visualization/{viz_type}")
+async def get_visualization(viz_type: str):
+    """Get specific visualization image."""
+    try:
+        from pathlib import Path
+        from fastapi.responses import FileResponse
+        
+        viz_files = {
+            "reconstruction_error": "reconstruction_error_dist.png",
+            "feature_importance": "feature_importance.png",
+            "anomaly_vs_amount": "anomaly_vs_amount.png",
+            "time_patterns": "time_patterns.png",
+            "roc_curve": "roc_curve.png",
+            "confusion_matrix": "confusion_matrix.png",
+            "correlation_matrix": "correlation_matrix.png",
+            "threshold_sensitivity": "threshold_sensitivity.png",
+            "customer_segmentation": "customer_segmentation.png",
+            "performance_metrics": "performance_metrics.png"
+        }
+        
+        if viz_type not in viz_files:
+            raise HTTPException(status_code=404, detail=f"Visualization type '{viz_type}' not found")
+        
+        viz_path = Path("static") / viz_files[viz_type]
+        
+        if not viz_path.exists():
+            raise HTTPException(status_code=404, detail=f"Visualization file not found: {viz_files[viz_type]}")
+        
+        return FileResponse(viz_path, media_type="image/png")
+        
+    except Exception as e:
+        logger.error(f"Error serving visualization {viz_type}: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to serve visualization: {str(e)}")
+
+@app.get("/api/get-visualization-metadata")
+async def get_visualization_metadata():
+    """Get metadata for all visualizations."""
+    try:
+        import json
+        from pathlib import Path
+        
+        metadata_path = Path("static/visualization_metadata.json")
+        
+        if not metadata_path.exists():
+            raise HTTPException(status_code=404, detail="Visualization metadata not found")
+        
+        with open(metadata_path, 'r') as f:
+            metadata = json.load(f)
+        
+        return metadata
+        
+    except Exception as e:
+        logger.error(f"Error getting visualization metadata: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to get metadata: {str(e)}")
 
 if __name__ == "__main__":
     import uvicorn
