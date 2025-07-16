@@ -300,6 +300,12 @@
                 <button class="predict-button" onclick="runPrediction()">
                     🔍 Run Prediction & Generate Visualization
                 </button>
+                <button class="predict-button" style="margin-left: 10px; background: linear-gradient(45deg, #27ae60, #2ecc71);" onclick="getAllColumnsTransactions()">
+                    📊 View All Columns (36+ Features)
+                </button>
+                <button class="predict-button" style="margin-left: 10px; background: linear-gradient(45deg, #e67e22, #f39c12);" onclick="toggleFeatureImportance()" id="feature-importance-btn">
+                    🧠 Show Feature Importance
+                </button>
                 
                 <div class="loading" id="loading">
                     <div class="spinner"></div>
@@ -336,6 +342,86 @@
                 
                 <div class="error" id="error">
                     <p id="error-message">An error occurred while processing the request.</p>
+                </div>
+                
+                <!-- All Columns Transactions Section -->
+                <div class="all-columns-transactions" id="all-columns-transactions" style="display: none; margin-top: 30px;">
+                    <h3>📋 Complete Transaction Analysis (All 36+ Columns)</h3>
+                    <div class="info-box">
+                        <h4>🔍 Complete Data View</h4>
+                        <p>This table shows every transaction with all original and engineered features. Scroll horizontally to see all columns. The Random Forest feature importance column (when enabled) shows which features contributed most to the fraud detection decision for each transaction.</p>
+                    </div>
+                    
+                    <div class="table-container" style="overflow-x: auto; margin-top: 20px; border: 2px solid #dee2e6; border-radius: 10px; max-height: 600px; overflow-y: auto;">
+                        <table id="all-columns-table" style="width: 100%; border-collapse: collapse; font-size: 12px; min-width: 2000px;">
+                            <thead>
+                                <tr style="background-color: #f8f9fa; border-bottom: 2px solid #dee2e6; position: sticky; top: 0; z-index: 10;">
+                                    <!-- Original Columns -->
+                                    <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6; background-color: #e3f2fd; font-weight: bold;">Transaction ID</th>
+                                    <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6; background-color: #e3f2fd; font-weight: bold;">Date</th>
+                                    <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6; background-color: #e3f2fd; font-weight: bold;">Amount</th>
+                                    <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6; background-color: #e3f2fd; font-weight: bold;">Quantity</th>
+                                    <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6; background-color: #e3f2fd; font-weight: bold;">Customer Age</th>
+                                    <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6; background-color: #e3f2fd; font-weight: bold;">Account Age</th>
+                                    <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6; background-color: #e3f2fd; font-weight: bold;">Payment Method</th>
+                                    <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6; background-color: #e3f2fd; font-weight: bold;">Product Category</th>
+                                    <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6; background-color: #e3f2fd; font-weight: bold;">Device Used</th>
+                                    <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6; background-color: #e3f2fd; font-weight: bold;">Customer Location</th>
+                                    <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6; background-color: #e3f2fd; font-weight: bold;">Hour</th>
+                                    <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6; background-color: #e3f2fd; font-weight: bold;">Is Fraudulent</th>
+                                    
+                                    <!-- Engineered Features -->
+                                    <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6; background-color: #f3e5f5; font-weight: bold;">Amount Log</th>
+                                    <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6; background-color: #f3e5f5; font-weight: bold;">Amount Per Item</th>
+                                    <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6; background-color: #f3e5f5; font-weight: bold;">Payment Encoded</th>
+                                    <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6; background-color: #f3e5f5; font-weight: bold;">Product Encoded</th>
+                                    <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6; background-color: #f3e5f5; font-weight: bold;">Device Encoded</th>
+                                    <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6; background-color: #f3e5f5; font-weight: bold;">Late Night</th>
+                                    <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6; background-color: #f3e5f5; font-weight: bold;">Burst Transaction</th>
+                                    <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6; background-color: #f3e5f5; font-weight: bold;">Amount Per Age</th>
+                                    <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6; background-color: #f3e5f5; font-weight: bold;">Amount Per Account Age</th>
+                                    <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6; background-color: #f3e5f5; font-weight: bold;">Age Band</th>
+                                    <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6; background-color: #f3e5f5; font-weight: bold;">High Amount Flag</th>
+                                    <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6; background-color: #f3e5f5; font-weight: bold;">New Account Flag</th>
+                                    <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6; background-color: #f3e5f5; font-weight: bold;">Young Customer Flag</th>
+                                    <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6; background-color: #f3e5f5; font-weight: bold;">Late Night Flag</th>
+                                    <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6; background-color: #f3e5f5; font-weight: bold;">High Quantity Flag</th>
+                                    <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6; background-color: #f3e5f5; font-weight: bold;">Unusual Location Flag</th>
+                                    <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6; background-color: #f3e5f5; font-weight: bold;">Amount Age Interaction</th>
+                                    <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6; background-color: #f3e5f5; font-weight: bold;">Account Age Interaction</th>
+                                    <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6; background-color: #f3e5f5; font-weight: bold;">Fraud Risk Score</th>
+                                    <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6; background-color: #f3e5f5; font-weight: bold;">Rolling Avg Amount</th>
+                                    <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6; background-color: #f3e5f5; font-weight: bold;">Rolling Std Amount</th>
+                                    <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6; background-color: #f3e5f5; font-weight: bold;">Amount Rank</th>
+                                    <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6; background-color: #f3e5f5; font-weight: bold;">Account Age Rank</th>
+                                    <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6; background-color: #f3e5f5; font-weight: bold;">Amount × Hour</th>
+                                    <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6; background-color: #f3e5f5; font-weight: bold;">Amount Per Hour</th>
+                                    
+                                    <!-- Model Predictions -->
+                                    <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6; background-color: #fff3e0; font-weight: bold;">Anomaly Score</th>
+                                    <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6; background-color: #fff3e0; font-weight: bold;">Autoencoder Flagged</th>
+                                    <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6; background-color: #fff3e0; font-weight: bold;">RF Prediction</th>
+                                    <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6; background-color: #fff3e0; font-weight: bold;">RF Probability</th>
+                                    <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6; background-color: #fff3e0; font-weight: bold;">Risk Level</th>
+                                    <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6; background-color: #fff3e0; font-weight: bold;">Review Priority</th>
+                                    
+                                    <!-- Feature Importance (hidden by default) -->
+                                    <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6; background-color: #e8f5e8; font-weight: bold; display: none;" id="feature-importance-header">Top Feature Importance</th>
+                                </tr>
+                            </thead>
+                            <tbody id="all-columns-tbody">
+                                <!-- Transaction rows will be populated here -->
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- Feature Importance Summary -->
+                    <div class="info-box" style="margin-top: 20px;">
+                        <h4>📊 Global Feature Importance</h4>
+                        <div id="global-features-all" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin-top: 10px;">
+                            <!-- Global feature importance will be populated here -->
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -812,6 +898,215 @@
             }
         };
 
+        async function getDetailedTransactions() {
+            // Show loading
+            document.getElementById('loading').classList.add('show');
+            document.getElementById('detailed-transactions').style.display = 'none';
+            document.getElementById('error').classList.remove('show');
+            
+            try {
+                const selectedDate = document.getElementById('date-selector').value;
+                
+                const response = await fetch('/api/detailed-transactions', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        date: selectedDate,
+                        threshold: null
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                // Populate the transactions table
+                const tbody = document.getElementById('transactions-tbody');
+                tbody.innerHTML = '';
+                
+                data.transactions.forEach((transaction, index) => {
+                    const row = document.createElement('tr');
+                    row.style.borderBottom = '1px solid #dee2e6';
+                    row.style.backgroundColor = index % 2 === 0 ? '#ffffff' : '#f8f9fa';
+                    
+                    // Color code based on risk level
+                    if (transaction.risk_level === 'High') {
+                        row.style.backgroundColor = '#fff5f5';
+                    } else if (transaction.risk_level === 'Medium') {
+                        row.style.backgroundColor = '#fffbf0';
+                    }
+                    
+                    // Create top features display
+                    const topFeatures = transaction.top_features.map(f => 
+                        `${f.feature}: ${(f.importance * 100).toFixed(1)}%`
+                    ).join('<br>');
+                    
+                    row.innerHTML = `
+                        <td style="padding: 12px; border: 1px solid #dee2e6; font-weight: bold;">${transaction.transaction_id}</td>
+                        <td style="padding: 12px; border: 1px solid #dee2e6;">${transaction.customer_id}</td>
+                        <td style="padding: 12px; border: 1px solid #dee2e6; font-weight: bold; color: ${transaction.transaction_amount > 1000 ? '#dc3545' : '#28a745'};">$${transaction.transaction_amount.toFixed(2)}</td>
+                        <td style="padding: 12px; border: 1px solid #dee2e6;">${transaction.merchant_category}</td>
+                        <td style="padding: 12px; border: 1px solid #dee2e6;">${transaction.payment_method}</td>
+                        <td style="padding: 12px; border: 1px solid #dee2e6; font-weight: bold; color: ${transaction.anomaly_score > 0.8 ? '#dc3545' : transaction.anomaly_score > 0.5 ? '#ffc107' : '#28a745'};">${(transaction.anomaly_score * 100).toFixed(1)}%</td>
+                        <td style="padding: 12px; border: 1px solid #dee2e6;">
+                            <span style="padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; 
+                                background-color: ${transaction.risk_level === 'High' ? '#dc3545' : transaction.risk_level === 'Medium' ? '#ffc107' : '#28a745'}; 
+                                color: white;">
+                                ${transaction.risk_level}
+                            </span>
+                        </td>
+                        <td style="padding: 12px; border: 1px solid #dee2e6; font-size: 12px; max-width: 200px;">${topFeatures}</td>
+                        <td style="padding: 12px; border: 1px solid #dee2e6;">
+                            <button onclick="showFeatureDetails(${index})" style="padding: 4px 8px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;">
+                                View Details
+                            </button>
+                        </td>
+                    `;
+                    
+                    tbody.appendChild(row);
+                });
+                
+                // Populate global feature importance
+                const globalFeaturesDiv = document.getElementById('global-features');
+                globalFeaturesDiv.innerHTML = '';
+                
+                data.feature_importance_summary.top_global_features.forEach(feature => {
+                    const featureDiv = document.createElement('div');
+                    featureDiv.style.padding = '10px';
+                    featureDiv.style.backgroundColor = '#f8f9fa';
+                    featureDiv.style.borderRadius = '5px';
+                    featureDiv.style.border = '1px solid #dee2e6';
+                    featureDiv.innerHTML = `
+                        <strong>${feature.feature}</strong><br>
+                        <span style="color: #6c757d;">${(feature.importance * 100).toFixed(1)}% importance</span>
+                    `;
+                    globalFeaturesDiv.appendChild(featureDiv);
+                });
+                
+                // Show detailed transactions section
+                document.getElementById('detailed-transactions').style.display = 'block';
+                
+                // Store transaction data for detail view
+                window.transactionData = data.transactions;
+                
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('error-message').textContent = `Error: ${error.message}`;
+                document.getElementById('error').classList.add('show');
+            } finally {
+                // Hide loading
+                document.getElementById('loading').classList.remove('show');
+            }
+        }
+
+        function showFeatureDetails(transactionIndex) {
+            const transaction = window.transactionData[transactionIndex];
+            if (!transaction) return;
+            
+            // Create modal content
+            let modalContent = `
+                <div style="max-width: 800px; margin: 20px auto; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 20px rgba(0,0,0,0.3);">
+                    <h3 style="color: #2c3e50; margin-bottom: 20px;">Transaction Details: ${transaction.transaction_id}</h3>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+                        <div>
+                            <h4 style="color: #495057;">Transaction Information</h4>
+                            <p><strong>Customer ID:</strong> ${transaction.customer_id}</p>
+                            <p><strong>Amount:</strong> $${transaction.transaction_amount.toFixed(2)}</p>
+                            <p><strong>Merchant:</strong> ${transaction.merchant_category}</p>
+                            <p><strong>Payment Method:</strong> ${transaction.payment_method}</p>
+                            <p><strong>Customer Age:</strong> ${transaction.customer_age}</p>
+                            <p><strong>Account Age:</strong> ${transaction.account_age_days} days</p>
+                        </div>
+                        <div>
+                            <h4 style="color: #495057;">Risk Assessment</h4>
+                            <p><strong>Anomaly Score:</strong> ${(transaction.anomaly_score * 100).toFixed(1)}%</p>
+                            <p><strong>Risk Level:</strong> <span style="color: ${transaction.risk_level === 'High' ? '#dc3545' : transaction.risk_level === 'Medium' ? '#ffc107' : '#28a745'}; font-weight: bold;">${transaction.risk_level}</span></p>
+                            <p><strong>Review Priority:</strong> ${transaction.review_priority}</p>
+                            <p><strong>Autoencoder Flagged:</strong> ${transaction.autoencoder_flagged ? 'Yes' : 'No'}</p>
+                            <p><strong>RF Prediction:</strong> ${transaction.rf_prediction ? 'Fraud' : 'Normal'}</p>
+                            <p><strong>RF Probability:</strong> ${(transaction.rf_probability * 100).toFixed(1)}%</p>
+                        </div>
+                    </div>
+                    
+                    <h4 style="color: #495057; margin-bottom: 15px;">Feature Importance Analysis</h4>
+                    <div style="max-height: 400px; overflow-y: auto;">
+                        <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+                            <thead>
+                                <tr style="background-color: #f8f9fa;">
+                                    <th style="padding: 10px; text-align: left; border: 1px solid #dee2e6;">Feature</th>
+                                    <th style="padding: 10px; text-align: left; border: 1px solid #dee2e6;">Importance</th>
+                                    <th style="padding: 10px; text-align: left; border: 1px solid #dee2e6;">Value</th>
+                                    <th style="padding: 10px; text-align: left; border: 1px solid #dee2e6;">Impact</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+            `;
+            
+            // Sort features by importance
+            const sortedFeatures = Object.entries(transaction.all_features)
+                .sort(([,a], [,b]) => b.importance - a.importance);
+            
+            sortedFeatures.forEach(([featureName, featureData]) => {
+                const importancePercent = (featureData.importance * 100).toFixed(1);
+                const impact = featureData.importance > 0.1 ? 'High' : featureData.importance > 0.05 ? 'Medium' : 'Low';
+                const impactColor = impact === 'High' ? '#dc3545' : impact === 'Medium' ? '#ffc107' : '#28a745';
+                
+                modalContent += `
+                    <tr>
+                        <td style="padding: 10px; border: 1px solid #dee2e6; font-weight: bold;">${featureName}</td>
+                        <td style="padding: 10px; border: 1px solid #dee2e6;">${importancePercent}%</td>
+                        <td style="padding: 10px; border: 1px solid #dee2e6;">${featureData.value.toFixed(4)}</td>
+                        <td style="padding: 10px; border: 1px solid #dee2e6;">
+                            <span style="color: ${impactColor}; font-weight: bold;">${impact}</span>
+                        </td>
+                    </tr>
+                `;
+            });
+            
+            modalContent += `
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <div style="text-align: center; margin-top: 20px;">
+                        <button onclick="closeModal()" style="padding: 10px 20px; background-color: #6c757d; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                            Close
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            // Show modal
+            const modal = document.createElement('div');
+            modal.id = 'feature-modal';
+            modal.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background-color: rgba(0,0,0,0.5);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                z-index: 1000;
+            `;
+            modal.innerHTML = modalContent;
+            document.body.appendChild(modal);
+        }
+
+        function closeModal() {
+            const modal = document.getElementById('feature-modal');
+            if (modal) {
+                modal.remove();
+            }
+        }
+
         async function generateAllVisualizations() {
             // Show loading
             document.getElementById('viz-loading').classList.add('show');
@@ -880,6 +1175,174 @@
             } finally {
                 // Hide loading
                 document.getElementById('viz-loading').classList.remove('show');
+            }
+        }
+
+        async function getAllColumnsTransactions() {
+            // Show loading
+            document.getElementById('loading').classList.add('show');
+            document.getElementById('all-columns-transactions').style.display = 'none';
+            document.getElementById('error').classList.remove('show');
+            
+            try {
+                const selectedDate = document.getElementById('date-selector').value;
+                
+                const response = await fetch('/api/all-columns-transactions', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        date: selectedDate,
+                        threshold: null
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                // Populate the all-columns-table
+                const tbody = document.getElementById('all-columns-tbody');
+                tbody.innerHTML = '';
+                
+                data.transactions.forEach((transaction, index) => {
+                    const row = document.createElement('tr');
+                    row.style.borderBottom = '1px solid #dee2e6';
+                    row.style.backgroundColor = index % 2 === 0 ? '#ffffff' : '#f8f9fa';
+                    
+                    // Color code based on fraud status and risk level
+                    if (transaction.is_fraudulent) {
+                        row.style.backgroundColor = '#fff5f5';
+                        row.style.borderLeft = '4px solid #dc3545';
+                    } else if (transaction.autoencoder_flagged) {
+                        row.style.backgroundColor = '#fffbf0';
+                        row.style.borderLeft = '4px solid #ffc107';
+                    } else if (transaction.risk_level === 'High') {
+                        row.style.backgroundColor = '#f8f9fa';
+                        row.style.borderLeft = '4px solid #fd7e14';
+                    }
+                    
+                    // Create cells for all columns in order
+                    const cells = [
+                        `<td style="padding: 8px; border: 1px solid #dee2e6; font-weight: bold;">${transaction.transaction_id}</td>`,
+                        `<td style="padding: 8px; border: 1px solid #dee2e6;">${transaction.transaction_date}</td>`,
+                        `<td style="padding: 8px; border: 1px solid #dee2e6;">$${transaction.transaction_amount.toFixed(2)}</td>`,
+                        `<td style="padding: 8px; border: 1px solid #dee2e6;">${transaction.quantity}</td>`,
+                        `<td style="padding: 8px; border: 1px solid #dee2e6;">${transaction.customer_age}</td>`,
+                        `<td style="padding: 8px; border: 1px solid #dee2e6;">${transaction.account_age_days}</td>`,
+                        `<td style="padding: 8px; border: 1px solid #dee2e6;">${transaction.payment_method}</td>`,
+                        `<td style="padding: 8px; border: 1px solid #dee2e6;">${transaction.product_category}</td>`,
+                        `<td style="padding: 8px; border: 1px solid #dee2e6;">${transaction.device_used}</td>`,
+                        `<td style="padding: 8px; border: 1px solid #dee2e6;">${transaction.customer_location}</td>`,
+                        `<td style="padding: 8px; border: 1px solid #dee2e6;">${transaction.transaction_hour}</td>`,
+                        `<td style="padding: 8px; border: 1px solid #dee2e6; font-weight: bold; color: ${transaction.is_fraudulent ? '#dc3545' : '#28a745'};">${transaction.is_fraudulent ? 'YES' : 'NO'}</td>`,
+                        `<td style="padding: 8px; border: 1px solid #dee2e6;">${transaction.transaction_amount_log.toFixed(4)}</td>`,
+                        `<td style="padding: 8px; border: 1px solid #dee2e6;">${transaction.amount_per_item.toFixed(4)}</td>`,
+                        `<td style="padding: 8px; border: 1px solid #dee2e6;">${transaction.payment_method_encoded}</td>`,
+                        `<td style="padding: 8px; border: 1px solid #dee2e6;">${transaction.product_category_encoded}</td>`,
+                        `<td style="padding: 8px; border: 1px solid #dee2e6;">${transaction.device_used_encoded}</td>`,
+                        `<td style="padding: 8px; border: 1px solid #dee2e6;">${transaction.is_late_night}</td>`,
+                        `<td style="padding: 8px; border: 1px solid #dee2e6;">${transaction.is_burst_transaction}</td>`,
+                        `<td style="padding: 8px; border: 1px solid #dee2e6;">${transaction.amount_per_age.toFixed(4)}</td>`,
+                        `<td style="padding: 8px; border: 1px solid #dee2e6;">${transaction.amount_per_account_age.toFixed(4)}</td>`,
+                        `<td style="padding: 8px; border: 1px solid #dee2e6;">${transaction.customer_age_band}</td>`,
+                        `<td style="padding: 8px; border: 1px solid #dee2e6;">${transaction.high_amount_flag}</td>`,
+                        `<td style="padding: 8px; border: 1px solid #dee2e6;">${transaction.new_account_flag}</td>`,
+                        `<td style="padding: 8px; border: 1px solid #dee2e6;">${transaction.young_customer_flag}</td>`,
+                        `<td style="padding: 8px; border: 1px solid #dee2e6;">${transaction.late_night_flag}</td>`,
+                        `<td style="padding: 8px; border: 1px solid #dee2e6;">${transaction.high_quantity_flag}</td>`,
+                        `<td style="padding: 8px; border: 1px solid #dee2e6;">${transaction.unusual_location_flag}</td>`,
+                        `<td style="padding: 8px; border: 1px solid #dee2e6;">${transaction.amount_age_interaction}</td>`,
+                        `<td style="padding: 8px; border: 1px solid #dee2e6;">${transaction.account_age_interaction}</td>`,
+                        `<td style="padding: 8px; border: 1px solid #dee2e6;">${transaction.fraud_risk_score}</td>`,
+                        `<td style="padding: 8px; border: 1px solid #dee2e6;">${transaction.rolling_avg_amount_3.toFixed(4)}</td>`,
+                        `<td style="padding: 8px; border: 1px solid #dee2e6;">${transaction.rolling_std_amount_3.toFixed(4)}</td>`,
+                        `<td style="padding: 8px; border: 1px solid #dee2e6;">${transaction.transaction_amount_rank.toFixed(4)}</td>`,
+                        `<td style="padding: 8px; border: 1px solid #dee2e6;">${transaction.account_age_rank.toFixed(4)}</td>`,
+                        `<td style="padding: 8px; border: 1px solid #dee2e6;">${transaction.amount_x_hour.toFixed(4)}</td>`,
+                        `<td style="padding: 8px; border: 1px solid #dee2e6;">${transaction.amount_per_hour.toFixed(4)}</td>`,
+                        `<td style="padding: 8px; border: 1px solid #dee2e6; font-weight: bold;">${transaction.anomaly_score.toFixed(4)}</td>`,
+                        `<td style="padding: 8px; border: 1px solid #dee2e6; font-weight: bold; color: ${transaction.autoencoder_flagged ? '#dc3545' : '#28a745'};">${transaction.autoencoder_flagged ? 'YES' : 'NO'}</td>`,
+                        `<td style="padding: 8px; border: 1px solid #dee2e6; font-weight: bold; color: ${transaction.rf_prediction ? '#dc3545' : '#28a745'};">${transaction.rf_prediction ? 'YES' : 'NO'}</td>`,
+                        `<td style="padding: 8px; border: 1px solid #dee2e6;">${transaction.rf_probability.toFixed(4)}</td>`,
+                        `<td style="padding: 8px; border: 1px solid #dee2e6; font-weight: bold; color: ${transaction.risk_level === 'High' ? '#dc3545' : transaction.risk_level === 'Medium' ? '#ffc107' : '#28a745'};">${transaction.risk_level}</td>`,
+                        `<td style="padding: 8px; border: 1px solid #dee2e6;">${transaction.review_priority}</td>`,
+                        `<td style="padding: 8px; border: 1px solid #dee2e6; display: none;" id="feature-importance-cell-${index}">${transaction.top_features ? transaction.top_features[0]?.feature + ' (' + (transaction.top_features[0]?.importance * 100).toFixed(1) + '%)' : 'N/A'}</td>`
+                    ];
+                    
+                    row.innerHTML = cells.join('');
+                    tbody.appendChild(row);
+                });
+                
+                // Populate global feature importance
+                const globalFeaturesDiv = document.getElementById('global-features-all');
+                globalFeaturesDiv.innerHTML = '';
+                
+                data.feature_importance_summary.top_global_features.forEach(feature => {
+                    const featureDiv = document.createElement('div');
+                    featureDiv.style.padding = '10px';
+                    featureDiv.style.backgroundColor = '#f8f9fa';
+                    featureDiv.style.borderRadius = '5px';
+                    featureDiv.style.border = '1px solid #dee2e6';
+                    featureDiv.innerHTML = `
+                        <strong>${feature.feature}</strong><br>
+                        <span style="color: #6c757d;">${(feature.importance * 100).toFixed(1)}% importance</span>
+                    `;
+                    globalFeaturesDiv.appendChild(featureDiv);
+                });
+                
+                // Show all columns transactions section
+                document.getElementById('all-columns-transactions').style.display = 'block';
+                
+                // Store transaction data for feature importance toggle
+                window.transactionData = data.transactions;
+                
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('error-message').textContent = `Error: ${error.message}`;
+                document.getElementById('error').classList.add('show');
+            } finally {
+                // Hide loading
+                document.getElementById('loading').classList.remove('show');
+            }
+        }
+
+        function toggleFeatureImportance() {
+            const featureImportanceHeader = document.getElementById('feature-importance-header');
+            const allColumnsTable = document.getElementById('all-columns-table');
+            const button = document.getElementById('feature-importance-btn');
+
+            if (featureImportanceHeader.style.display === 'none') {
+                // Show feature importance column
+                featureImportanceHeader.style.display = 'table-cell';
+                allColumnsTable.style.minWidth = '2200px'; // Increase table width
+                button.textContent = '🧠 Hide Feature Importance';
+                button.style.background = 'linear-gradient(45deg, #dc3545, #c82333)';
+                
+                // Show all feature importance cells
+                for (let i = 0; i < window.transactionData.length; i++) {
+                    const cell = document.getElementById(`feature-importance-cell-${i}`);
+                    if (cell) {
+                        cell.style.display = 'table-cell';
+                    }
+                }
+            } else {
+                // Hide feature importance column
+                featureImportanceHeader.style.display = 'none';
+                allColumnsTable.style.minWidth = '2000px'; // Reset table width
+                button.textContent = '🧠 Show Feature Importance';
+                button.style.background = 'linear-gradient(45deg, #e67e22, #f39c12)';
+                
+                // Hide all feature importance cells
+                for (let i = 0; i < window.transactionData.length; i++) {
+                    const cell = document.getElementById(`feature-importance-cell-${i}`);
+                    if (cell) {
+                        cell.style.display = 'none';
+                    }
+                }
             }
         }
     </script>

@@ -212,6 +212,56 @@ def load_model():
         threshold = trained_threshold  # Use the trained threshold, not percentile-based
         test_data = test_data_full
         
+        # Train Random Forest for interpretability
+        logger.info("Training Random Forest model for interpretability...")
+        from sklearn.ensemble import RandomForestClassifier
+        from sklearn.model_selection import train_test_split
+        
+        # Prepare data for Random Forest (use actual fraud labels)
+        rf_features = df_features.select_dtypes(include=[np.number])
+        if 'is_fraudulent' in rf_features.columns:
+            rf_labels = rf_features['is_fraudulent'].values
+            rf_features = rf_features.drop(columns=['is_fraudulent'])
+        else:
+            # If no fraud labels, use autoencoder predictions as proxy
+            scaled_rf_features = scaler.transform(rf_features)
+            rf_anomaly_scores = model.predict_anomaly_scores(scaled_rf_features)
+            rf_threshold_score = np.percentile(rf_anomaly_scores, threshold)
+            rf_labels = (rf_anomaly_scores > rf_threshold_score).astype(int)
+            logger.info("Using autoencoder predictions as proxy labels for Random Forest")
+        
+        # Train Random Forest
+        rf_model_local = RandomForestClassifier(
+            n_estimators=100,
+            max_depth=10,
+            random_state=42,
+            n_jobs=-1
+        )
+        
+        # Split data for training
+        X_train, X_test, y_train, y_test = train_test_split(
+            rf_features, rf_labels, test_size=0.2, random_state=42, stratify=rf_labels
+        )
+        
+        rf_model_local.fit(X_train, y_train)
+        
+        # Store Random Forest model and feature names
+        global rf_model, rf_feature_names
+        rf_model = rf_model_local
+        rf_feature_names = rf_features.columns.tolist()
+        
+        # Calculate feature importance
+        feature_importance = rf_model.feature_importances_
+        feature_importance_dict = dict(zip(rf_feature_names, feature_importance))
+        
+        # Sort features by importance
+        sorted_features = sorted(feature_importance_dict.items(), key=lambda x: x[1], reverse=True)
+        
+        logger.info(f"Random Forest trained successfully!")
+        logger.info(f"Top 5 most important features:")
+        for feature, importance in sorted_features[:5]:
+            logger.info(f"  {feature}: {importance:.4f}")
+        
         logger.info(f"Best model loaded successfully!")
         logger.info(f"Model: final_model.h5 (combined strategy)")
         logger.info(f"Feature columns: {feature_columns}")
@@ -1238,6 +1288,168 @@ async def predict_with_threshold(request: DateAnalysisRequest):
         logger.error(f"Traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"Prediction failed: {str(e)}")
 
+@app.post("/api/detailed-transactions")
+async def get_detailed_transactions(request: DateAnalysisRequest):
+    """
+    Get detailed transaction data with feature importance for interpretability.
+    Shows complete transaction rows with Random Forest feature importance scores.
+    """
+    if model is None or scaler is None or rf_model is None:
+        raise HTTPException(status_code=503, detail="Models not loaded")
+    
+    try:
+        # Filter data for the requested date
+        if request.date == "All Dates":
+            date_data = full_data.copy()
+        else:
+            date_data = full_data[full_data['date'] == request.date].copy()
+            
+        if len(date_data) == 0:
+            raise HTTPException(status_code=404, detail=f"No data found for date {request.date}")
+        
+        logger.info(f"Analyzing {len(date_data)} transactions for detailed view")
+        
+        # Engineer features
+        feature_engineer = FeatureFactory.create("combined")
+        df_features = feature_engineer.generate_features(date_data)
+        
+        # Get numeric features for autoencoder
+        df_numeric = df_features.select_dtypes(include=[np.number])
+        if 'is_fraudulent' in df_numeric.columns:
+            actual_labels = df_numeric['is_fraudulent'].values
+            df_numeric = df_numeric.drop(columns=['is_fraudulent'])
+        else:
+            actual_labels = np.zeros(len(df_numeric))
+        
+        # Scale features for autoencoder
+        scaled_features = scaler.transform(df_numeric)
+        
+        # Get autoencoder anomaly scores
+        reconstructed = model.model.predict(scaled_features)
+        mse = np.mean(np.power(scaled_features - reconstructed, 2), axis=1)
+        anomaly_scores = (mse - np.percentile(mse, 5)) / (np.percentile(mse, 95) - np.percentile(mse, 5))
+        anomaly_scores = np.clip(anomaly_scores, 0, 1)
+        
+        # Apply threshold
+        threshold_score = np.percentile(anomaly_scores, threshold)
+        flagged_by_autoencoder = anomaly_scores > threshold_score
+        
+        # Get Random Forest predictions and feature importance
+        rf_features_data = df_features.select_dtypes(include=[np.number])
+        if 'is_fraudulent' in rf_features_data.columns:
+            rf_features_data = rf_features_data.drop(columns=['is_fraudulent'])
+        
+        # Get Random Forest predictions
+        rf_predictions = rf_model.predict(rf_features_data)
+        rf_probabilities = rf_model.predict_proba(rf_features_data)[:, 1]  # Probability of fraud
+        
+        # Calculate feature importance for each transaction
+        feature_importance_per_transaction = []
+        
+        for i, transaction_features in enumerate(rf_features_data.values):
+            # Get feature importance for this specific transaction
+            transaction_importance = {}
+            
+            # Use Random Forest's feature importances as base
+            base_importance = dict(zip(rf_feature_names, rf_model.feature_importances_))
+            
+            # Adjust importance based on feature values (higher values = more important for this transaction)
+            for feature_name, feature_value in zip(rf_feature_names, transaction_features):
+                # Normalize feature value and combine with base importance
+                normalized_value = abs(feature_value) / (rf_features_data[feature_name].max() + 1e-8)
+                transaction_importance[feature_name] = base_importance[feature_name] * (1 + normalized_value)
+            
+            # Sort by importance
+            sorted_importance = sorted(transaction_importance.items(), key=lambda x: x[1], reverse=True)
+            feature_importance_per_transaction.append(sorted_importance)
+        
+        # Prepare detailed transaction data
+        detailed_transactions = []
+        
+        for i, (_, transaction) in enumerate(date_data.iterrows()):
+            # Get top 5 most important features for this transaction
+            top_features = feature_importance_per_transaction[i][:5]
+            
+            # Calculate risk level based on anomaly score
+            risk_level = get_risk_level(anomaly_scores[i])
+            
+            # Determine review priority
+            if anomaly_scores[i] > np.percentile(anomaly_scores, 95):
+                review_priority = "High"
+            elif anomaly_scores[i] > np.percentile(anomaly_scores, 85):
+                review_priority = "Medium"
+            else:
+                review_priority = "Low"
+            
+            transaction_detail = {
+                "transaction_id": str(transaction.get('transaction_id', f"TXN_{i:06d}")),
+                "customer_id": str(transaction.get('customer_id', f"CUST_{i:06d}")),
+                "transaction_date": str(transaction.get('transaction_date', '')),
+                "transaction_amount": float(transaction.get('transaction_amount', 0)),
+                "merchant_category": str(transaction.get('merchant_category', 'Unknown')),
+                "payment_method": str(transaction.get('payment_method', 'Unknown')),
+                "customer_age": int(transaction.get('customer_age', 0)),
+                "account_age_days": int(transaction.get('account_age_days', 0)),
+                "is_fraudulent": bool(transaction.get('is_fraudulent', False)),
+                "anomaly_score": float(anomaly_scores[i]),
+                "autoencoder_flagged": bool(flagged_by_autoencoder[i]),
+                "rf_prediction": bool(rf_predictions[i]),
+                "rf_probability": float(rf_probabilities[i]),
+                "risk_level": risk_level,
+                "review_priority": review_priority,
+                "top_features": [
+                    {
+                        "feature": feature_name,
+                        "importance": float(importance),
+                        "value": float(rf_features_data.iloc[i][feature_name])
+                    }
+                    for feature_name, importance in top_features
+                ],
+                "all_features": {
+                    feature_name: {
+                        "importance": float(importance),
+                        "value": float(rf_features_data.iloc[i][feature_name])
+                    }
+                    for feature_name, importance in feature_importance_per_transaction[i]
+                }
+            }
+            
+            detailed_transactions.append(transaction_detail)
+        
+        # Sort by anomaly score (highest first)
+        detailed_transactions.sort(key=lambda x: x['anomaly_score'], reverse=True)
+        
+        # Calculate summary statistics
+        total_transactions = len(detailed_transactions)
+        flagged_transactions = sum(1 for t in detailed_transactions if t['autoencoder_flagged'])
+        actual_fraud = sum(1 for t in detailed_transactions if t['is_fraudulent'])
+        
+        return {
+            "date": request.date,
+            "summary": {
+                "total_transactions": total_transactions,
+                "flagged_transactions": flagged_transactions,
+                "actual_fraud": actual_fraud,
+                "threshold_score": float(threshold_score)
+            },
+            "transactions": detailed_transactions,
+            "feature_importance_summary": {
+                "top_global_features": [
+                    {"feature": feature, "importance": float(importance)}
+                    for feature, importance in sorted(
+                        dict(zip(rf_feature_names, rf_model.feature_importances_)).items(),
+                        key=lambda x: x[1], reverse=True
+                    )[:10]
+                ]
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"Error in get_detailed_transactions: {str(e)}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"Failed to get detailed transactions: {str(e)}")
+
 @app.post("/api/generate-3d-plot")
 async def generate_3d_plot():
     """Generate 3D latent space visualization using PCA and save it."""
@@ -1852,6 +2064,204 @@ async def get_visualization_metadata():
     except Exception as e:
         logger.error(f"Error getting visualization metadata: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to get metadata: {str(e)}")
+
+@app.post("/api/all-columns-transactions")
+async def get_all_columns_transactions(request: DateAnalysisRequest):
+    """
+    Get all actual columns from the data with fraud flags and feature importance.
+    Shows complete transaction rows with all 36+ columns and Random Forest feature importance.
+    """
+    if model is None or scaler is None or rf_model is None:
+        raise HTTPException(status_code=503, detail="Models not loaded")
+    
+    try:
+        # Filter data for the requested date
+        if request.date == "All Dates":
+            date_data = full_data.copy()
+        else:
+            date_data = full_data[full_data['date'] == request.date].copy()
+            
+        if len(date_data) == 0:
+            raise HTTPException(status_code=404, detail=f"No data found for date {request.date}")
+        
+        logger.info(f"Analyzing {len(date_data)} transactions for all columns view")
+        
+        # Engineer features
+        feature_engineer = FeatureFactory.create("combined")
+        df_features = feature_engineer.generate_features(date_data)
+        
+        # Get numeric features for autoencoder
+        df_numeric = df_features.select_dtypes(include=[np.number])
+        if 'is_fraudulent' in df_numeric.columns:
+            actual_labels = df_numeric['is_fraudulent'].values
+            df_numeric = df_numeric.drop(columns=['is_fraudulent'])
+        else:
+            actual_labels = np.zeros(len(df_numeric))
+        
+        # Scale features for autoencoder
+        scaled_features = scaler.transform(df_numeric)
+        
+        # Get autoencoder anomaly scores
+        reconstructed = model.model.predict(scaled_features)
+        mse = np.mean(np.power(scaled_features - reconstructed, 2), axis=1)
+        anomaly_scores = (mse - np.percentile(mse, 5)) / (np.percentile(mse, 95) - np.percentile(mse, 5))
+        anomaly_scores = np.clip(anomaly_scores, 0, 1)
+        
+        # Apply threshold
+        threshold_score = np.percentile(anomaly_scores, threshold)
+        flagged_by_autoencoder = anomaly_scores > threshold_score
+        
+        # Get Random Forest predictions and feature importance
+        rf_features_data = df_features.select_dtypes(include=[np.number])
+        if 'is_fraudulent' in rf_features_data.columns:
+            rf_features_data = rf_features_data.drop(columns=['is_fraudulent'])
+        
+        # Get Random Forest predictions
+        rf_predictions = rf_model.predict(rf_features_data)
+        rf_probabilities = rf_model.predict_proba(rf_features_data)[:, 1]  # Probability of fraud
+        
+        # Calculate feature importance for each transaction
+        feature_importance_per_transaction = []
+        
+        for i, transaction_features in enumerate(rf_features_data.values):
+            # Get feature importance for this specific transaction
+            transaction_importance = {}
+            
+            # Use Random Forest's feature importances as base
+            base_importance = dict(zip(rf_feature_names, rf_model.feature_importances_))
+            
+            # Adjust importance based on feature values (higher values = more important for this transaction)
+            for feature_name, feature_value in zip(rf_feature_names, transaction_features):
+                # Normalize feature value and combine with base importance
+                normalized_value = abs(feature_value) / (rf_features_data[feature_name].max() + 1e-8)
+                transaction_importance[feature_name] = base_importance[feature_name] * (1 + normalized_value)
+            
+            # Sort by importance
+            sorted_importance = sorted(transaction_importance.items(), key=lambda x: x[1], reverse=True)
+            feature_importance_per_transaction.append(sorted_importance)
+        
+        # Prepare all columns transaction data
+        all_columns_transactions = []
+        
+        for i, (_, transaction) in enumerate(date_data.iterrows()):
+            # Get top 5 most important features for this transaction
+            top_features = feature_importance_per_transaction[i][:5]
+            
+            # Calculate risk level based on anomaly score
+            risk_level = get_risk_level(anomaly_scores[i])
+            
+            # Determine review priority
+            if anomaly_scores[i] > np.percentile(anomaly_scores, 95):
+                review_priority = "High"
+            elif anomaly_scores[i] > np.percentile(anomaly_scores, 85):
+                review_priority = "Medium"
+            else:
+                review_priority = "Low"
+            
+            # Create transaction data with all original columns
+            transaction_data = {
+                # Original columns from the data
+                "transaction_id": str(transaction.get('transaction_id', f"TXN_{i:06d}")),
+                "transaction_date": str(transaction.get('transaction_date', '')),
+                "transaction_amount": float(transaction.get('transaction_amount', 0)),
+                "quantity": int(transaction.get('quantity', 0)),
+                "customer_age": int(transaction.get('customer_age', 0)),
+                "account_age_days": int(transaction.get('account_age_days', 0)),
+                "payment_method": str(transaction.get('payment_method', 'Unknown')),
+                "product_category": str(transaction.get('product_category', 'Unknown')),
+                "device_used": str(transaction.get('device_used', 'Unknown')),
+                "customer_location": str(transaction.get('customer_location', 'Unknown')),
+                "transaction_hour": int(transaction.get('transaction_hour', 0)),
+                "is_fraudulent": bool(transaction.get('is_fraudulent', False)),
+                
+                # Engineered features (all 36+ columns)
+                "transaction_amount_log": float(df_features.iloc[i].get('transaction_amount_log', 0)),
+                "amount_per_item": float(df_features.iloc[i].get('amount_per_item', 0)),
+                "payment_method_encoded": int(df_features.iloc[i].get('payment_method_encoded', 0)),
+                "product_category_encoded": int(df_features.iloc[i].get('product_category_encoded', 0)),
+                "device_used_encoded": int(df_features.iloc[i].get('device_used_encoded', 0)),
+                "is_late_night": int(df_features.iloc[i].get('is_late_night', 0)),
+                "is_burst_transaction": int(df_features.iloc[i].get('is_burst_transaction', 0)),
+                "amount_per_age": float(df_features.iloc[i].get('amount_per_age', 0)),
+                "amount_per_account_age": float(df_features.iloc[i].get('amount_per_account_age', 0)),
+                "customer_age_band": int(df_features.iloc[i].get('customer_age_band', 0)),
+                "high_amount_flag": int(df_features.iloc[i].get('high_amount_flag', 0)),
+                "new_account_flag": int(df_features.iloc[i].get('new_account_flag', 0)),
+                "young_customer_flag": int(df_features.iloc[i].get('young_customer_flag', 0)),
+                "late_night_flag": int(df_features.iloc[i].get('late_night_flag', 0)),
+                "high_quantity_flag": int(df_features.iloc[i].get('high_quantity_flag', 0)),
+                "unusual_location_flag": int(df_features.iloc[i].get('unusual_location_flag', 0)),
+                "amount_age_interaction": int(df_features.iloc[i].get('amount_age_interaction', 0)),
+                "account_age_interaction": int(df_features.iloc[i].get('account_age_interaction', 0)),
+                "fraud_risk_score": int(df_features.iloc[i].get('fraud_risk_score', 0)),
+                "rolling_avg_amount_3": float(df_features.iloc[i].get('rolling_avg_amount_3', 0)),
+                "rolling_std_amount_3": float(df_features.iloc[i].get('rolling_std_amount_3', 0)),
+                "transaction_amount_rank": float(df_features.iloc[i].get('transaction_amount_rank', 0)),
+                "account_age_rank": float(df_features.iloc[i].get('account_age_rank', 0)),
+                "amount_x_hour": float(df_features.iloc[i].get('amount_x_hour', 0)),
+                "amount_per_hour": float(df_features.iloc[i].get('amount_per_hour', 0)),
+                
+                # Model predictions and scores
+                "anomaly_score": float(anomaly_scores[i]),
+                "autoencoder_flagged": bool(flagged_by_autoencoder[i]),
+                "rf_prediction": bool(rf_predictions[i]),
+                "rf_probability": float(rf_probabilities[i]),
+                "risk_level": risk_level,
+                "review_priority": review_priority,
+                
+                # Feature importance
+                "top_features": [
+                    {
+                        "feature": feature_name,
+                        "importance": float(importance),
+                        "value": float(rf_features_data.iloc[i][feature_name])
+                    }
+                    for feature_name, importance in top_features
+                ],
+                "all_features": {
+                    feature_name: {
+                        "importance": float(importance),
+                        "value": float(rf_features_data.iloc[i][feature_name])
+                    }
+                    for feature_name, importance in feature_importance_per_transaction[i]
+                }
+            }
+            
+            all_columns_transactions.append(transaction_data)
+        
+        # Sort by anomaly score (highest first)
+        all_columns_transactions.sort(key=lambda x: x['anomaly_score'], reverse=True)
+        
+        # Calculate summary statistics
+        total_transactions = len(all_columns_transactions)
+        flagged_transactions = sum(1 for t in all_columns_transactions if t['autoencoder_flagged'])
+        actual_fraud = sum(1 for t in all_columns_transactions if t['is_fraudulent'])
+        
+        return {
+            "date": request.date,
+            "summary": {
+                "total_transactions": total_transactions,
+                "flagged_transactions": flagged_transactions,
+                "actual_fraud": actual_fraud,
+                "threshold_score": float(threshold_score)
+            },
+            "transactions": all_columns_transactions,
+            "feature_importance_summary": {
+                "top_global_features": [
+                    {"feature": feature, "importance": float(importance)}
+                    for feature, importance in sorted(
+                        dict(zip(rf_feature_names, rf_model.feature_importances_)).items(),
+                        key=lambda x: x[1], reverse=True
+                    )[:10]
+                ]
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"Error in get_all_columns_transactions: {str(e)}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"Failed to get all columns transactions: {str(e)}")
 
 if __name__ == "__main__":
     import uvicorn
