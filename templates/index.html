@@ -799,16 +799,7 @@
                 You can interact with the plot by rotating, zooming, and panning to explore the data from different angles.</p>
             </div>
 
-            <div class="info-box">
-                <h3>How This Works</h3>
-                <p><strong>Step 1 - Data Compression:</strong> The autoencoder takes all the transaction features (like amount, time, customer age, etc.) and squeezes them down into just 16 numbers called "latent dimensions" using its encoder part. Think of it like taking a big, detailed picture and making a smaller, simpler version that still captures the important parts.</p>
-                
-                <p><strong>Step 2 - PCA Visualization:</strong> Since we can't easily visualize 16 dimensions, we use Principal Component Analysis (PCA) to transform all 16 dimensions into 3 dimensions. PCA finds the directions of maximum variance in the data and projects the points onto these new axes. This ensures we capture the most important patterns while making the data visualizable.</p>
-                
-                <p><strong>Step 3 - Finding Patterns:</strong> Normal transactions (shown in green) tend to group together in clusters, while suspicious transactions (shown in red) stand out as outliers. This happens because the autoencoder learned during training that normal transactions should be easy to reconstruct, while unusual ones are harder to predict.</p>
-                
-                <p><strong>Step 4 - Interactive Exploration:</strong> You can rotate the 3D plot by clicking and dragging, zoom with the scroll wheel, and pan by right-clicking and dragging. This allows you to explore the data from any angle and discover hidden patterns.</p>
-            </div>
+
 
             <div class="info-box">
                 <h3>Comprehensive Analysis Dashboard</h3>
@@ -837,13 +828,7 @@
                             </ul>
                         </div>
                         <div id="plot-3d" class="plot-container" style="height: 600px; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.1);"></div>
-                        <div class="info-box" style="margin-top: 20px;">
-                            <h5>How This Works:</h5>
-                            <p>This visualization uses Principal Component Analysis (PCA) to transform all 16 latent dimensions into 3 dimensions. PCA finds the directions of maximum variance in the data and projects the points onto these new axes. The first 3 principal components capture the most important patterns in the data while making it visualizable in 3D space.</p>
-                            <div id="plot-image-container" style="text-align: center; margin-top: 15px;">
-                                <img id="plot-image" style="max-width: 100%; height: auto; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.1);" />
-                            </div>
-                        </div>
+
                     </div>
                 </div>
 
