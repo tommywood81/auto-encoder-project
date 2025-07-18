@@ -58,10 +58,10 @@ class SimpleLocalDeployment:
         try:
             self.run_command("docker --version", capture_output=True)
             self.run_command("docker info", capture_output=True)
-            logger.info("✅ Docker is ready")
+            logger.info("Docker is ready")
             return True
         except Exception as e:
-            logger.error(f"❌ Docker check failed: {e}")
+            logger.error(f"Docker check failed: {e}")
             return False
     
     def build_image(self):
@@ -71,10 +71,10 @@ class SimpleLocalDeployment:
         try:
             build_command = f"docker build -t {self.docker_image_name} ."
             self.run_command(build_command)
-            logger.info(f"✅ Docker image built: {self.docker_image_name}")
+            logger.info(f"Docker image built: {self.docker_image_name}")
             return True
         except Exception as e:
-            logger.error(f"❌ Docker build failed: {e}")
+            logger.error(f"Docker build failed: {e}")
             return False
     
     def start_server(self):
@@ -96,14 +96,14 @@ class SimpleLocalDeployment:
             
             # Test health endpoint
             if self.test_health():
-                logger.info("✅ Demo server started successfully!")
+                logger.info("Demo server started successfully!")
                 return True
             else:
-                logger.error("❌ Health check failed")
+                logger.error("Health check failed")
                 return False
                 
         except Exception as e:
-            logger.error(f"❌ Failed to start server: {e}")
+            logger.error(f"Failed to start server: {e}")
             return False
     
     def test_health(self):
@@ -111,13 +111,13 @@ class SimpleLocalDeployment:
         try:
             response = requests.get(f"http://localhost:{self.port}/health", timeout=10)
             if response.status_code == 200:
-                logger.info("✅ Health check passed")
+                logger.info("Health check passed")
                 return True
             else:
-                logger.error(f"❌ Health check failed: {response.status_code}")
+                logger.error(f"Health check failed: {response.status_code}")
                 return False
         except Exception as e:
-            logger.error(f"❌ Health check error: {e}")
+            logger.error(f"Health check error: {e}")
             return False
     
     def test_demo_features(self):
@@ -135,12 +135,12 @@ class SimpleLocalDeployment:
             try:
                 response = requests.get(url, timeout=10)
                 if response.status_code == 200:
-                    logger.info(f"✅ {test_name} - OK")
+                    logger.info(f"{test_name} - OK")
                 else:
-                    logger.error(f"❌ {test_name} - Failed ({response.status_code})")
+                    logger.error(f"{test_name} - Failed ({response.status_code})")
                     all_passed = False
             except Exception as e:
-                logger.error(f"❌ {test_name} - Error: {e}")
+                logger.error(f"{test_name} - Error: {e}")
                 all_passed = False
         
         return all_passed
@@ -152,15 +152,15 @@ class SimpleLocalDeployment:
         try:
             self.run_command(f"docker stop {self.container_name}", check=False)
             self.run_command(f"docker rm {self.container_name}", check=False)
-            logger.info("✅ Demo server stopped")
+            logger.info("Demo server stopped")
             return True
         except Exception as e:
-            logger.error(f"❌ Failed to stop server: {e}")
+            logger.error(f"Failed to stop server: {e}")
             return False
     
     def deploy(self):
         """Run the complete deployment process."""
-        logger.info("🚀 Starting Autoencoder Fraud Detection Demo Deployment")
+        logger.info("Starting Autoencoder Fraud Detection Demo Deployment")
         logger.info("=" * 60)
         
         # Check Docker
@@ -177,16 +177,16 @@ class SimpleLocalDeployment:
         
         # Test features
         if not self.test_demo_features():
-            logger.warning("⚠️ Some features failed, but server is running")
+            logger.warning("Some features failed, but server is running")
         
         # Success message
         logger.info("=" * 60)
-        logger.info("🎉 Demo Dashboard Successfully Deployed!")
+        logger.info("Demo Dashboard Successfully Deployed!")
         logger.info("=" * 60)
-        logger.info(f"🌐 Dashboard: http://localhost:{self.port}")
-        logger.info(f"🔧 Health: http://localhost:{self.port}/health")
+        logger.info(f"Dashboard: http://localhost:{self.port}")
+        logger.info(f"Health: http://localhost:{self.port}/health")
         logger.info("=" * 60)
-        logger.info("📊 Demo Features:")
+        logger.info("Demo Features:")
         logger.info("   • Date Selector - Filter by specific dates")
         logger.info("   • Threshold Slider - Adjust fraud sensitivity (80-100)")
         logger.info("   • Metrics Panel - Real-time fraud detection stats")
@@ -194,7 +194,7 @@ class SimpleLocalDeployment:
         logger.info("   • Toggle Filters - View specific fraud categories")
         logger.info("   • Information Modal - Learn about the autoencoder model")
         logger.info("=" * 60)
-        logger.info("💡 Use Ctrl+C to stop the demo")
+        logger.info("Use Ctrl+C to stop the demo")
         
         return True
 

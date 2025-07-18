@@ -20,10 +20,10 @@ def test_config_loading():
     try:
         config_loader = ConfigLoader()
         config = config_loader.load_config("best_features")
-        print("✅ Config loading: PASSED")
+        print("Config loading: PASSED")
         return config
     except Exception as e:
-        print(f"❌ Config loading: FAILED - {e}")
+        print(f"Config loading: FAILED - {e}")
         return None
 
 def test_hyperparameter_generation():
@@ -47,10 +47,10 @@ def test_hyperparameter_generation():
     print(f"   Total combinations: {total_combinations}")
     
     if total_combinations == 25:
-        print("✅ Hyperparameter generation: PASSED")
+        print("Hyperparameter generation: PASSED")
         return True
     else:
-        print(f"❌ Hyperparameter generation: FAILED - Expected 25, got {total_combinations}")
+        print(f"Hyperparameter generation: FAILED - Expected 25, got {total_combinations}")
         return False
 
 def test_model_info_creation():
@@ -132,12 +132,12 @@ def test_model_info_creation():
         
         # Test YAML serialization
         yaml_str = yaml.dump(model_info, default_flow_style=False)
-        print("✅ Model info creation: PASSED")
-        print("✅ YAML serialization: PASSED")
+        print("Model info creation: PASSED")
+        print("YAML serialization: PASSED")
         return True
         
     except Exception as e:
-        print(f"❌ Model info creation: FAILED - {e}")
+        print(f"Model info creation: FAILED - {e}")
         return False
 
 def test_models_directory_creation():
@@ -156,10 +156,10 @@ def test_models_directory_creation():
         # Clean up
         test_file.unlink()
         
-        print("✅ Models directory creation: PASSED")
+        print("Models directory creation: PASSED")
         return True
     except Exception as e:
-        print(f"❌ Models directory creation: FAILED - {e}")
+        print(f"Models directory creation: FAILED - {e}")
         return False
 
 def test_final_model_comparison():
@@ -181,19 +181,19 @@ def test_final_model_comparison():
         # Test with a better model
         best_roc_auc = 0.7349
         if best_roc_auc > current_final_roc_auc:
-            print("✅ Final model comparison: PASSED (new model is better)")
+            print("Final model comparison: PASSED (new model is better)")
             return True
         else:
-            print("❌ Final model comparison: FAILED (logic error)")
+            print("Final model comparison: FAILED (logic error)")
             return False
             
     except Exception as e:
-        print(f"❌ Final model comparison: FAILED - {e}")
+        print(f"Final model comparison: FAILED - {e}")
         return False
 
 def main():
     """Run all tests."""
-    print("🧪 RUNNING SWEEP LOGIC TESTS")
+    print("RUNNING SWEEP LOGIC TESTS")
     print("=" * 50)
     
     tests = [
@@ -212,13 +212,13 @@ def main():
             passed += 1
     
     print("\n" + "=" * 50)
-    print(f"📊 TEST RESULTS: {passed}/{total} tests passed")
+    print(f"TEST RESULTS: {passed}/{total} tests passed")
     
     if passed == total:
-        print("🎉 ALL TESTS PASSED! Sweep should work correctly.")
+        print("ALL TESTS PASSED! Sweep should work correctly.")
         return True
     else:
-        print("❌ SOME TESTS FAILED! Need to fix issues before running sweep.")
+        print("SOME TESTS FAILED! Need to fix issues before running sweep.")
         return False
 
 if __name__ == "__main__":

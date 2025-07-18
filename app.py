@@ -1465,6 +1465,25 @@ async def generate_3d_plot():
         static_dir = Path("static")
         static_dir.mkdir(exist_ok=True)
         
+        # Check if cached visualization exists
+        plot_file = static_dir / "latent_space_3d.json"
+        plot_image_path = static_dir / "latent_space_3d_plot.png"
+        
+        # If both files exist, return cached version
+        if plot_file.exists() and plot_image_path.exists():
+            logger.info("Using cached 3D visualization")
+            with open(plot_file, 'r') as f:
+                plot_data = json.load(f)
+            
+            return {
+                "success": True,
+                "message": "3D visualization loaded from cache",
+                "file_path": str(plot_file),
+                "image_path": str(plot_image_path),
+                "metadata": plot_data["metadata"],
+                "cached": True
+            }
+        
         # Use a sample of data for visualization (first 1000 transactions)
         sample_data = full_data.head(1000).copy()
         
@@ -1500,13 +1519,13 @@ async def generate_3d_plot():
         logger.info(f"PCA explained variance ratios: {explained_variance}")
         logger.info(f"Total explained variance: {total_explained_variance:.3f}")
         
-        # Calculate anomaly scores to determine normal vs anomalous
+        # Calculate anomaly scores for coloring
         reconstructed = model.model.predict(scaled_features)
         mse = np.mean(np.power(scaled_features - reconstructed, 2), axis=1)
         anomaly_scores = (mse - np.percentile(mse, 5)) / (np.percentile(mse, 95) - np.percentile(mse, 5))
         anomaly_scores = np.clip(anomaly_scores, 0, 1)
         
-        # Determine normal vs anomalous based on threshold
+        # Calculate threshold
         threshold_score = np.percentile(anomaly_scores, threshold)
         is_anomalous = anomaly_scores > threshold_score
         
@@ -1514,7 +1533,7 @@ async def generate_3d_plot():
         normal_mask = ~is_anomalous
         anomalous_mask = is_anomalous
         
-        # Prepare data for JSON
+        # Prepare plot data
         plot_data = {
             "normal": {
                 "x": latent_3d_pca[normal_mask, 0].tolist(),
@@ -1540,7 +1559,6 @@ async def generate_3d_plot():
         }
         
         # Save plot data to JSON file
-        plot_file = static_dir / "latent_space_3d.json"
         with open(plot_file, 'w') as f:
             json.dump(plot_data, f, indent=2)
         
@@ -1590,7 +1608,6 @@ async def generate_3d_plot():
             ax.set_facecolor('#F8F9FA')
             
             # Save the plot with high quality
-            plot_image_path = static_dir / "latent_space_3d_plot.png"
             plt.savefig(plot_image_path, dpi=300, bbox_inches='tight', facecolor='white', edgecolor='none')
             plt.close()
             
@@ -1608,7 +1625,8 @@ async def generate_3d_plot():
             "message": "3D visualization generated successfully",
             "file_path": str(plot_file),
             "image_path": str(plot_image_path) if plot_image_path else None,
-            "metadata": plot_data["metadata"]
+            "metadata": plot_data["metadata"],
+            "cached": False
         }
         
     except Exception as e:
@@ -1619,8 +1637,6 @@ async def generate_3d_plot():
             "success": False,
             "error": str(e)
         }
-
-
 
 @app.post("/api/generate-all-visualizations")
 async def generate_all_visualizations():
@@ -1640,6 +1656,37 @@ async def generate_all_visualizations():
         # Create static directory if it doesn't exist
         static_dir = Path("static")
         static_dir.mkdir(exist_ok=True)
+        
+        # Check if all cached visualizations exist
+        viz_files = [
+            "reconstruction_error_dist.png",
+            "feature_importance.png", 
+            "anomaly_vs_amount.png",
+            "time_patterns.png",
+            "roc_curve.png",
+            "confusion_matrix.png",
+            "correlation_matrix.png",
+            "threshold_sensitivity.png",
+            "customer_segmentation.png",
+            "performance_metrics.png",
+            "visualization_metadata.json"
+        ]
+        
+        all_cached = all((static_dir / file).exists() for file in viz_files)
+        
+        if all_cached:
+            logger.info("Using cached comprehensive visualizations")
+            # Load metadata
+            metadata_file = static_dir / "visualization_metadata.json"
+            with open(metadata_file, 'r') as f:
+                viz_metadata = json.load(f)
+            
+            return {
+                "success": True,
+                "message": "All visualizations loaded from cache",
+                "metadata": viz_metadata,
+                "cached": True
+            }
         
         # Use a larger sample for comprehensive analysis
         sample_data = full_data.head(2000).copy()
@@ -1931,7 +1978,8 @@ async def generate_all_visualizations():
         return {
             "success": True,
             "message": "All visualizations generated successfully",
-            "metadata": viz_metadata
+            "metadata": viz_metadata,
+            "cached": False
         }
         
     except Exception as e:
@@ -2267,6 +2315,61 @@ async def get_all_columns_transactions(request: DateAnalysisRequest):
         import traceback
         logger.error(f"Traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"Failed to get all columns transactions: {str(e)}")
+
+@app.post("/api/clear-visualization-cache")
+async def clear_visualization_cache():
+    """Clear all cached visualization files to force regeneration."""
+    try:
+        import json
+        from pathlib import Path
+        
+        static_dir = Path("static")
+        if not static_dir.exists():
+            return {
+                "success": True,
+                "message": "No cache to clear - static directory doesn't exist",
+                "files_removed": 0
+            }
+        
+        # List of files to remove
+        cache_files = [
+            "latent_space_3d.json",
+            "latent_space_3d_plot.png",
+            "reconstruction_error_dist.png",
+            "feature_importance.png", 
+            "anomaly_vs_amount.png",
+            "time_patterns.png",
+            "roc_curve.png",
+            "confusion_matrix.png",
+            "correlation_matrix.png",
+            "threshold_sensitivity.png",
+            "customer_segmentation.png",
+            "performance_metrics.png",
+            "visualization_metadata.json"
+        ]
+        
+        removed_count = 0
+        for file_name in cache_files:
+            file_path = static_dir / file_name
+            if file_path.exists():
+                file_path.unlink()
+                removed_count += 1
+                logger.info(f"Removed cached file: {file_name}")
+        
+        logger.info(f"Cache cleared: {removed_count} files removed")
+        
+        return {
+            "success": True,
+            "message": f"Cache cleared successfully - {removed_count} files removed",
+            "files_removed": removed_count
+        }
+        
+    except Exception as e:
+        logger.error(f"Error clearing cache: {str(e)}")
+        return {
+            "success": False,
+            "error": str(e)
+        }
 
 if __name__ == "__main__":
     import uvicorn

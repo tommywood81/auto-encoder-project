@@ -148,6 +148,6 @@ def test_failed_combination():
 if __name__ == "__main__":
     success, roc_auc = test_failed_combination()
     if success:
-        print(f"\n✅ Test passed! ROC AUC: {roc_auc:.4f}")
+        print(f"\nTest passed! ROC AUC: {roc_auc:.4f}")
     else:
-        print(f"\n❌ Test failed!") 
+        print(f"\nTest failed!") 

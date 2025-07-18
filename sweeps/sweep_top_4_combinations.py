@@ -104,9 +104,9 @@ def generate_4_strategy_combinations() -> List[List[str]]:
 def run_4_strategy_combinations_sweep():
     """Run sweep focusing on combinations of exactly 4 strategies (plus baseline_numeric + categorical)."""
     
-    print("🎯 INITIALIZING 4-STRATEGY COMBINATIONS SWEEP...")
-    print("⏰ Starting at:", datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
-    print("📊 Setting up Weights & Biases integration...")
+    print("INITIALIZING 4-STRATEGY COMBINATIONS SWEEP...")
+    print("Starting at:", datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
+    print("Setting up Weights & Biases integration...")
     
     wandb_run = None
     try:
@@ -127,25 +127,25 @@ def run_4_strategy_combinations_sweep():
             }
         )
         wandb_run = wandb.run
-        print("✅ Weights & Biases initialized successfully!")
-        print(f"🔗 W&B Run: {wandb_run.name}")
+        print("Weights & Biases initialized successfully!")
+        print(f"W&B Run: {wandb_run.name}")
     except Exception as e:
-        print(f"⚠️  WARNING: Could not initialize W&B: {str(e)}")
-        print("🔄 Continuing without W&B logging...")
+        print(f"WARNING: Could not initialize W&B: {str(e)}")
+        print("Continuing without W&B logging...")
         wandb_run = None
     
     # Generate combinations of exactly 4 strategies
     strategy_combinations = generate_4_strategy_combinations()
     
-    print(f"\n🎯 4-STRATEGY COMBINATIONS SWEEP")
+    print(f"\n4-STRATEGY COMBINATIONS SWEEP")
     print("="*80)
-    print(f"📊 Core strategies (always included): baseline_numeric, categorical")
-    print(f"📊 Additional strategies: behavioral, fraud_flags, rank_encoding, demographics, time_interactions")
-    print(f"📊 Testing combinations of exactly 4 additional strategies")
-    print(f"📊 Total combinations to test: {len(strategy_combinations)}")
-    print(f"⏰ Estimated time: ~{len(strategy_combinations) * 2:.0f} minutes")
+    print(f"Core strategies (always included): baseline_numeric, categorical")
+    print(f"Additional strategies: behavioral, fraud_flags, rank_encoding, demographics, time_interactions")
+    print(f"Testing combinations of exactly 4 additional strategies")
+    print(f"Total combinations to test: {len(strategy_combinations)}")
+    print(f"Estimated time: ~{len(strategy_combinations) * 2:.0f} minutes")
     if wandb_run:
-        print(f"📈 Logging to Weights & Biases: {wandb_run.name}")
+        print(f"Logging to Weights & Biases: {wandb_run.name}")
     print("="*80)
     
     log_info(f"Starting 4-strategy combinations sweep with {len(strategy_combinations)} combinations")
@@ -165,7 +165,7 @@ def run_4_strategy_combinations_sweep():
         "time_interactions": "Crossed and interaction features using hour"
     }
     
-    print(f"\n📋 STRATEGIES:")
+    print(f"\nSTRATEGIES:")
     print(f"   Core (always included):")
     print(f"     1. baseline_numeric    - {strategy_descriptions['baseline_numeric']}")
     print(f"     2. categorical         - {strategy_descriptions['categorical']}")
@@ -176,11 +176,11 @@ def run_4_strategy_combinations_sweep():
     print(f"     6. demographics        - {strategy_descriptions['demographics']}")
     print(f"     7. time_interactions   - {strategy_descriptions['time_interactions']}")
     
-    print(f"\n🚀 Starting execution...")
+    print(f"\nSTARTING EXECUTION...")
     print("-"*80)
     
     # Load and clean data once
-    print(f"\n🔄 STEP 1: Loading and cleaning data...")
+    print(f"\nSTEP 1: Loading and cleaning data...")
     log_info("Loading and cleaning data...")
     
     try:
@@ -188,8 +188,8 @@ def run_4_strategy_combinations_sweep():
         cleaner = DataCleaner(config)
         df_cleaned = cleaner.clean_data(save_output=False)
         
-        log_info(f"✅ Data loaded: {len(df_cleaned)} transactions")
-        print(f"✅ Data loaded: {len(df_cleaned):,} transactions")
+        log_info(f"Data loaded: {len(df_cleaned)} transactions")
+        print(f"Data loaded: {len(df_cleaned):,} transactions")
         
         # Log data summary to W&B
         if wandb_run:
@@ -200,7 +200,7 @@ def run_4_strategy_combinations_sweep():
             })
         
     except Exception as e:
-        print(f"❌ ERROR loading data: {str(e)}")
+        print(f"ERROR loading data: {str(e)}")
         log_error(f"Data loading failed: {str(e)}")
         if wandb_run:
             wandb.finish()
@@ -218,12 +218,12 @@ def run_4_strategy_combinations_sweep():
         strategies_str = "_".join(combination)
         
         print(f"\n{'='*80}")
-        print(f"🎯 TESTING COMBINATION {i}/{len(strategy_combinations)}: {combination_name}")
+        print(f"TESTING COMBINATION {i}/{len(strategy_combinations)}: {combination_name}")
         print(f"{'='*80}")
-        print(f"📝 Strategies: {', '.join(combination)}")
-        print(f"📊 Strategy count: {len(combination)}")
-        print(f"⏰ Starting at: {time.strftime('%H:%M:%S')}")
-        print(f"📈 Progress: {i}/{len(strategy_combinations)} ({i/len(strategy_combinations)*100:.1f}%)")
+        print(f"Strategies: {', '.join(combination)}")
+        print(f"Strategy count: {len(combination)}")
+        print(f"Starting at: {time.strftime('%H:%M:%S')}")
+        print(f"Progress: {i}/{len(strategy_combinations)} ({i/len(strategy_combinations)*100:.1f}%)")
         print(f"{'='*80}")
         
         log_info(f"Testing combination {i}/{len(strategy_combinations)}: {combination_name}")
@@ -235,7 +235,7 @@ def run_4_strategy_combinations_sweep():
             feature_engineer = CombinedFeatureStrategy(combination)
             
             # Generate features
-            print(f"\n🔧 Generating features for combination...")
+            print(f"\nGenerating features for combination...")
             log_info(f"Generating features for combination {i}/{len(strategy_combinations)}: {combination_name}")
             log_info(f"Strategies in this combination: {', '.join(combination)}")
             
@@ -244,14 +244,14 @@ def run_4_strategy_combinations_sweep():
             feature_count = len(df_features.columns)
             new_features = feature_count - len(df_cleaned.columns)
             log_info(f"Features generated: {feature_count} columns ({new_features} new)")
-            print(f"✅ Features generated: {feature_count} columns ({new_features} new)")
+            print(f"Features generated: {feature_count} columns ({new_features} new)")
             
             # Create a temporary config for training
             temp_config = PipelineConfig.get_baseline_numeric_config()
             
             # Train model
-            print(f"\n🤖 Training autoencoder with combination...")
-            print(f"📈 This will run up to 50 epochs with early stopping...")
+            print(f"\nTraining autoencoder with combination...")
+            print(f"This will run up to 50 epochs with early stopping...")
             log_info("Training autoencoder...")
             
             autoencoder = BaselineAutoencoder(temp_config)
@@ -271,12 +271,12 @@ def run_4_strategy_combinations_sweep():
             # Calculate training efficiency
             training_efficiency = epochs_trained / 50.0
             
-            print(f"\n🎉 Combination {combination_name} completed!")
-            print(f"📊 ROC AUC: {roc_auc:.4f}")
-            print(f"🎯 Threshold: {threshold:.4f}")
-            print(f"⏱️  Time taken: {combo_time:.2f} seconds")
-            print(f"📈 Feature count: {feature_count} ({new_features} new)")
-            print(f"🔄 Epochs trained: {epochs_trained}")
+            print(f"\nCombination {combination_name} completed!")
+            print(f"ROC AUC: {roc_auc:.4f}")
+            print(f"Threshold: {threshold:.4f}")
+            print(f"Time taken: {combo_time:.2f} seconds")
+            print(f"Feature count: {feature_count} ({new_features} new)")
+            print(f"Epochs trained: {epochs_trained}")
             
             log_info(f"Combination {combination_name} completed successfully!")
             log_info(f"ROC AUC: {roc_auc:.4f}")
@@ -300,7 +300,7 @@ def run_4_strategy_combinations_sweep():
             if roc_auc > best_auc:
                 best_auc = roc_auc
                 best_combination = combination_name
-                print(f"🏆 NEW BEST! ROC AUC: {roc_auc:.4f}")
+                print(f"NEW BEST! ROC AUC: {roc_auc:.4f}")
             
             # Log to W&B
             if wandb_run:
@@ -326,14 +326,14 @@ def run_4_strategy_combinations_sweep():
             # Progress update
             elapsed_time = time.time() - start_time
             remaining_time = elapsed_time / i * (len(strategy_combinations) - i)
-            print(f"\n📊 PROGRESS UPDATE:")
-            print(f"   ✅ Completed: {i}/{len(strategy_combinations)} combinations ({i/len(strategy_combinations)*100:.1f}%)")
-            print(f"   ⏱️  Elapsed time: {elapsed_time:.1f}s")
-            print(f"   🎯 Est. remaining: {remaining_time:.1f}s ({remaining_time/60:.1f} minutes)")
-            print(f"   📈 Current best: {best_auc:.4f}")
+            print(f"\nPROGRESS UPDATE:")
+            print(f"    Completed: {i}/{len(strategy_combinations)} combinations ({i/len(strategy_combinations)*100:.1f}%)")
+            print(f"    Elapsed time: {elapsed_time:.1f}s")
+            print(f"    Est. remaining: {remaining_time:.1f}s ({remaining_time/60:.1f} minutes)")
+            print(f"    Current best: {best_auc:.4f}")
             
         except Exception as e:
-            print(f"❌ ERROR in combination {combination_name}: {str(e)}")
+            print(f"ERROR in combination {combination_name}: {str(e)}")
             log_error(f"Combination {combination_name} failed: {str(e)}")
             
             results[combination_name] = {
@@ -365,7 +365,7 @@ def run_4_strategy_combinations_sweep():
     failed_runs = len(results) - successful_runs
     
     print(f"\n{'='*80}")
-    print(f"🏆 4-STRATEGY COMBINATIONS SWEEP RESULTS SUMMARY")
+    print(f"4-STRATEGY COMBINATIONS SWEEP RESULTS SUMMARY")
     print(f"{'='*80}")
     
     # Sort results by ROC AUC
@@ -375,7 +375,7 @@ def run_4_strategy_combinations_sweep():
     print("-"*100)
     
     for rank, (combo_name, result) in enumerate(sorted_results, 1):
-        status = "✅ SUCCESS" if result['success'] else "❌ FAILED"
+        status = "SUCCESS" if result['success'] else "FAILED"
         roc_auc = result['roc_auc']
         time_taken = result['time_taken']
         features = result['feature_count']
@@ -394,24 +394,24 @@ def run_4_strategy_combinations_sweep():
     
     if best_combination:
         best_result = results[best_combination]
-        print(f"\n🥇 BEST COMBINATION: {best_combination}")
-        print(f"   📊 ROC AUC: {best_result['roc_auc']:.4f}")
-        print(f"   🎯 Threshold: {best_result['threshold']:.4f}")
-        print(f"   ⏱️  Time taken: {best_result['time_taken']:.2f} seconds")
-        print(f"   📈 Features: {best_result['feature_count']} ({best_result['new_features']} new)")
-        print(f"   🔄 Epochs: {best_result['epochs_trained']}")
-        print(f"   📝 Strategies: {', '.join(best_result['strategies'])}")
-        print(f"   📊 Strategy count: {best_result['strategy_count']}")
+        print(f"\nBEST COMBINATION: {best_combination}")
+        print(f"   ROC AUC: {best_result['roc_auc']:.4f}")
+        print(f"   Threshold: {best_result['threshold']:.4f}")
+        print(f"   Time taken: {best_result['time_taken']:.2f} seconds")
+        print(f"   Features: {best_result['feature_count']} ({best_result['new_features']} new)")
+        print(f"   Epochs: {best_result['epochs_trained']}")
+        print(f"   Strategies: {', '.join(best_result['strategies'])}")
+        print(f"   Strategy count: {best_result['strategy_count']}")
     
-    print(f"\n📊 SUMMARY STATISTICS:")
-    print(f"   ⏱️  Total time: {total_time:.1f} seconds ({total_time/60:.1f} minutes)")
-    print(f"   🎯 Combinations tested: {len(strategy_combinations)}")
-    print(f"   ✅ Successful runs: {successful_runs}")
-    print(f"   ❌ Failed runs: {failed_runs}")
-    print(f"   📈 Average time per combo: {total_time/len(strategy_combinations):.1f} seconds")
-    print(f"   📊 Average ROC AUC: {np.mean([r['roc_auc'] for r in results.values() if r['success']]):.4f}")
-    print(f"   🎯 Best ROC AUC: {best_auc:.4f}")
-    print(f"   📉 Worst ROC AUC: {min([r['roc_auc'] for r in results.values() if r['success']]):.4f}")
+    print(f"\nSUMMARY STATISTICS:")
+    print(f"   Total time: {total_time:.1f} seconds ({total_time/60:.1f} minutes)")
+    print(f"   Combinations tested: {len(strategy_combinations)}")
+    print(f"   Successful runs: {successful_runs}")
+    print(f"   Failed runs: {failed_runs}")
+    print(f"   Average time per combo: {total_time/len(strategy_combinations):.1f} seconds")
+    print(f"   Average ROC AUC: {np.mean([r['roc_auc'] for r in results.values() if r['success']]):.4f}")
+    print(f"   Best ROC AUC: {best_auc:.4f}")
+    print(f"   Worst ROC AUC: {min([r['roc_auc'] for r in results.values() if r['success']]):.4f}")
     
     # Log final summary to W&B
     if wandb_run:
@@ -441,7 +441,7 @@ def run_4_strategy_combinations_sweep():
                 "best_combo/strategies": ", ".join(best_result['strategies'])
             })
     
-    print(f"\n🎉 4-strategy combinations sweep completed!")
+    print(f"\n4-strategy combinations sweep completed!")
     print(f"{'='*80}")
     
     if wandb_run:
@@ -456,18 +456,18 @@ def main():
         results = run_4_strategy_combinations_sweep()
         
         if results:
-            print(f"\n✅ 4-strategy combinations sweep completed successfully!")
+            print(f"\n4-strategy combinations sweep completed successfully!")
             print(f"   Check W&B dashboard for detailed results")
             print(f"   Best combination identified")
         else:
-            print(f"\n❌ 4-strategy combinations sweep failed!")
+            print(f"\n4-strategy combinations sweep failed!")
             sys.exit(1)
             
     except KeyboardInterrupt:
-        print("\n🛑 4-strategy combinations sweep interrupted by user")
+        print("\n4-strategy combinations sweep interrupted by user")
     except Exception as e:
         log_error(f"4-strategy combinations sweep failed: {str(e)}")
-        print(f"\n❌ 4-strategy combinations sweep failed: {str(e)}")
+        print(f"\n4-strategy combinations sweep failed: {str(e)}")
         sys.exit(1)
 
 

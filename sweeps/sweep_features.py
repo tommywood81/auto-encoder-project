@@ -36,7 +36,7 @@ def run_feature_sweep():
     """Run feature engineering strategy sweep."""
     
     print("\n" + "="*100)
-    print("🚀 STARTING COMPREHENSIVE FEATURE ENGINEERING SWEEP")
+    print("FEATURE SWEEP RESULTS SUMMARY")
     print("="*100)
     print("This will test all feature strategies with 25 epochs each")
     print("Estimated time: ~35-45 minutes for all strategies")
@@ -70,8 +70,8 @@ def run_feature_sweep():
         "combined": "All feature engineering strategies combined (20+ features)"
     }
     
-    logger.info("🎯 Starting feature engineering strategy sweep...")
-    logger.info(f"📊 Testing {len(strategies)} strategies")
+    logger.info("Starting feature engineering strategy sweep...")
+    logger.info(f"Testing {len(strategies)} strategies")
     print(f"\n📋 STRATEGIES TO TEST:")
     for i, strategy in enumerate(strategies, 1):
         print(f"   {i:2d}. {strategy:<20} - {strategy_descriptions[strategy]}")
@@ -83,8 +83,8 @@ def run_feature_sweep():
     cleaner = DataCleaner(config)
     df_cleaned = cleaner.clean_data(save_output=False)
     
-    logger.info(f"✅ Data loaded: {len(df_cleaned)} transactions")
-    print(f"✅ Data loaded: {len(df_cleaned):,} transactions")
+    logger.info(f"Data loaded: {len(df_cleaned)} transactions")
+    print(f"Data loaded: {len(df_cleaned):,} transactions")
     
     # Store results
     results = {}
@@ -93,7 +93,7 @@ def run_feature_sweep():
     # Test each strategy
     for i, strategy in enumerate(strategies, 1):
         print(f"\n{'='*100}")
-        print(f"🎯 STAGE {i}/{len(strategies)}: TESTING {strategy.upper()}")
+        print(f"STAGE {i}/{len(strategies)}: TESTING {strategy.upper()}")
         print(f"{'='*100}")
         print(f"📝 Description: {strategy_descriptions[strategy]}")
         print(f"⏰ Starting at: {time.strftime('%H:%M:%S')}")
@@ -108,19 +108,19 @@ def run_feature_sweep():
             config = PipelineConfig.get_config(strategy)
             
             # Generate features
-            print(f"🔧 Generating features for {strategy}...")
+            print(f"Generating features for {strategy}...")
             logger.info("Generating features...")
             feature_engineer = FeatureFactory.create(strategy)
             df_features = feature_engineer.generate_features(df_cleaned)
             
             feature_count = len(df_features.columns)
             logger.info(f"Features generated: {feature_count} columns")
-            print(f"✅ Features generated: {feature_count} columns")
-            print(f"📊 Feature columns: {list(df_features.columns)}")
+            print(f"Features generated: {feature_count} columns")
+            print(f"Feature columns: {list(df_features.columns)}")
             
             # Train model
             print(f"🤖 Training autoencoder for {strategy}...")
-            print(f"📈 This will run 25 epochs - watch for progress updates...")
+            print(f"This will run 25 epochs - watch for progress updates...")
             logger.info("Training autoencoder...")
             autoencoder = BaselineAutoencoder(config)
             results_dict = autoencoder.train()
@@ -134,10 +134,10 @@ def run_feature_sweep():
             # Store results
             results[strategy] = (True, roc_auc, strategy_time)
             
-            print(f"\n🎉 Strategy {strategy} completed successfully!")
-            print(f"📊 ROC AUC: {roc_auc:.4f}")
-            print(f"⏱️  Time taken: {strategy_time:.2f} seconds")
-            print(f"📈 Feature count: {feature_count}")
+            print(f"\nStrategy {strategy} completed successfully!")
+            print(f"ROC AUC: {roc_auc:.4f}")
+            print(f"Time taken: {strategy_time:.2f} seconds")
+            print(f"Feature count: {feature_count}")
             
             logger.info(f"Strategy {strategy} completed successfully!")
             logger.info(f"ROC AUC: {roc_auc:.4f}")
@@ -149,16 +149,16 @@ def run_feature_sweep():
             remaining_strategies = len(strategies) - i
             estimated_remaining = remaining_strategies * avg_time_per_strategy
             
-            print(f"\n📊 PROGRESS UPDATE:")
-            print(f"   ✅ Completed: {i}/{len(strategies)} strategies")
-            print(f"   ⏱️  Elapsed time: {elapsed_time:.1f}s")
-            print(f"   🎯 Est. remaining: {estimated_remaining:.1f}s ({estimated_remaining/60:.1f} minutes)")
-            print(f"   📈 Current best: {max([r[1] for r in results.values() if r[0]], default=0):.4f}")
+            print(f"\nPROGRESS UPDATE:")
+            print(f"   Completed: {i}/{len(strategies)} strategies")
+            print(f"   Elapsed time: {elapsed_time:.1f}s")
+            print(f"   Est. remaining: {estimated_remaining:.1f}s ({estimated_remaining/60:.1f} minutes)")
+            print(f"   Current best: {max([r[1] for r in results.values() if r[0]], default=0):.4f}")
             
         except Exception as e:
             error_msg = f"Strategy {strategy} failed: {str(e)}"
             logger.error(error_msg)
-            print(f"❌ {error_msg}")
+            print(f"{error_msg}")
             results[strategy] = (False, 0.0, 0.0)
             continue
     
@@ -177,7 +177,7 @@ def print_summary(results: Dict[str, Tuple[bool, float, float]],
     """Print summary of feature sweep results."""
     
     print("\n" + "="*100)
-    print("🏆 FEATURE SWEEP RESULTS SUMMARY")
+    print("FEATURE SWEEP RESULTS SUMMARY")
     print("="*100)
     print(f"{'Strategy':<20} {'Status':<10} {'ROC AUC':<10} {'Time (s)':<10} {'Features':<10} {'Notes':<30}")
     print("-" * 100)
@@ -197,7 +197,7 @@ def print_summary(results: Dict[str, Tuple[bool, float, float]],
             best_strategy = strategy
             best_roc = roc_auc
         
-        status = "✅ SUCCESS" if success else "❌ FAILED"
+        status = "SUCCESS" if success else "FAILED"
         notes = strategy_descriptions.get(strategy, "Unknown strategy")
         print(f"{strategy:<20} {status:<10} {roc_auc:<10.4f} {time_taken:<10.2f} {'N/A':<10} {notes:<30}")
     
@@ -205,13 +205,13 @@ def print_summary(results: Dict[str, Tuple[bool, float, float]],
     failed_strategies = [(k, v) for k, v in results.items() if not v[0]]
     for strategy, (success, roc_auc, time_taken) in failed_strategies:
         notes = strategy_descriptions.get(strategy, "Unknown strategy")
-        print(f"{strategy:<20} {'❌ FAILED':<10} {'0.0000':<10} {'0.00':<10} {'N/A':<10} {notes:<30}")
+        print(f"{strategy:<20} {'FAILED':<10} {'0.0000':<10} {'0.00':<10} {'N/A':<10} {notes:<30}")
     
     print("-" * 100)
     
     if best_strategy:
-        print(f"\n🥇 BEST PERFORMING STRATEGY: {best_strategy}")
-        print(f"   📊 ROC AUC: {best_roc:.4f}")
+        print(f"\nBEST PERFORMING STRATEGY: {best_strategy}")
+        print(f"   ROC AUC: {best_roc:.4f}")
         
         # Compare with baseline
         baseline_result = results.get("baseline_numeric")
@@ -220,34 +220,34 @@ def print_summary(results: Dict[str, Tuple[bool, float, float]],
             if baseline_roc > 0:
                 improvement = ((best_roc - baseline_roc) / baseline_roc) * 100
                 if best_strategy == "baseline_numeric":
-                    print(f"   🎯 Baseline is the best strategy!")
+                    print(f"   Baseline is the best strategy!")
                 else:
-                    print(f"   📈 Improvement over baseline: +{improvement:.2f}%")
+                    print(f"   Improvement over baseline: +{improvement:.2f}%")
             else:
-                print(f"   📉 Performance vs baseline: {improvement:.2f}%")
+                print(f"   Performance vs baseline: {improvement:.2f}%")
         else:
-            print(f"   ⚠️  Baseline ROC AUC is zero - cannot calculate improvement")
+            print(f"   Baseline ROC AUC is zero - cannot calculate improvement")
     else:
-        print(f"   ❌ Could not compare with baseline (baseline failed)")
+        print(f"   Could not compare with baseline (baseline failed)")
     
     # Summary statistics
     successful_runs = sum(1 for r in results.values() if r[0])
     failed_runs = len(results) - successful_runs
     
-    print(f"\n📊 SUMMARY STATISTICS:")
-    print(f"   ⏱️  Total time: {total_time:.1f} seconds ({total_time/60:.1f} minutes)")
-    print(f"   🎯 Strategies tested: {len(results)}")
-    print(f"   ✅ Successful runs: {successful_runs}")
-    print(f"   ❌ Failed runs: {failed_runs}")
-    print(f"   📈 Average time per strategy: {total_time/len(results):.1f} seconds")
+    print(f"\nSUMMARY STATISTICS:")
+    print(f"   Total time: {total_time:.1f} seconds ({total_time/60:.1f} minutes)")
+    print(f"   Strategies tested: {len(results)}")
+    print(f"   Successful runs: {successful_runs}")
+    print(f"   Failed runs: {failed_runs}")
+    print(f"   Average time per strategy: {total_time/len(results):.1f} seconds")
     
     if successful_runs > 0:
         avg_roc = sum(r[1] for r in results.values() if r[0]) / successful_runs
-        print(f"   📊 Average ROC AUC: {avg_roc:.4f}")
-        print(f"   🎯 Best ROC AUC: {best_roc:.4f}")
-        print(f"   📉 Worst ROC AUC: {min(r[1] for r in results.values() if r[0]):.4f}")
+        print(f"   Average ROC AUC: {avg_roc:.4f}")
+        print(f"   Best ROC AUC: {best_roc:.4f}")
+        print(f"   Worst ROC AUC: {min(r[1] for r in results.values() if r[0]):.4f}")
     
-    print(f"\n🎉 Feature sweep completed!")
+    print(f"\nFeature sweep completed!")
     print("="*100)
 
 

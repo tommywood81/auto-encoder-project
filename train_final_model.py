@@ -172,13 +172,13 @@ def train_final_model():
     print("\n" + "=" * 80)
     print("FINAL MODEL TRAINING COMPLETED!")
     print("=" * 80)
-    print(f"✅ ROC AUC: {roc_auc:.4f}")
-    print(f"✅ Precision: {precision:.4f}")
-    print(f"✅ Recall: {recall:.4f}")
-    print(f"✅ F1 Score: {f1:.4f}")
-    print(f"✅ Model saved to: {model_path}")
-    print(f"✅ Scaler saved to: {scaler_path}")
-    print(f"✅ Model info saved to: {model_info_path}")
+    print(f"ROC AUC: {roc_auc:.4f}")
+    print(f"Precision: {precision:.4f}")
+    print(f"Recall: {recall:.4f}")
+    print(f"F1 Score: {f1:.4f}")
+    print(f"Model saved to: {model_path}")
+    print(f"Scaler saved to: {scaler_path}")
+    print(f"Model info saved to: {model_info_path}")
     print("=" * 80)
     
     return model_info
@@ -186,13 +186,13 @@ def train_final_model():
 if __name__ == "__main__":
     try:
         model_info = train_final_model()
-        print("\n🎉 Final model training completed successfully!")
-        print(f"📊 Best ROC AUC achieved: {model_info['roc_auc']:.4f}")
-        print("🚀 Model is ready for deployment!")
+        print("\nFinal model training completed successfully!")
+        print(f"Best ROC AUC achieved: {model_info['roc_auc']:.4f}")
+        print("Model is ready for deployment!")
         
     except Exception as e:
         logger.error(f"Training failed: {str(e)}")
         import traceback
         logger.error(f"Traceback: {traceback.format_exc()}")
-        print(f"\n❌ Training failed: {str(e)}")
+        print(f"\nTraining failed: {str(e)}")
         sys.exit(1) 

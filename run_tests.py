@@ -14,7 +14,7 @@ sys.path.insert(0, str(project_root))
 
 def run_all_tests():
     """Run all tests and return results."""
-    print("🧪 Running Fraud Detection System Tests")
+    print("Running Fraud Detection System Tests")
     print("=" * 50)
     print("Using real fraud detection data and models")
     print()
@@ -57,7 +57,7 @@ def run_all_tests():
 
 def run_specific_test(test_name):
     """Run a specific test module."""
-    print(f"🧪 Running specific test: {test_name}")
+    print(f"Running specific test: {test_name}")
     print("=" * 50)
     
     # Import and run specific test

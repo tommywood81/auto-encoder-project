@@ -2,30 +2,30 @@
 
 A clean, explainable, and interactive dashboard demonstrating how an unsupervised autoencoder detects anomalies (fraud) in transaction data.
 
-## 🎯 Demo Features
+## Demo Features
 
-### 📅 Date Selector
+### Date Selector
 - Dropdown with all available dates from test set
 - "All Dates" option for complete dataset view
 - Filters table and metrics by selected date
 
-### 🎚️ Threshold Slider
+### Threshold Slider
 - Range: 80 to 100 (percentile-based)
 - Default: 97 (trained model threshold)
 - Label: "Fraud Sensitivity Threshold"
 - Dynamically adjusts fraud detection sensitivity
 
-### 📊 Metrics Panel
+### Metrics Panel
 Real-time metrics based on date selection and current threshold:
 - **Total Transactions** - All transactions in selected date
 - **Total Ground Truth Frauds** - Actual frauds in data
 - **Flagged Transactions** - Model predictions
-- **✅ Correctly Flagged Frauds** - True Positives
-- **❌ Missed Frauds** - False Negatives  
-- **⚠️ False Positives** - Flagged but not fraud
+- **Correctly Flagged Frauds** - True Positives
+- **Missed Frauds** - False Negatives  
+- **False Positives** - Flagged but not fraud
 - **AUC ROC** - Model performance (0.73)
 
-### 🧾 Flagged Transactions Table
+### Flagged Transactions Table
 When a user selects a date, only the transactions flagged as potential fraud are shown:
 
 | Column | Description |
@@ -43,14 +43,14 @@ When a user selects a date, only the transactions flagged as potential fraud are
 | `fraud_status` | True Positive or False Positive |
 
 #### Fraud Indicators:
-- **✅ "ACTUAL FRAUD"** - Model correctly flagged an actual fraud (True Positive)
-- **⚠️ "FALSE ALARM"** - Model flagged but it wasn't actually fraud (False Positive)
+- **"ACTUAL FRAUD"** - Model correctly flagged an actual fraud (True Positive)
+- **"FALSE ALARM"** - Model flagged but it wasn't actually fraud (False Positive)
 
 #### Visual Styling:
 - **Green row**: Actual fraud correctly caught
 - **Yellow row**: False alarm (flagged but not fraud)
 
-### 🔍 Toggle Filters
+### Toggle Filters
 Filter the table to show only:
 - All rows (default)
 - Only actual frauds
@@ -58,10 +58,10 @@ Filter the table to show only:
 - Only missed frauds
 - Only false positives
 
-### ℹ️ Information Modal
+### Information Modal
 Explains the autoencoder model, threshold tuning, and AUC-ROC performance.
 
-## 🧠 Why an Autoencoder?
+## Why an Autoencoder?
 
 **Unsupervised Learning Benefits:**
 - Works without labeled fraud data
@@ -69,19 +69,19 @@ Explains the autoencoder model, threshold tuning, and AUC-ROC performance.
 - Ideal for bootstrapping fraud detection systems
 - Handles missing, late, or inaccurate fraud labels
 
-## 📈 Understanding AUC ROC (0.73)
+## Understanding AUC ROC (0.73)
 
 - **What it means**: Ability to rank frauds above non-frauds
 - **Current performance**: 73% accuracy in ranking
 - **Improvement potential**: Better features and retraining
 
-## 🎯 Understanding the Threshold
+## Understanding the Threshold
 
 - **Trained at**: 97th percentile (top 3% reconstruction error)
 - **Slider range**: 80-100 for dynamic exploration
 - **Purpose**: Trade-off between catching frauds vs. false positives
 
-## 🚀 Improving the Model
+## Improving the Model
 
 This demo shows the foundation. The model can be improved through:
 
@@ -101,7 +101,7 @@ This demo shows the foundation. The model can be improved through:
    - Fewer false alarms
    - Significant cost savings
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
 - Docker installed and running
@@ -124,7 +124,7 @@ python deploy_local.py
 python deploy_local.py --stop
 ```
 
-## 📊 API Endpoints
+## API Endpoints
 
 ### Main Dashboard Endpoint
 ```
@@ -160,7 +160,7 @@ POST /api/predict
       "device_used": "Mobile",
       "reconstruction_error": 0.85,
       "is_actual_fraud": true,
-      "fraud_indicator": "✅ ACTUAL FRAUD",
+      "fraud_indicator": "ACTUAL FRAUD",
       "fraud_status": "True Positive"
     },
     {
@@ -173,14 +173,14 @@ POST /api/predict
       "device_used": "Desktop",
       "reconstruction_error": 0.78,
       "is_actual_fraud": false,
-      "fraud_indicator": "⚠️ FALSE ALARM",
+      "fraud_indicator": "FALSE ALARM",
       "fraud_status": "False Positive"
     }
   ]
 }
 ```
 
-## 🔧 Technical Details
+## Technical Details
 
 ### Model Architecture
 - **Type**: Autoencoder (unsupervised)
@@ -200,7 +200,7 @@ POST /api/predict
 - **Inference**: Real-time scoring
 - **Scalability**: Handles thousands of transactions
 
-## 📈 Business Value
+## Business Value
 
 ### Cost Savings
 - **Fraud Prevention**: Catch fraudulent transactions

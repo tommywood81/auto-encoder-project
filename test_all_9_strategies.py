@@ -309,7 +309,7 @@ def main():
 if __name__ == "__main__":
     success, roc_auc, metrics = main()
     if success:
-        print(f"\n✅ Training completed successfully!")
+        print(f"\nTraining completed successfully!")
         print(f"   ROC AUC: {roc_auc:.4f}")
         print(f"   Precision: {metrics['precision']:.4f}")
         print(f"   Recall: {metrics['recall']:.4f}")
@@ -318,4 +318,4 @@ if __name__ == "__main__":
         print(f"   Final Loss: {metrics['final_loss']:.6f}")
         print(f"   Threshold: {metrics['threshold']:.4f}")
     else:
-        print(f"\n❌ Training failed!") 
+        print(f"\nTraining failed!") 

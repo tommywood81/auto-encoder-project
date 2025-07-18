@@ -194,7 +194,7 @@ print("   Rationale: Very high quantities could be data errors or bulk fraud")
 print("   Impact: Prevents extreme values from skewing models")
 
 # Account Age Analysis
-print(f"\n📅 ACCOUNT AGE ANALYSIS:")
+print(f"\nACCOUNT AGE ANALYSIS:")
 print(f"Mean account age: {df['Account Age Days'].mean():.1f} days")
 print(f"Median account age: {df['Account Age Days'].median():.1f} days")
 print(f"Max account age: {df['Account Age Days'].max():.1f} days")
