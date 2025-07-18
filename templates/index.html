@@ -14,27 +14,28 @@
 
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
             min-height: 100vh;
-            color: #333;
+            color: #ffffff;
             padding: 20px;
         }
 
         .main-container {
             max-width: 1200px;
             margin: 0 auto;
-            background: rgba(255, 255, 255, 0.95);
+            background: rgba(26, 26, 26, 0.95);
             backdrop-filter: blur(10px);
             border-radius: 20px;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
             overflow: hidden;
+            border: 1px solid #333;
         }
 
         .header {
             text-align: center;
             padding: 30px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
+            background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%);
+            color: #1a1a1a;
         }
 
         .title {
@@ -50,8 +51,8 @@
 
         .tabs {
             display: flex;
-            background: #f8f9fa;
-            border-bottom: 1px solid #dee2e6;
+            background: #2d2d2d;
+            border-bottom: 1px solid #444;
         }
 
         .tab {
@@ -64,17 +65,18 @@
             background: transparent;
             font-size: 1.1em;
             font-weight: 600;
-            color: #6c757d;
+            color: #cccccc;
         }
 
         .tab.active {
-            background: white;
-            color: #3498db;
-            border-bottom: 3px solid #3498db;
+            background: #1a1a1a;
+            color: #ffd700;
+            border-bottom: 3px solid #ffd700;
         }
 
         .tab:hover {
-            background: rgba(52, 152, 219, 0.1);
+            background: rgba(255, 215, 0, 0.1);
+            color: #ffd700;
         }
 
         .tab-content {
@@ -87,22 +89,25 @@
         }
 
         .predict-button {
-            background: linear-gradient(45deg, #3498db, #2980b9);
-            color: white;
+            background: linear-gradient(45deg, #ffd700, #ffed4e);
+            color: #1a1a1a;
             border: none;
             padding: 20px 40px;
             border-radius: 50px;
             font-size: 1.3em;
-            font-weight: 600;
+            font-weight: 700;
             cursor: pointer;
             transition: all 0.3s ease;
             margin-bottom: 30px;
-            box-shadow: 0 4px 15px rgba(52, 152, 219, 0.3);
+            box-shadow: 0 4px 15px rgba(255, 215, 0, 0.3);
+            text-transform: uppercase;
+            letter-spacing: 1px;
         }
 
         .predict-button:hover {
             transform: translateY(-3px);
-            box-shadow: 0 6px 20px rgba(52, 152, 219, 0.4);
+            box-shadow: 0 6px 20px rgba(255, 215, 0, 0.5);
+            background: linear-gradient(45deg, #ffed4e, #ffd700);
         }
 
         .predict-button:active {
@@ -113,9 +118,10 @@
             display: none;
             margin-top: 30px;
             padding: 20px;
-            background: rgba(52, 152, 219, 0.1);
+            background: rgba(255, 215, 0, 0.1);
             border-radius: 15px;
-            border-left: 5px solid #3498db;
+            border-left: 5px solid #ffd700;
+            border: 1px solid #444;
         }
 
         .results.show {
@@ -127,7 +133,7 @@
             justify-content: space-between;
             align-items: center;
             padding: 10px 0;
-            border-bottom: 1px solid #ecf0f1;
+            border-bottom: 1px solid #444;
         }
 
         .metric:last-child {
@@ -136,12 +142,12 @@
 
         .metric-label {
             font-weight: 600;
-            color: #2c3e50;
+            color: #ffffff;
         }
 
         .metric-value {
             font-weight: 700;
-            color: #3498db;
+            color: #ffd700;
             font-size: 1.1em;
         }
 
@@ -156,8 +162,8 @@
         }
 
         .spinner {
-            border: 3px solid #f3f3f3;
-            border-top: 3px solid #3498db;
+            border: 3px solid #333;
+            border-top: 3px solid #ffd700;
             border-radius: 50%;
             width: 30px;
             height: 30px;
@@ -172,12 +178,13 @@
 
         .error {
             display: none;
-            color: #e74c3c;
-            background: rgba(231, 76, 60, 0.1);
+            color: #ff6b6b;
+            background: rgba(255, 107, 107, 0.1);
             padding: 15px;
             border-radius: 10px;
             margin-top: 20px;
-            border-left: 5px solid #e74c3c;
+            border-left: 5px solid #ff6b6b;
+            border: 1px solid #444;
         }
 
         .error.show {
@@ -196,20 +203,21 @@
         }
 
         .info-box {
-            background: rgba(52, 152, 219, 0.1);
+            background: rgba(255, 215, 0, 0.05);
             padding: 20px;
+            border: 1px solid #444;
             border-radius: 10px;
-            margin: 20px 0;
-            border-left: 5px solid #3498db;
+            margin: 15px 0;
+            border-left: 5px solid #ffd700;
         }
 
         .info-box h3 {
-            color: #2c3e50;
+            color: #ffd700;
             margin-bottom: 10px;
         }
 
         .info-box p {
-            color: #555;
+            color: #ffffff;
             line-height: 1.6;
         }
 
@@ -217,7 +225,7 @@
             display: none;
             text-align: center;
             padding: 40px;
-            color: #6c757d;
+            color: #cccccc;
         }
 
         .no-visualization.show {
@@ -227,13 +235,14 @@
         .viz-section {
             margin: 40px 0;
             padding: 20px;
-            background: rgba(52, 152, 219, 0.05);
+            background: rgba(255, 215, 0, 0.05);
             border-radius: 15px;
-            border-left: 5px solid #3498db;
+            border-left: 5px solid #ffd700;
+            border: 1px solid #444;
         }
 
         .viz-section h3 {
-            color: #2c3e50;
+            color: #ffd700;
             margin-bottom: 20px;
             font-size: 1.4em;
         }
@@ -246,15 +255,16 @@
         }
 
         .viz-item {
-            background: white;
+            background: #333;
             padding: 20px;
             border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
             text-align: center;
+            border: 1px solid #444;
         }
 
         .viz-item h4 {
-            color: #2c3e50;
+            color: #ffd700;
             margin-bottom: 15px;
             font-size: 1.1em;
         }
@@ -264,11 +274,11 @@
             height: auto;
             border-radius: 8px;
             margin-bottom: 15px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
         }
 
         .viz-item p {
-            color: #555;
+            color: #ffffff;
             font-size: 0.9em;
             line-height: 1.4;
         }
@@ -277,18 +287,19 @@
         .main-container {
             max-width: 1400px;
             margin: 0 auto;
-            background: rgba(255, 255, 255, 0.98);
+            background: rgba(26, 26, 26, 0.98);
             backdrop-filter: blur(15px);
             border-radius: 25px;
-            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
             overflow: hidden;
+            border: 1px solid #333;
         }
 
         .header {
             text-align: center;
             padding: 40px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
+            background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%);
+            color: #1a1a1a;
             position: relative;
             overflow: hidden;
         }
@@ -323,9 +334,9 @@
 
         .tabs {
             display: flex;
-            background: linear-gradient(90deg, #f8f9fa 0%, #e9ecef 100%);
-            border-bottom: 2px solid #dee2e6;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            background: linear-gradient(90deg, #2d2d2d 0%, #1a1a1a 100%);
+            border-bottom: 2px solid #444;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
         }
 
         .tab {
@@ -338,7 +349,7 @@
             background: transparent;
             font-size: 1.2em;
             font-weight: 600;
-            color: #6c757d;
+            color: #cccccc;
             position: relative;
             overflow: hidden;
         }
@@ -350,7 +361,7 @@
             left: -100%;
             width: 100%;
             height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(52, 152, 219, 0.1), transparent);
+            background: linear-gradient(90deg, transparent, rgba(255, 215, 0, 0.1), transparent);
             transition: left 0.5s;
         }
 
@@ -359,31 +370,34 @@
         }
 
         .tab.active {
-            background: white;
-            color: #3498db;
-            border-bottom: 4px solid #3498db;
-            box-shadow: 0 -2px 10px rgba(52, 152, 219, 0.1);
+            background: #1a1a1a;
+            color: #ffd700;
+            border-bottom: 4px solid #ffd700;
+            box-shadow: 0 -2px 10px rgba(255, 215, 0, 0.1);
         }
 
         .tab:hover {
-            background: rgba(52, 152, 219, 0.05);
+            background: rgba(255, 215, 0, 0.05);
             transform: translateY(-2px);
+            color: #ffd700;
         }
 
         .predict-button {
-            background: linear-gradient(45deg, #3498db, #2980b9);
-            color: white;
+            background: linear-gradient(45deg, #ffd700, #ffed4e);
+            color: #1a1a1a;
             border: none;
             padding: 22px 45px;
             border-radius: 50px;
             font-size: 1.4em;
-            font-weight: 600;
+            font-weight: 700;
             cursor: pointer;
             transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
             margin-bottom: 30px;
-            box-shadow: 0 6px 20px rgba(52, 152, 219, 0.3);
+            box-shadow: 0 6px 20px rgba(255, 215, 0, 0.3);
             position: relative;
             overflow: hidden;
+            text-transform: uppercase;
+            letter-spacing: 1px;
         }
 
         .predict-button::before {
@@ -403,7 +417,8 @@
 
         .predict-button:hover {
             transform: translateY(-4px) scale(1.02);
-            box-shadow: 0 8px 25px rgba(52, 152, 219, 0.4);
+            box-shadow: 0 8px 25px rgba(255, 215, 0, 0.5);
+            background: linear-gradient(45deg, #ffed4e, #ffd700);
         }
 
         .predict-button:active {
@@ -414,10 +429,11 @@
             display: none;
             margin-top: 30px;
             padding: 25px;
-            background: linear-gradient(135deg, rgba(52, 152, 219, 0.1) 0%, rgba(52, 152, 219, 0.05) 100%);
+            background: linear-gradient(135deg, rgba(255, 215, 0, 0.1) 0%, rgba(255, 215, 0, 0.05) 100%);
             border-radius: 20px;
-            border-left: 6px solid #3498db;
-            box-shadow: 0 4px 15px rgba(52, 152, 219, 0.1);
+            border-left: 6px solid #ffd700;
+            box-shadow: 0 4px 15px rgba(255, 215, 0, 0.1);
+            border: 1px solid #444;
         }
 
         .results.show {
@@ -441,12 +457,12 @@
             justify-content: space-between;
             align-items: center;
             padding: 15px 0;
-            border-bottom: 1px solid rgba(52, 152, 219, 0.2);
+            border-bottom: 1px solid rgba(255, 215, 0, 0.2);
             transition: background-color 0.3s ease;
         }
 
         .metric:hover {
-            background-color: rgba(52, 152, 219, 0.05);
+            background-color: rgba(255, 215, 0, 0.05);
             border-radius: 8px;
             padding-left: 10px;
             padding-right: 10px;
@@ -458,54 +474,56 @@
 
         .metric-label {
             font-weight: 600;
-            color: #2c3e50;
+            color: #ffffff;
             font-size: 1.1em;
         }
 
         .metric-value {
             font-weight: 700;
-            color: #3498db;
+            color: #ffd700;
             font-size: 1.2em;
-            text-shadow: 0 1px 2px rgba(52, 152, 219, 0.2);
+            text-shadow: 0 1px 2px rgba(255, 215, 0, 0.2);
         }
 
         .info-box {
-            background: linear-gradient(135deg, rgba(52, 152, 219, 0.08) 0%, rgba(52, 152, 219, 0.03) 100%);
+            background: linear-gradient(135deg, rgba(255, 215, 0, 0.08) 0%, rgba(255, 215, 0, 0.03) 100%);
             padding: 25px;
             border-radius: 15px;
             margin: 25px 0;
-            border-left: 6px solid #3498db;
-            box-shadow: 0 4px 15px rgba(52, 152, 219, 0.1);
+            border-left: 6px solid #ffd700;
+            box-shadow: 0 4px 15px rgba(255, 215, 0, 0.1);
             transition: all 0.3s ease;
+            border: 1px solid #444;
         }
 
         .info-box:hover {
             transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(52, 152, 219, 0.15);
+            box-shadow: 0 6px 20px rgba(255, 215, 0, 0.15);
         }
 
         .viz-section {
             margin: 50px 0;
             padding: 30px;
-            background: linear-gradient(135deg, rgba(52, 152, 219, 0.05) 0%, rgba(52, 152, 219, 0.02) 100%);
+            background: linear-gradient(135deg, rgba(255, 215, 0, 0.05) 0%, rgba(255, 215, 0, 0.02) 100%);
             border-radius: 20px;
-            border-left: 6px solid #3498db;
-            box-shadow: 0 4px 15px rgba(52, 152, 219, 0.1);
+            border-left: 6px solid #ffd700;
+            box-shadow: 0 4px 15px rgba(255, 215, 0, 0.1);
+            border: 1px solid #444;
         }
 
         .viz-item {
-            background: white;
+            background: #333;
             padding: 25px;
             border-radius: 15px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
             text-align: center;
             transition: all 0.3s ease;
-            border: 1px solid rgba(52, 152, 219, 0.1);
+            border: 1px solid #444;
         }
 
         .viz-item:hover {
             transform: translateY(-3px);
-            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.3);
         }
 
         .viz-image {
@@ -526,11 +544,11 @@
         .table-container {
             overflow-x: auto;
             margin-top: 20px;
-            border: 2px solid #dee2e6;
+            border: 2px solid #444;
             border-radius: 15px;
             max-height: 600px;
             overflow-y: auto;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
         }
 
         #all-columns-table {
@@ -543,22 +561,25 @@
         #all-columns-table th {
             padding: 12px 8px;
             text-align: left;
-            border: 1px solid #dee2e6;
+            border: 1px solid #444;
             font-weight: bold;
             position: sticky;
             top: 0;
             z-index: 10;
-            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            background: linear-gradient(135deg, #2d2d2d 0%, #1a1a1a 100%);
+            color: #ffd700;
         }
 
         #all-columns-table td {
             padding: 10px 8px;
-            border: 1px solid #dee2e6;
+            border: 1px solid #444;
             transition: background-color 0.3s ease;
+            color: #ffffff;
+            background: #333;
         }
 
         #all-columns-table tbody tr:hover {
-            background-color: rgba(52, 152, 219, 0.05);
+            background-color: rgba(255, 215, 0, 0.05);
         }
 
         /* Responsive design improvements */
@@ -668,30 +689,30 @@
                 </div>
                 
                 <!-- Business Performance Notes -->
-                <div class="info-box" style="margin-top: 30px; background: linear-gradient(135deg, #f8f9fa, #e9ecef); border-left: 4px solid #007bff;">
-                    <h3 style="color: #007bff; margin-bottom: 15px;">Model Performance Insights</h3>
+                <div class="info-box" style="margin-top: 30px; background: linear-gradient(135deg, #2d2d2d, #1a1a1a); border-left: 4px solid #ffd700;">
+                    <h3 style="color: #ffd700; margin-bottom: 15px;">Model Performance Insights</h3>
                     
                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">
-                        <div style="background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-                            <h4 style="color: #28a745; margin-bottom: 10px;">AUC-ROC Performance: 0.73</h4>
-                            <p style="margin: 0; line-height: 1.5;">
+                        <div style="background: #333; padding: 15px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.3); border: 1px solid #444;">
+                            <h4 style="color: #ffd700; margin-bottom: 10px;">AUC-ROC Performance: 0.73</h4>
+                            <p style="margin: 0; line-height: 1.5; color: #ffffff;">
                                 Our autoencoder achieves an AUC-ROC of 0.73, which represents a 73% ability to correctly rank fraudulent transactions above normal ones. 
                                 This is a strong performance given the challenging nature of unsupervised fraud detection without labeled training data.
                             </p>
                         </div>
                         
-                        <div style="background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-                            <h4 style="color: #dc3545; margin-bottom: 10px;">Dataset Imbalance: 5% Fraud Rate</h4>
-                            <p style="margin: 0; line-height: 1.5;">
+                        <div style="background: #333; padding: 15px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.3); border: 1px solid #444;">
+                            <h4 style="color: #ffd700; margin-bottom: 10px;">Dataset Imbalance: 5% Fraud Rate</h4>
+                            <p style="margin: 0; line-height: 1.5; color: #ffffff;">
                                 The dataset contains only 5% fraudulent transactions, making this a highly imbalanced problem. 
                                 This low fraud rate is typical in real-world scenarios and makes the 0.73 AUC even more impressive, 
                                 as the model must learn to identify rare patterns without explicit fraud labels.
                             </p>
                         </div>
                         
-                        <div style="background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-                            <h4 style="color: #ffc107; margin-bottom: 10px;">Extensible Feature Factory</h4>
-                            <p style="margin: 0; line-height: 1.5;">
+                        <div style="background: #333; padding: 15px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.3); border: 1px solid #444;">
+                            <h4 style="color: #ffd700; margin-bottom: 10px;">Extensible Feature Factory</h4>
+                            <p style="margin: 0; line-height: 1.5; color: #ffffff;">
                                 Our modular feature engineering system can be easily extended with new fraud detection strategies. 
                                 The current system uses 8 different feature strategies, but new ones can be added without changing the core model. 
                                 This allows continuous improvement as new fraud patterns emerge.
@@ -699,9 +720,9 @@
                         </div>
                     </div>
                     
-                    <div style="margin-top: 20px; padding: 15px; background: rgba(0,123,255,0.1); border-radius: 8px;">
-                        <h4 style="color: #007bff; margin-bottom: 10px;">Business Impact</h4>
-                        <p style="margin: 0; line-height: 1.6;">
+                    <div style="margin-top: 20px; padding: 15px; background: rgba(255,215,0,0.1); border-radius: 8px; border: 1px solid #444;">
+                        <h4 style="color: #ffd700; margin-bottom: 10px;">Business Impact</h4>
+                        <p style="margin: 0; line-height: 1.6; color: #ffffff;">
                             <strong>Cost Savings:</strong> Even with 73% AUC performance, this system can catch significant fraud while reducing false positives compared to rule-based systems. 
                             The unsupervised approach means it can adapt to new fraud patterns without requiring expensive labeled data or manual rule updates.
                         </p>
@@ -792,19 +813,7 @@
 
         <!-- Data Science Tab -->
         <div id="datascience-tab" class="tab-content">
-            <div class="info-box">
-                <h3>3D Latent Space Visualization</h3>
-                <p>This 3D plot shows how the autoencoder compresses transaction data into a lower-dimensional latent space using Principal Component Analysis (PCA). 
-                Normal transactions cluster together while anomalous (potentially fraudulent) transactions appear as outliers. 
-                You can interact with the plot by rotating, zooming, and panning to explore the data from different angles.</p>
-            </div>
 
-
-
-            <div class="info-box">
-                <h3>Comprehensive Analysis Dashboard</h3>
-                <p>Below you'll find 10 different visualizations that showcase every aspect of our autoencoder fraud detection system. Each graph reveals different insights about how the model works and performs.</p>
-            </div>
 
             <div class="no-visualization" id="no-visualization">
                 <h3>No Visualization Available</h3>
@@ -815,9 +824,9 @@
                 <div class="viz-section">
                     <h3>Interactive 3D Latent Space Visualization</h3>
                     
-                    <!-- Enhanced PCA Plot -->
+                    <!-- Enhanced 3D Plot -->
                     <div class="viz-item">
-                        <h4>PCA (Principal Component Analysis) Visualization</h4>
+                        <h4>3D Latent Space Visualization</h4>
                         <div class="info-box" style="margin-bottom: 20px;">
                             <h5>Interactive Controls:</h5>
                             <ul>
@@ -886,8 +895,8 @@
                                 <h4>Feature Importance</h4>
                                 <img id="feature-importance" class="viz-image" />
                                 <p>Which transaction features contribute most to anomaly detection.</p>
-                                <div style="background: rgba(255,193,7,0.1); padding: 10px; border-radius: 5px; margin-top: 10px; border-left: 3px solid #ffc107;">
-                                    <p style="margin: 0; font-size: 14px; line-height: 1.4;">
+                                <div style="background: rgba(255,215,0,0.1); padding: 10px; border-radius: 5px; margin-top: 10px; border-left: 3px solid #ffd700; border: 1px solid #444;">
+                                    <p style="margin: 0; font-size: 14px; line-height: 1.4; color: #ffffff;">
                                         <strong>RF Explainer Insight:</strong> The Random Forest explainer reveals that two features contribute minimally to fraud detection. 
                                         These can be replaced with more effective features. This insight is crucial because the autoencoder is a "black box" - 
                                         without the RF explainer, we would never know which features are ineffective.
@@ -1017,7 +1026,7 @@
                 const data = await response.json();
                 
                 if (data.success) {
-                    console.log('PCA 3D visualization generated successfully');
+                    console.log('3D visualization generated successfully');
                 } else {
                     console.error('Failed to generate visualization:', data.error);
                 }
@@ -1056,13 +1065,13 @@
 
         async function loadVisualization() {
             try {
-                // Load PCA plot
+                // Load 3D plot
                 const response = await fetch('/api/get-3d-plot-data');
                 
                 if (response.ok) {
                     const data = await response.json();
                     
-                    // Create enhanced 3D scatter plot for PCA
+                    // Create enhanced 3D scatter plot
                     const trace1 = {
                         x: data.normal.x,
                         y: data.normal.y,
@@ -1111,7 +1120,7 @@
 
                     const layout = {
                         title: {
-                            text: `3D Latent Space Visualization (PCA)<br><sub>Explained Variance: ${(data.metadata.total_explained_variance * 100).toFixed(1)}%</sub>`,
+                            text: `3D Latent Space Visualization`,
                             font: {
                                 size: 18,
                                 color: '#2c3e50'
