@@ -1723,17 +1723,43 @@ async def generate_all_visualizations():
         sns.set_palette("husl")
         
         # 1. Reconstruction Error Distribution
-        fig, ax = plt.subplots(figsize=(10, 6))
+        fig, ax = plt.subplots(figsize=(12, 8))
         normal_errors = mse[actual_labels == 0]
         fraud_errors = mse[actual_labels == 1]
         
-        ax.hist(normal_errors, bins=50, alpha=0.7, label='Normal Transactions', color='#2E8B57')
-        ax.hist(fraud_errors, bins=50, alpha=0.7, label='Fraudulent Transactions', color='#DC143C')
-        ax.set_xlabel('Reconstruction Error (MSE)')
-        ax.set_ylabel('Frequency')
-        ax.set_title('Reconstruction Error Distribution\nNormal vs Fraudulent Transactions')
-        ax.legend()
+        # Calculate better binning based on data distribution
+        all_errors = np.concatenate([normal_errors, fraud_errors])
+        error_min, error_max = np.percentile(all_errors, [1, 99])  # Use 1st and 99th percentiles to avoid outliers
+        
+        # Create more bins for better resolution
+        bins = np.linspace(error_min, error_max, 100)
+        
+        # Plot histograms with better styling
+        ax.hist(normal_errors, bins=bins, alpha=0.7, label='Normal Transactions', 
+                color='#2E8B57', edgecolor='#1a5f3a', linewidth=0.5, density=True)
+        ax.hist(fraud_errors, bins=bins, alpha=0.8, label='Fraudulent Transactions', 
+                color='#DC143C', edgecolor='#8b0000', linewidth=0.5, density=True)
+        
+        # Add vertical line for threshold
+        threshold_score = np.percentile(normal_errors, 97)  # 97th percentile threshold
+        ax.axvline(x=threshold_score, color='#ffd700', linestyle='--', linewidth=2, 
+                  label=f'Threshold ({threshold_score:.4f})')
+        
+        ax.set_xlabel('Reconstruction Error (MSE)', fontsize=12, fontweight='bold')
+        ax.set_ylabel('Density', fontsize=12, fontweight='bold')
+        ax.set_title('Reconstruction Error Distribution\nNormal vs Fraudulent Transactions', 
+                    fontsize=14, fontweight='bold', pad=20)
+        ax.legend(fontsize=11, framealpha=0.9)
         ax.grid(True, alpha=0.3)
+        
+        # Improve axis formatting
+        ax.tick_params(axis='both', which='major', labelsize=10)
+        
+        # Add statistics text box
+        stats_text = f'Normal Mean: {normal_errors.mean():.4f}\nFraud Mean: {fraud_errors.mean():.4f}\nThreshold: {threshold_score:.4f}'
+        ax.text(0.02, 0.98, stats_text, transform=ax.transAxes, fontsize=10,
+                verticalalignment='top', bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))
+        
         plt.tight_layout()
         plt.savefig(static_dir / "reconstruction_error_dist.png", dpi=300, bbox_inches='tight')
         plt.close()
