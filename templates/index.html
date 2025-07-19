@@ -14,28 +14,26 @@
 
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+            background: #ffffff;
             min-height: 100vh;
-            color: #ffffff;
+            color: #000000;
             padding: 20px;
         }
 
         .main-container {
             max-width: 1200px;
             margin: 0 auto;
-            background: rgba(26, 26, 26, 0.95);
-            backdrop-filter: blur(10px);
-            border-radius: 20px;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            background: #ffffff;
+            border-radius: 10px;
             overflow: hidden;
-            border: 1px solid #333;
+            border: 1px solid #000000;
         }
 
         .header {
             text-align: center;
             padding: 30px;
-            background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%);
-            color: #1a1a1a;
+            background: #000000;
+            color: #ffffff;
         }
 
         .title {
@@ -51,8 +49,8 @@
 
         .tabs {
             display: flex;
-            background: #2d2d2d;
-            border-bottom: 1px solid #444;
+            background: #ffffff;
+            border-bottom: 1px solid #000000;
         }
 
         .tab {
@@ -60,23 +58,22 @@
             padding: 20px;
             text-align: center;
             cursor: pointer;
-            transition: all 0.3s ease;
             border: none;
             background: transparent;
             font-size: 1.1em;
             font-weight: 600;
-            color: #cccccc;
+            color: #000000;
         }
 
         .tab.active {
-            background: #1a1a1a;
-            color: #ffd700;
-            border-bottom: 3px solid #ffd700;
+            background: #ffffff;
+            color: #000000;
+            border-bottom: 3px solid #000000;
         }
 
         .tab:hover {
-            background: rgba(255, 215, 0, 0.1);
-            color: #ffd700;
+            background: #ffffff;
+            color: #000000;
         }
 
         .tab-content {
@@ -89,25 +86,20 @@
         }
 
         .predict-button {
-            background: linear-gradient(45deg, #ffd700, #ffed4e);
-            color: #1a1a1a;
+            background: #000000;
+            color: #ffffff;
             border: none;
             padding: 20px 40px;
-            border-radius: 50px;
+            border-radius: 5px;
             font-size: 1.3em;
             font-weight: 700;
             cursor: pointer;
-            transition: all 0.3s ease;
             margin-bottom: 30px;
-            box-shadow: 0 4px 15px rgba(255, 215, 0, 0.3);
             text-transform: uppercase;
-            letter-spacing: 1px;
         }
 
         .predict-button:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 6px 20px rgba(255, 215, 0, 0.5);
-            background: linear-gradient(45deg, #ffed4e, #ffd700);
+            background: #333333;
         }
 
         .predict-button:active {
@@ -118,10 +110,9 @@
             display: none;
             margin-top: 30px;
             padding: 20px;
-            background: rgba(255, 215, 0, 0.1);
-            border-radius: 15px;
-            border-left: 5px solid #ffd700;
-            border: 1px solid #444;
+            background: #ffffff;
+            border-radius: 5px;
+            border: 1px solid #000000;
         }
 
         .results.show {
@@ -142,12 +133,12 @@
 
         .metric-label {
             font-weight: 600;
-            color: #ffffff;
+            color: #000000;
         }
 
         .metric-value {
             font-weight: 700;
-            color: #ffd700;
+            color: #000000;
             font-size: 1.1em;
         }
 
@@ -178,13 +169,12 @@
 
         .error {
             display: none;
-            color: #ff6b6b;
-            background: rgba(255, 107, 107, 0.1);
+            color: #000000;
+            background: #ffffff;
             padding: 15px;
-            border-radius: 10px;
+            border-radius: 5px;
             margin-top: 20px;
-            border-left: 5px solid #ff6b6b;
-            border: 1px solid #444;
+            border: 1px solid #000000;
         }
 
         .error.show {
@@ -203,21 +193,20 @@
         }
 
         .info-box {
-            background: rgba(255, 215, 0, 0.05);
+            background: #ffffff;
             padding: 20px;
-            border: 1px solid #444;
-            border-radius: 10px;
+            border: 1px solid #000000;
+            border-radius: 5px;
             margin: 15px 0;
-            border-left: 5px solid #ffd700;
         }
 
         .info-box h3 {
-            color: #ffd700;
+            color: #000000;
             margin-bottom: 10px;
         }
 
         .info-box p {
-            color: #ffffff;
+            color: #000000;
             line-height: 1.6;
         }
 
@@ -225,7 +214,7 @@
             display: none;
             text-align: center;
             padding: 40px;
-            color: #cccccc;
+            color: #000000;
         }
 
         .no-visualization.show {
@@ -235,14 +224,13 @@
         .viz-section {
             margin: 40px 0;
             padding: 20px;
-            background: rgba(255, 215, 0, 0.05);
-            border-radius: 15px;
-            border-left: 5px solid #ffd700;
-            border: 1px solid #444;
+            background: #ffffff;
+            border-radius: 5px;
+            border: 1px solid #000000;
         }
 
         .viz-section h3 {
-            color: #ffd700;
+            color: #000000;
             margin-bottom: 20px;
             font-size: 1.4em;
         }
@@ -255,18 +243,23 @@
         }
 
         .viz-item {
-            background: #333;
+            background: #ffffff;
             padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+            border-radius: 5px;
+            border: 1px solid #000000;
             text-align: center;
-            border: 1px solid #444;
         }
 
         .viz-item h4 {
-            color: #ffd700;
+            color: #000000;
             margin-bottom: 15px;
             font-size: 1.1em;
+        }
+
+        .viz-item p {
+            color: #000000;
+            font-size: 0.9em;
+            line-height: 1.4;
         }
 
         .viz-image {
@@ -277,180 +270,12 @@
             box-shadow: 0 2px 8px rgba(0,0,0,0.3);
         }
 
-        .viz-item p {
-            color: #ffffff;
-            font-size: 0.9em;
-            line-height: 1.4;
+        .viz-image:hover {
+            transform: scale(1.02);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.15);
         }
 
-        /* Enhanced styling for better visual appeal */
-        .main-container {
-            max-width: 1400px;
-            margin: 0 auto;
-            background: rgba(26, 26, 26, 0.98);
-            backdrop-filter: blur(15px);
-            border-radius: 25px;
-            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
-            overflow: hidden;
-            border: 1px solid #333;
-        }
 
-        .header {
-            text-align: center;
-            padding: 40px;
-            background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%);
-            color: #1a1a1a;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .header::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="25" cy="25" r="1" fill="white" opacity="0.1"/><circle cx="75" cy="75" r="1" fill="white" opacity="0.1"/><circle cx="50" cy="10" r="0.5" fill="white" opacity="0.1"/></pattern></defs><rect width="100" height="100" fill="url(%23grain)"/></svg>');
-            pointer-events: none;
-        }
-
-        .title {
-            font-size: 2.8em;
-            font-weight: 800;
-            margin-bottom: 15px;
-            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
-            position: relative;
-            z-index: 1;
-        }
-
-        .subtitle {
-            font-size: 1.3em;
-            opacity: 0.95;
-            font-weight: 300;
-            position: relative;
-            z-index: 1;
-        }
-
-        .tabs {
-            display: flex;
-            background: linear-gradient(90deg, #2d2d2d 0%, #1a1a1a 100%);
-            border-bottom: 2px solid #444;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-        }
-
-        .tab {
-            flex: 1;
-            padding: 25px;
-            text-align: center;
-            cursor: pointer;
-            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-            border: none;
-            background: transparent;
-            font-size: 1.2em;
-            font-weight: 600;
-            color: #cccccc;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .tab::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255, 215, 0, 0.1), transparent);
-            transition: left 0.5s;
-        }
-
-        .tab:hover::before {
-            left: 100%;
-        }
-
-        .tab.active {
-            background: #1a1a1a;
-            color: #ffd700;
-            border-bottom: 4px solid #ffd700;
-            box-shadow: 0 -2px 10px rgba(255, 215, 0, 0.1);
-        }
-
-        .tab:hover {
-            background: rgba(255, 215, 0, 0.05);
-            transform: translateY(-2px);
-            color: #ffd700;
-        }
-
-        .predict-button {
-            background: linear-gradient(45deg, #ffd700, #ffed4e);
-            color: #1a1a1a;
-            border: none;
-            padding: 22px 45px;
-            border-radius: 50px;
-            font-size: 1.4em;
-            font-weight: 700;
-            cursor: pointer;
-            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-            margin-bottom: 30px;
-            box-shadow: 0 6px 20px rgba(255, 215, 0, 0.3);
-            position: relative;
-            overflow: hidden;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-
-        .predict-button::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
-            transition: left 0.5s;
-        }
-
-        .predict-button:hover::before {
-            left: 100%;
-        }
-
-        .predict-button:hover {
-            transform: translateY(-4px) scale(1.02);
-            box-shadow: 0 8px 25px rgba(255, 215, 0, 0.5);
-            background: linear-gradient(45deg, #ffed4e, #ffd700);
-        }
-
-        .predict-button:active {
-            transform: translateY(-2px) scale(0.98);
-        }
-
-        .results {
-            display: none;
-            margin-top: 30px;
-            padding: 25px;
-            background: linear-gradient(135deg, rgba(255, 215, 0, 0.1) 0%, rgba(255, 215, 0, 0.05) 100%);
-            border-radius: 20px;
-            border-left: 6px solid #ffd700;
-            box-shadow: 0 4px 15px rgba(255, 215, 0, 0.1);
-            border: 1px solid #444;
-        }
-
-        .results.show {
-            display: block;
-            animation: slideIn 0.5s ease-out;
-        }
-
-        @keyframes slideIn {
-            from {
-                opacity: 0;
-                transform: translateY(20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
 
         .metric {
             display: flex;
@@ -512,13 +337,12 @@
         }
 
         .viz-item {
-            background: #333;
-            padding: 25px;
-            border-radius: 15px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            background: #ffffff;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
             text-align: center;
-            transition: all 0.3s ease;
-            border: 1px solid #444;
+            border: 1px solid #E5E7EB;
         }
 
         .viz-item:hover {
@@ -740,58 +564,58 @@
                     <div class="table-container" style="overflow-x: auto; margin-top: 20px; border: 2px solid #dee2e6; border-radius: 10px; max-height: 600px; overflow-y: auto;">
                         <table id="all-columns-table" style="width: 100%; border-collapse: collapse; font-size: 12px; min-width: 2000px;">
                             <thead>
-                                <tr style="background-color: #f8f9fa; border-bottom: 2px solid #dee2e6; position: sticky; top: 0; z-index: 10;">
+                                <tr style="background-color: #ffffff; border-bottom: 2px solid #000000; position: sticky; top: 0; z-index: 10;">
                                     <!-- Original Columns -->
-                                    <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6; background-color: #e3f2fd; font-weight: bold;">Transaction ID</th>
-                                    <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6; background-color: #e3f2fd; font-weight: bold;">Date</th>
-                                    <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6; background-color: #e3f2fd; font-weight: bold;">Amount</th>
-                                    <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6; background-color: #e3f2fd; font-weight: bold;">Quantity</th>
-                                    <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6; background-color: #e3f2fd; font-weight: bold;">Customer Age</th>
-                                    <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6; background-color: #e3f2fd; font-weight: bold;">Account Age</th>
-                                    <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6; background-color: #e3f2fd; font-weight: bold;">Payment Method</th>
-                                    <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6; background-color: #e3f2fd; font-weight: bold;">Product Category</th>
-                                    <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6; background-color: #e3f2fd; font-weight: bold;">Device Used</th>
-                                    <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6; background-color: #e3f2fd; font-weight: bold;">Customer Location</th>
-                                    <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6; background-color: #e3f2fd; font-weight: bold;">Hour</th>
-                                    <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6; background-color: #e3f2fd; font-weight: bold;">Is Fraudulent</th>
+                                    <th style="padding: 8px; text-align: left; border: 1px solid #000000; background-color: #ffffff; font-weight: bold;">Transaction ID</th>
+                                    <th style="padding: 8px; text-align: left; border: 1px solid #000000; background-color: #ffffff; font-weight: bold;">Date</th>
+                                    <th style="padding: 8px; text-align: left; border: 1px solid #000000; background-color: #ffffff; font-weight: bold;">Amount</th>
+                                    <th style="padding: 8px; text-align: left; border: 1px solid #000000; background-color: #ffffff; font-weight: bold;">Quantity</th>
+                                    <th style="padding: 8px; text-align: left; border: 1px solid #000000; background-color: #ffffff; font-weight: bold;">Customer Age</th>
+                                    <th style="padding: 8px; text-align: left; border: 1px solid #000000; background-color: #ffffff; font-weight: bold;">Account Age</th>
+                                    <th style="padding: 8px; text-align: left; border: 1px solid #000000; background-color: #ffffff; font-weight: bold;">Payment Method</th>
+                                    <th style="padding: 8px; text-align: left; border: 1px solid #000000; background-color: #ffffff; font-weight: bold;">Product Category</th>
+                                    <th style="padding: 8px; text-align: left; border: 1px solid #000000; background-color: #ffffff; font-weight: bold;">Device Used</th>
+                                    <th style="padding: 8px; text-align: left; border: 1px solid #000000; background-color: #ffffff; font-weight: bold;">Customer Location</th>
+                                    <th style="padding: 8px; text-align: left; border: 1px solid #000000; background-color: #ffffff; font-weight: bold;">Hour</th>
+                                    <th style="padding: 8px; text-align: left; border: 1px solid #000000; background-color: #ffffff; font-weight: bold;">Is Fraudulent</th>
                                     
                                     <!-- Engineered Features -->
-                                    <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6; background-color: #f3e5f5; font-weight: bold;">Amount Log</th>
-                                    <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6; background-color: #f3e5f5; font-weight: bold;">Amount Per Item</th>
-                                    <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6; background-color: #f3e5f5; font-weight: bold;">Payment Encoded</th>
-                                    <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6; background-color: #f3e5f5; font-weight: bold;">Product Encoded</th>
-                                    <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6; background-color: #f3e5f5; font-weight: bold;">Device Encoded</th>
-                                    <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6; background-color: #f3e5f5; font-weight: bold;">Late Night</th>
-                                    <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6; background-color: #f3e5f5; font-weight: bold;">Burst Transaction</th>
-                                    <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6; background-color: #f3e5f5; font-weight: bold;">Amount Per Age</th>
-                                    <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6; background-color: #f3e5f5; font-weight: bold;">Amount Per Account Age</th>
-                                    <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6; background-color: #f3e5f5; font-weight: bold;">Age Band</th>
-                                    <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6; background-color: #f3e5f5; font-weight: bold;">High Amount Flag</th>
-                                    <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6; background-color: #f3e5f5; font-weight: bold;">New Account Flag</th>
-                                    <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6; background-color: #f3e5f5; font-weight: bold;">Young Customer Flag</th>
-                                    <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6; background-color: #f3e5f5; font-weight: bold;">Late Night Flag</th>
-                                    <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6; background-color: #f3e5f5; font-weight: bold;">High Quantity Flag</th>
-                                    <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6; background-color: #f3e5f5; font-weight: bold;">Unusual Location Flag</th>
-                                    <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6; background-color: #f3e5f5; font-weight: bold;">Amount Age Interaction</th>
-                                    <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6; background-color: #f3e5f5; font-weight: bold;">Account Age Interaction</th>
-                                    <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6; background-color: #f3e5f5; font-weight: bold;">Fraud Risk Score</th>
-                                    <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6; background-color: #f3e5f5; font-weight: bold;">Rolling Avg Amount</th>
-                                    <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6; background-color: #f3e5f5; font-weight: bold;">Rolling Std Amount</th>
-                                    <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6; background-color: #f3e5f5; font-weight: bold;">Amount Rank</th>
-                                    <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6; background-color: #f3e5f5; font-weight: bold;">Account Age Rank</th>
-                                    <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6; background-color: #f3e5f5; font-weight: bold;">Amount × Hour</th>
-                                    <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6; background-color: #f3e5f5; font-weight: bold;">Amount Per Hour</th>
+                                    <th style="padding: 8px; text-align: left; border: 1px solid #000000; background-color: #ffffff; font-weight: bold;">Amount Log</th>
+                                    <th style="padding: 8px; text-align: left; border: 1px solid #000000; background-color: #ffffff; font-weight: bold;">Amount Per Item</th>
+                                    <th style="padding: 8px; text-align: left; border: 1px solid #000000; background-color: #ffffff; font-weight: bold;">Payment Encoded</th>
+                                    <th style="padding: 8px; text-align: left; border: 1px solid #000000; background-color: #ffffff; font-weight: bold;">Product Encoded</th>
+                                    <th style="padding: 8px; text-align: left; border: 1px solid #000000; background-color: #ffffff; font-weight: bold;">Device Encoded</th>
+                                    <th style="padding: 8px; text-align: left; border: 1px solid #000000; background-color: #ffffff; font-weight: bold;">Late Night</th>
+                                    <th style="padding: 8px; text-align: left; border: 1px solid #000000; background-color: #ffffff; font-weight: bold;">Burst Transaction</th>
+                                    <th style="padding: 8px; text-align: left; border: 1px solid #000000; background-color: #ffffff; font-weight: bold;">Amount Per Age</th>
+                                    <th style="padding: 8px; text-align: left; border: 1px solid #000000; background-color: #ffffff; font-weight: bold;">Amount Per Account Age</th>
+                                    <th style="padding: 8px; text-align: left; border: 1px solid #000000; background-color: #ffffff; font-weight: bold;">Age Band</th>
+                                    <th style="padding: 8px; text-align: left; border: 1px solid #000000; background-color: #ffffff; font-weight: bold;">High Amount Flag</th>
+                                    <th style="padding: 8px; text-align: left; border: 1px solid #000000; background-color: #ffffff; font-weight: bold;">New Account Flag</th>
+                                    <th style="padding: 8px; text-align: left; border: 1px solid #000000; background-color: #ffffff; font-weight: bold;">Young Customer Flag</th>
+                                    <th style="padding: 8px; text-align: left; border: 1px solid #000000; background-color: #ffffff; font-weight: bold;">Late Night Flag</th>
+                                    <th style="padding: 8px; text-align: left; border: 1px solid #000000; background-color: #ffffff; font-weight: bold;">High Quantity Flag</th>
+                                    <th style="padding: 8px; text-align: left; border: 1px solid #000000; background-color: #ffffff; font-weight: bold;">Unusual Location Flag</th>
+                                    <th style="padding: 8px; text-align: left; border: 1px solid #000000; background-color: #ffffff; font-weight: bold;">Amount Age Interaction</th>
+                                    <th style="padding: 8px; text-align: left; border: 1px solid #000000; background-color: #ffffff; font-weight: bold;">Account Age Interaction</th>
+                                    <th style="padding: 8px; text-align: left; border: 1px solid #000000; background-color: #ffffff; font-weight: bold;">Fraud Risk Score</th>
+                                    <th style="padding: 8px; text-align: left; border: 1px solid #000000; background-color: #ffffff; font-weight: bold;">Rolling Avg Amount</th>
+                                    <th style="padding: 8px; text-align: left; border: 1px solid #000000; background-color: #ffffff; font-weight: bold;">Rolling Std Amount</th>
+                                    <th style="padding: 8px; text-align: left; border: 1px solid #000000; background-color: #ffffff; font-weight: bold;">Amount Rank</th>
+                                    <th style="padding: 8px; text-align: left; border: 1px solid #000000; background-color: #ffffff; font-weight: bold;">Account Age Rank</th>
+                                    <th style="padding: 8px; text-align: left; border: 1px solid #000000; background-color: #ffffff; font-weight: bold;">Amount × Hour</th>
+                                    <th style="padding: 8px; text-align: left; border: 1px solid #000000; background-color: #ffffff; font-weight: bold;">Amount Per Hour</th>
                                     
                                     <!-- Model Predictions -->
-                                    <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6; background-color: #fff3e0; font-weight: bold;">Anomaly Score</th>
-                                    <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6; background-color: #fff3e0; font-weight: bold;">Autoencoder Flagged</th>
-                                    <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6; background-color: #fff3e0; font-weight: bold;">RF Prediction</th>
-                                    <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6; background-color: #fff3e0; font-weight: bold;">RF Probability</th>
-                                    <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6; background-color: #fff3e0; font-weight: bold;">Risk Level</th>
-                                    <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6; background-color: #fff3e0; font-weight: bold;">Review Priority</th>
+                                    <th style="padding: 8px; text-align: left; border: 1px solid #000000; background-color: #ffffff; font-weight: bold;">Anomaly Score</th>
+                                    <th style="padding: 8px; text-align: left; border: 1px solid #000000; background-color: #ffffff; font-weight: bold;">Autoencoder Flagged</th>
+                                    <th style="padding: 8px; text-align: left; border: 1px solid #000000; background-color: #ffffff; font-weight: bold;">RF Prediction</th>
+                                    <th style="padding: 8px; text-align: left; border: 1px solid #000000; background-color: #ffffff; font-weight: bold;">RF Probability</th>
+                                    <th style="padding: 8px; text-align: left; border: 1px solid #000000; background-color: #ffffff; font-weight: bold;">Risk Level</th>
+                                    <th style="padding: 8px; text-align: left; border: 1px solid #000000; background-color: #ffffff; font-weight: bold;">Review Priority</th>
                                     
                                     <!-- Feature Importance (hidden by default) -->
-                                    <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6; background-color: #e8f5e8; font-weight: bold; display: none;" id="feature-importance-header">Top Feature Importance</th>
+                                    <th style="padding: 8px; text-align: left; border: 1px solid #000000; background-color: #ffffff; font-weight: bold; display: none;" id="feature-importance-header">Top Feature Importance</th>
                                 </tr>
                             </thead>
                             <tbody id="all-columns-tbody">
@@ -895,8 +719,8 @@
                                 <h4>Feature Importance</h4>
                                 <img id="feature-importance" class="viz-image" />
                                 <p>Which transaction features contribute most to anomaly detection.</p>
-                                <div style="background: rgba(255,215,0,0.1); padding: 10px; border-radius: 5px; margin-top: 10px; border-left: 3px solid #ffd700; border: 1px solid #444;">
-                                    <p style="margin: 0; font-size: 14px; line-height: 1.4; color: #ffffff;">
+                                <div style="background: #ffffff; padding: 10px; border-radius: 5px; margin-top: 10px; border: 1px solid #000000;">
+                                    <p style="margin: 0; font-size: 14px; line-height: 1.4; color: #000000;">
                                         <strong>RF Explainer Insight:</strong> The Random Forest explainer reveals that two features contribute minimally to fraud detection. 
                                         These can be replaced with more effective features. This insight is crucial because the autoencoder is a "black box" - 
                                         without the RF explainer, we would never know which features are ineffective.
@@ -1319,14 +1143,14 @@
                         <td style="padding: 12px; border: 1px solid #dee2e6; font-weight: bold; color: ${transaction.anomaly_score > 0.8 ? '#dc3545' : transaction.anomaly_score > 0.5 ? '#ffc107' : '#28a745'};">${(transaction.anomaly_score * 100).toFixed(1)}%</td>
                         <td style="padding: 12px; border: 1px solid #dee2e6;">
                             <span style="padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; 
-                                background-color: ${transaction.risk_level === 'High' ? '#dc3545' : transaction.risk_level === 'Medium' ? '#ffc107' : '#28a745'}; 
-                                color: white;">
+                                background-color: #ffffff; 
+                                color: #000000;">
                                 ${transaction.risk_level}
                             </span>
                         </td>
                         <td style="padding: 12px; border: 1px solid #dee2e6; font-size: 12px; max-width: 200px;">${topFeatures}</td>
                         <td style="padding: 12px; border: 1px solid #dee2e6;">
-                            <button onclick="showFeatureDetails(${index})" style="padding: 4px 8px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;">
+                            <button onclick="showFeatureDetails(${index})" style="padding: 4px 8px; background-color: #ffffff; color: #000000; border: 1px solid #000000; border-radius: 4px; cursor: pointer; font-size: 12px;">
                                 View Details
                             </button>
                         </td>
@@ -1343,24 +1167,14 @@
                     const featureDiv = document.createElement('div');
                     featureDiv.style.cssText = `
                         padding: 15px;
-                        background: linear-gradient(135deg, rgba(255, 215, 0, 0.1) 0%, rgba(255, 215, 0, 0.05) 100%);
-                        border-radius: 10px;
-                        border: 2px solid #ffd700;
-                        box-shadow: 0 4px 15px rgba(255, 215, 0, 0.2);
-                        transition: all 0.3s ease;
+                        background: #ffffff;
+                        border-radius: 5px;
+                        border: 1px solid #000000;
                         text-align: center;
                     `;
-                    featureDiv.onmouseenter = function() {
-                        this.style.transform = 'translateY(-3px)';
-                        this.style.boxShadow = '0 6px 20px rgba(255, 215, 0, 0.3)';
-                    };
-                    featureDiv.onmouseleave = function() {
-                        this.style.transform = 'translateY(0)';
-                        this.style.boxShadow = '0 4px 15px rgba(255, 215, 0, 0.2)';
-                    };
                     featureDiv.innerHTML = `
-                        <div style="font-size: 1.1em; font-weight: 700; color: #ffd700; margin-bottom: 8px;">${feature.feature}</div>
-                        <div style="font-size: 1.2em; font-weight: 600; color: #ffffff; background: rgba(255, 215, 0, 0.2); padding: 5px 10px; border-radius: 5px; display: inline-block;">
+                        <div style="font-size: 1.1em; font-weight: 700; color: #000000; margin-bottom: 8px;">${feature.feature}</div>
+                        <div style="font-size: 1.2em; font-weight: 600; color: #000000; background: #ffffff; padding: 5px 10px; border-radius: 3px; display: inline-block; border: 1px solid #000000;">
                             ${(feature.importance * 100).toFixed(1)}% importance
                         </div>
                     `;
@@ -1405,7 +1219,7 @@
                         <div>
                             <h4 style="color: #495057;">Risk Assessment</h4>
                             <p><strong>Anomaly Score:</strong> ${(transaction.anomaly_score * 100).toFixed(1)}%</p>
-                            <p><strong>Risk Level:</strong> <span style="color: ${transaction.risk_level === 'High' ? '#dc3545' : transaction.risk_level === 'Medium' ? '#ffc107' : '#28a745'}; font-weight: bold;">${transaction.risk_level}</span></p>
+                            <p><strong>Risk Level:</strong> <span style="color: #000000; font-weight: bold;">${transaction.risk_level}</span></p>
                             <p><strong>Review Priority:</strong> ${transaction.review_priority}</p>
                             <p><strong>Autoencoder Flagged:</strong> ${transaction.autoencoder_flagged ? 'Yes' : 'No'}</p>
                             <p><strong>RF Prediction:</strong> ${transaction.rf_prediction ? 'Fraud' : 'Normal'}</p>
@@ -1417,11 +1231,11 @@
                     <div style="max-height: 400px; overflow-y: auto;">
                         <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
                             <thead>
-                                <tr style="background-color: #f8f9fa;">
-                                    <th style="padding: 10px; text-align: left; border: 1px solid #dee2e6;">Feature</th>
-                                    <th style="padding: 10px; text-align: left; border: 1px solid #dee2e6;">Importance</th>
-                                    <th style="padding: 10px; text-align: left; border: 1px solid #dee2e6;">Value</th>
-                                    <th style="padding: 10px; text-align: left; border: 1px solid #dee2e6;">Impact</th>
+                                <tr style="background-color: #ffffff;">
+                                    <th style="padding: 10px; text-align: left; border: 1px solid #000000;">Feature</th>
+                                    <th style="padding: 10px; text-align: left; border: 1px solid #000000;">Importance</th>
+                                    <th style="padding: 10px; text-align: left; border: 1px solid #000000;">Value</th>
+                                    <th style="padding: 10px; text-align: left; border: 1px solid #000000;">Impact</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -1434,14 +1248,14 @@
             sortedFeatures.forEach(([featureName, featureData]) => {
                 const importancePercent = (featureData.importance * 100).toFixed(1);
                 const impact = featureData.importance > 0.1 ? 'High' : featureData.importance > 0.05 ? 'Medium' : 'Low';
-                const impactColor = impact === 'High' ? '#dc3545' : impact === 'Medium' ? '#ffc107' : '#28a745';
+                const impactColor = '#000000';
                 
                 modalContent += `
                     <tr>
-                        <td style="padding: 10px; border: 1px solid #dee2e6; font-weight: bold;">${featureName}</td>
-                        <td style="padding: 10px; border: 1px solid #dee2e6;">${importancePercent}%</td>
-                        <td style="padding: 10px; border: 1px solid #dee2e6;">${featureData.value.toFixed(4)}</td>
-                        <td style="padding: 10px; border: 1px solid #dee2e6;">
+                        <td style="padding: 10px; border: 1px solid #000000; font-weight: bold;">${featureName}</td>
+                        <td style="padding: 10px; border: 1px solid #000000;">${importancePercent}%</td>
+                        <td style="padding: 10px; border: 1px solid #000000;">${featureData.value.toFixed(4)}</td>
+                        <td style="padding: 10px; border: 1px solid #000000;">
                             <span style="color: ${impactColor}; font-weight: bold;">${impact}</span>
                         </td>
                     </tr>
@@ -1454,7 +1268,7 @@
                     </div>
                     
                     <div style="text-align: center; margin-top: 20px;">
-                        <button onclick="closeModal()" style="padding: 10px 20px; background-color: #6c757d; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                        <button onclick="closeModal()" style="padding: 10px 20px; background-color: #ffffff; color: #000000; border: 1px solid #000000; border-radius: 5px; cursor: pointer;">
                             Close
                         </button>
                     </div>
@@ -1665,24 +1479,14 @@
                     const featureDiv = document.createElement('div');
                     featureDiv.style.cssText = `
                         padding: 15px;
-                        background: linear-gradient(135deg, rgba(255, 215, 0, 0.1) 0%, rgba(255, 215, 0, 0.05) 100%);
-                        border-radius: 10px;
-                        border: 2px solid #ffd700;
-                        box-shadow: 0 4px 15px rgba(255, 215, 0, 0.2);
-                        transition: all 0.3s ease;
+                        background: #ffffff;
+                        border-radius: 5px;
+                        border: 1px solid #000000;
                         text-align: center;
                     `;
-                    featureDiv.onmouseenter = function() {
-                        this.style.transform = 'translateY(-3px)';
-                        this.style.boxShadow = '0 6px 20px rgba(255, 215, 0, 0.3)';
-                    };
-                    featureDiv.onmouseleave = function() {
-                        this.style.transform = 'translateY(0)';
-                        this.style.boxShadow = '0 4px 15px rgba(255, 215, 0, 0.2)';
-                    };
                     featureDiv.innerHTML = `
-                        <div style="font-size: 1.1em; font-weight: 700; color: #ffd700; margin-bottom: 8px;">${feature.feature}</div>
-                        <div style="font-size: 1.2em; font-weight: 600; color: #ffffff; background: rgba(255, 215, 0, 0.2); padding: 5px 10px; border-radius: 5px; display: inline-block;">
+                        <div style="font-size: 1.1em; font-weight: 700; color: #000000; margin-bottom: 8px;">${feature.feature}</div>
+                        <div style="font-size: 1.2em; font-weight: 600; color: #000000; background: #ffffff; padding: 5px 10px; border-radius: 3px; display: inline-block; border: 1px solid #000000;">
                             ${(feature.importance * 100).toFixed(1)}% importance
                         </div>
                     `;

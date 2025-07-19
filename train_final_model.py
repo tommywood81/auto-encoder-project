@@ -45,7 +45,7 @@ def train_final_model():
     
     # Update with the actual best hyperparameters we found
     config['model']['learning_rate'] = 0.012  # Best from sweep
-    config['model']['threshold'] = 97  # Best from sweep
+    config['model']['threshold'] = 95  # Best from sweep (top 5% threshold)
     config['features']['strategy'] = "combined"  # Best feature strategy
     
     logger.info(f"Best hyperparameters:")

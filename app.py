@@ -146,7 +146,7 @@ def load_model():
         
         # Load the correct threshold from final_model_info.yaml
         model_info_path = os.path.join(config.data.models_dir, "final_model_info.yaml")
-        trained_threshold = 97.0  # Default to 97th percentile
+        trained_threshold = 95.0  # Default to 95th percentile (best performing model)
         
         if os.path.exists(model_info_path):
             try:
@@ -161,12 +161,12 @@ def load_model():
                     trained_threshold = float(model_info['threshold'])
                     logger.info(f"Loaded threshold from final_model_info.yaml: {trained_threshold}")
                 else:
-                    logger.warning("No threshold found in final_model_info.yaml, using default: 97.0")
+                    logger.warning("No threshold found in final_model_info.yaml, using default: 95.0")
             except Exception as e:
                 logger.warning(f"Could not load final_model_info.yaml: {e}")
-                logger.warning("Using default threshold: 97.0")
+                logger.warning("Using default threshold: 95.0")
         else:
-            logger.warning("final_model_info.yaml not found, using default threshold: 97.0")
+            logger.warning("final_model_info.yaml not found, using default threshold: 95.0")
         
         # Load scaler and threshold
         logger.info("Preparing test data and recreating scaler...")
@@ -1741,7 +1741,7 @@ async def generate_all_visualizations():
                 color='#DC143C', edgecolor='#8b0000', linewidth=0.5, density=True)
         
         # Add vertical line for threshold
-        threshold_score = np.percentile(normal_errors, 97)  # 97th percentile threshold
+        threshold_score = np.percentile(normal_errors, 95)  # 95th percentile threshold (top 5%)
         ax.axvline(x=threshold_score, color='#ffd700', linestyle='--', linewidth=2, 
                   label=f'Threshold ({threshold_score:.4f})')
         
