@@ -1038,15 +1038,15 @@ async def get_review_queue(date: str = None):
 def get_risk_level(anomaly_score):
     """Convert anomaly score to risk level"""
     if anomaly_score > 0.95:
-        return "Critical"
+        return "Critical"  # Top 5% most anomalous
     elif anomaly_score > 0.85:
-        return "High"
+        return "High"      # Top 15% most anomalous
     elif anomaly_score > 0.70:
-        return "Medium"
+        return "Medium"    # Top 30% most anomalous
     elif anomaly_score > 0.50:
-        return "Low"
+        return "Low"       # Top 50% most anomalous
     else:
-        return "Very Low"
+        return "Very Low"  # Bottom 50%
 
 @app.get("/api/risk-distribution")
 async def get_risk_distribution():
@@ -2565,6 +2565,7 @@ def calculate_anomaly_scores_and_threshold(scaled_features, threshold_percentile
     
     # Calculate normalized anomaly scores for display (0-1 range)
     # Higher scores = more anomalous = higher fraud probability
+    # Use 5th and 95th percentiles to match risk level expectations
     anomaly_scores = (mse - np.percentile(mse, 5)) / (np.percentile(mse, 95) - np.percentile(mse, 5))
     anomaly_scores = np.clip(anomaly_scores, 0, 1)
     
@@ -2616,16 +2617,17 @@ async def get_all_columns_transactions_fast(request: DateAnalysisRequest, page: 
         reconstructed = model.model.predict(scaled_features)
         mse_scores = np.mean(np.power(scaled_features - reconstructed, 2), axis=1)
         
-        # Calculate standardized anomaly scores (0-1 range) - less aggressive normalization
-        anomaly_scores = (mse_scores - np.percentile(mse_scores, 10)) / (np.percentile(mse_scores, 90) - np.percentile(mse_scores, 10))
+        # Calculate standardized anomaly scores (0-1 range) - match risk level expectations
+        # Use 5th and 95th percentiles so that 5% of transactions get "Critical" risk level
+        anomaly_scores = (mse_scores - np.percentile(mse_scores, 5)) / (np.percentile(mse_scores, 95) - np.percentile(mse_scores, 5))
         anomaly_scores = np.clip(anomaly_scores, 0, 1)
         
         # Apply threshold using raw MSE values
         threshold_score = np.percentile(mse_scores, threshold_value)
         flagged_by_autoencoder = mse_scores > threshold_score
         
-        # Get all transactions sorted by reconstruction error (highest MSE first)
-        all_indices = np.argsort(mse_scores)[::-1]
+        # Get all transactions sorted by date (earliest first)
+        all_indices = np.argsort(date_data['transaction_date'].values)
         
         # Calculate pagination
         start_idx = page * page_size
@@ -2662,7 +2664,7 @@ async def get_all_columns_transactions_fast(request: DateAnalysisRequest, page: 
             sorted_importance = sorted(transaction_importance.items(), key=lambda x: x[1], reverse=True)
             feature_importance_per_transaction.append(sorted_importance)
         
-        # Prepare all columns transaction data (current page of transactions sorted by reconstruction error)
+        # Prepare all columns transaction data (current page of transactions sorted by date)
         all_columns_transactions = []
         
         for idx, i in enumerate(page_indices):
@@ -2753,8 +2755,8 @@ async def get_all_columns_transactions_fast(request: DateAnalysisRequest, page: 
             
             all_columns_transactions.append(transaction_data)
         
-        # Sort by anomaly score (highest first)
-        all_columns_transactions.sort(key=lambda x: x['anomaly_score'], reverse=True)
+        # Transactions are already sorted by date (earliest first)
+        # No need to sort by anomaly score since we want chronological order
         
         # Calculate summary statistics for all transactions
         total_all_transactions = len(date_data)
