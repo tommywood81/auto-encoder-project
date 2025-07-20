@@ -1,0 +1,14 @@
+{
+  "total_transactions": 2000,
+  "fraud_rate": "6.50%",
+  "roc_auc": 0.7092245989304813,
+  "threshold_used": 0.5502399156934035,
+  "top_features": [
+    "new_account_flag",
+    "rolling_avg_amount_3",
+    "transaction_amount_robust_scaled",
+    "transaction_amount",
+    "amount_per_age"
+  ],
+  "generated_at": "2025-07-20T15:11:03.682005"
+}

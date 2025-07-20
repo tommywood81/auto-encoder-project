@@ -18,6 +18,8 @@ from pydantic import BaseModel
 from datetime import datetime, timedelta
 import json
 import random
+import pickle
+import hashlib
 
 # Add src to path
 sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
@@ -32,6 +34,10 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
+# Create cache directory
+CACHE_DIR = os.path.join(os.path.dirname(__file__), 'cache')
+os.makedirs(CACHE_DIR, exist_ok=True)
 
 # Initialize FastAPI app
 app = FastAPI(title="Fraud Detection Autoencoder API")
@@ -50,6 +56,50 @@ full_data = None
 data_dates = None
 
 # Global variables
+
+# Cache utility functions
+def get_cache_key(date: str, threshold: float, endpoint: str) -> str:
+    """Generate a unique cache key for a specific request."""
+    key_string = f"{date}_{threshold}_{endpoint}"
+    return hashlib.md5(key_string.encode()).hexdigest()
+
+def get_cache_path(cache_key: str, file_type: str = "pkl") -> str:
+    """Get the full path for a cache file."""
+    return os.path.join(CACHE_DIR, f"{cache_key}.{file_type}")
+
+def save_to_cache(cache_key: str, data: any) -> None:
+    """Save data to cache."""
+    try:
+        cache_path = get_cache_path(cache_key)
+        with open(cache_path, 'wb') as f:
+            pickle.dump(data, f)
+        logger.info(f"Saved cache: {cache_path}")
+    except Exception as e:
+        logger.error(f"Failed to save cache: {e}")
+
+def load_from_cache(cache_key: str) -> Optional[any]:
+    """Load data from cache if it exists."""
+    try:
+        cache_path = get_cache_path(cache_key)
+        if os.path.exists(cache_path):
+            with open(cache_path, 'rb') as f:
+                data = pickle.load(f)
+            logger.info(f"Loaded cache: {cache_path}")
+            return data
+        return None
+    except Exception as e:
+        logger.error(f"Failed to load cache: {e}")
+        return None
+
+def clear_cache() -> None:
+    """Clear all cache files."""
+    try:
+        for file in os.listdir(CACHE_DIR):
+            if file.endswith('.pkl'):
+                os.remove(os.path.join(CACHE_DIR, file))
+        logger.info("Cache cleared")
+    except Exception as e:
+        logger.error(f"Failed to clear cache: {e}")
 
 # Pydantic models for request/response
 class Features(BaseModel):
@@ -987,13 +1037,13 @@ async def get_review_queue(date: str = None):
 
 def get_risk_level(anomaly_score):
     """Convert anomaly score to risk level"""
-    if anomaly_score > 0.85:
+    if anomaly_score > 0.95:
         return "Critical"
-    elif anomaly_score > 0.70:
+    elif anomaly_score > 0.85:
         return "High"
-    elif anomaly_score > 0.50:
+    elif anomaly_score > 0.70:
         return "Medium"
-    elif anomaly_score > 0.30:
+    elif anomaly_score > 0.50:
         return "Low"
     else:
         return "Very Low"
@@ -1202,7 +1252,7 @@ async def predict_with_threshold(request: DateAnalysisRequest):
         raise HTTPException(status_code=503, detail="Model not loaded")
     
     try:
-        # Use provided threshold or default to the trained threshold from YAML
+        # Use provided threshold or default to the trained threshold
         threshold_value = request.threshold if request.threshold is not None else threshold
         
         # Filter data for the requested date
@@ -1231,24 +1281,24 @@ async def predict_with_threshold(request: DateAnalysisRequest):
         # Scale features
         scaled_features = scaler.transform(df_numeric)
         
-        # Get reconstruction errors
+        # Calculate reconstruction errors and anomaly scores
         reconstructed = model.model.predict(scaled_features)
-        mse = np.mean(np.power(scaled_features - reconstructed, 2), axis=1)
+        mse_scores = np.mean(np.power(scaled_features - reconstructed, 2), axis=1)
         
-        # Calculate anomaly scores (normalized)
-        anomaly_scores = (mse - np.percentile(mse, 5)) / (np.percentile(mse, 95) - np.percentile(mse, 5))
+        # Calculate standardized anomaly scores (0-1 range)
+        anomaly_scores = (mse_scores - np.percentile(mse_scores, 5)) / (np.percentile(mse_scores, 95) - np.percentile(mse_scores, 5))
         anomaly_scores = np.clip(anomaly_scores, 0, 1)
         
-        # Apply threshold (convert percentile to actual score)
-        threshold_score = np.percentile(anomaly_scores, threshold_value)
-        flagged_by_model = anomaly_scores > threshold_score
+        # Apply threshold using raw MSE values
+        threshold_score = np.percentile(mse_scores, threshold_value)
+        flagged_by_model = mse_scores > threshold_score
         
         # Debug logging
         logger.info(f"Threshold percentile: {threshold_value}")
-        logger.info(f"Threshold score: {threshold_score:.6f}")
-        logger.info(f"Anomaly scores range: {anomaly_scores.min():.6f} to {anomaly_scores.max():.6f}")
-        logger.info(f"Anomaly scores mean: {anomaly_scores.mean():.6f}")
-        logger.info(f"Number of scores above threshold: {np.sum(anomaly_scores > threshold_score)}")
+        logger.info(f"Raw MSE threshold score: {threshold_score:.6f}")
+        logger.info(f"Raw MSE range: {mse_scores.min():.6f} to {mse_scores.max():.6f}")
+        logger.info(f"Raw MSE mean: {mse_scores.mean():.6f}")
+        logger.info(f"Number of transactions above threshold: {np.sum(mse_scores > threshold_score)}")
         
         # Calculate basic metrics
         total_transactions = len(date_data)
@@ -1268,7 +1318,7 @@ async def predict_with_threshold(request: DateAnalysisRequest):
         logger.info(f"Prediction complete: {flagged_transactions} flagged, {not_flagged} not flagged")
         logger.info(f"Of {flagged_transactions} flagged: {flagged_actual_fraud} actual fraud, {flagged_false_alarms} false alarms")
         
-        return {
+        result = {
             "date": request.date,
             "threshold": threshold_value,
             "metrics": {
@@ -1281,6 +1331,8 @@ async def predict_with_threshold(request: DateAnalysisRequest):
                 "precision": precision
             }
         }
+        
+        return result
         
     except Exception as e:
         logger.error(f"Error in predict_with_threshold: {str(e)}")
@@ -2140,15 +2192,19 @@ async def get_visualization_metadata():
         raise HTTPException(status_code=500, detail=f"Failed to get metadata: {str(e)}")
 
 @app.post("/api/all-columns-transactions")
-async def get_all_columns_transactions(request: DateAnalysisRequest):
+async def get_all_columns_transactions(request: DateAnalysisRequest, page: int = 0, page_size: int = 100):
     """
     Get all actual columns from the data with fraud flags and feature importance.
     Shows complete transaction rows with all 36+ columns and Random Forest feature importance.
+    Uses caching to improve performance.
     """
     if model is None or scaler is None or rf_model is None:
         raise HTTPException(status_code=503, detail="Models not loaded")
     
     try:
+        # Use provided threshold or default to the trained threshold
+        threshold_value = request.threshold if request.threshold is not None else threshold
+        
         # Filter data for the requested date
         if request.date == "All Dates":
             date_data = full_data.copy()
@@ -2158,10 +2214,8 @@ async def get_all_columns_transactions(request: DateAnalysisRequest):
         if len(date_data) == 0:
             raise HTTPException(status_code=404, detail=f"No data found for date {request.date}")
         
-        # Limit to first 100 transactions to prevent timeouts
-        if len(date_data) > 100:
-            date_data = date_data.head(100).copy()
-            logger.info(f"Limited to first 100 transactions to prevent timeout")
+        # We'll process all transactions and then select top 100 by reconstruction error
+        logger.info(f"Processing all {len(date_data)} transactions to find top 100 by reconstruction error")
         
         logger.info(f"Analyzing {len(date_data)} transactions for all columns view")
         
@@ -2180,15 +2234,28 @@ async def get_all_columns_transactions(request: DateAnalysisRequest):
         # Scale features for autoencoder
         scaled_features = scaler.transform(df_numeric)
         
-        # Get autoencoder anomaly scores
+        # Calculate reconstruction errors for all transactions
         reconstructed = model.model.predict(scaled_features)
-        mse = np.mean(np.power(scaled_features - reconstructed, 2), axis=1)
-        anomaly_scores = (mse - np.percentile(mse, 5)) / (np.percentile(mse, 95) - np.percentile(mse, 5))
+        mse_scores = np.mean(np.power(scaled_features - reconstructed, 2), axis=1)
+        
+        # Calculate standardized anomaly scores (0-1 range)
+        anomaly_scores = (mse_scores - np.percentile(mse_scores, 5)) / (np.percentile(mse_scores, 95) - np.percentile(mse_scores, 5))
         anomaly_scores = np.clip(anomaly_scores, 0, 1)
         
-        # Apply threshold
-        threshold_score = np.percentile(anomaly_scores, threshold)
-        flagged_by_autoencoder = anomaly_scores > threshold_score
+        # Use provided threshold or default to the trained threshold
+        threshold_value = request.threshold if request.threshold is not None else threshold
+        
+        # Apply threshold using raw MSE values
+        threshold_score = np.percentile(mse_scores, threshold_value)
+        flagged_by_autoencoder = mse_scores > threshold_score
+        
+        # Get all transactions sorted by reconstruction error (highest MSE first)
+        all_indices = np.argsort(mse_scores)[::-1]
+        
+        # Calculate pagination
+        start_idx = page * page_size
+        end_idx = min(start_idx + page_size, len(all_indices))
+        page_indices = all_indices[start_idx:end_idx]
         
         # Get Random Forest predictions and feature importance
         rf_features_data = df_features.select_dtypes(include=[np.number])
@@ -2219,10 +2286,11 @@ async def get_all_columns_transactions(request: DateAnalysisRequest):
             sorted_importance = sorted(transaction_importance.items(), key=lambda x: x[1], reverse=True)
             feature_importance_per_transaction.append(sorted_importance)
         
-        # Prepare all columns transaction data
+        # Prepare all columns transaction data (current page of transactions sorted by reconstruction error)
         all_columns_transactions = []
         
-        for i, (_, transaction) in enumerate(date_data.iterrows()):
+        for idx, i in enumerate(page_indices):
+            transaction = date_data.iloc[i]
             # Get top 5 most important features for this transaction
             top_features = feature_importance_per_transaction[i][:5]
             
@@ -2281,6 +2349,7 @@ async def get_all_columns_transactions(request: DateAnalysisRequest):
                 "amount_per_hour": float(df_features.iloc[i].get('amount_per_hour', 0)),
                 
                 # Model predictions and scores
+                "mse_score": float(mse_scores[i]),
                 "anomaly_score": float(anomaly_scores[i]),
                 "autoencoder_flagged": bool(flagged_by_autoencoder[i]),
                 "rf_prediction": bool(rf_predictions[i]),
@@ -2311,29 +2380,62 @@ async def get_all_columns_transactions(request: DateAnalysisRequest):
         # Sort by anomaly score (highest first)
         all_columns_transactions.sort(key=lambda x: x['anomaly_score'], reverse=True)
         
-        # Calculate summary statistics
+        # Calculate summary statistics for all transactions
+        total_all_transactions = len(date_data)
+        flagged_all_transactions = sum(1 for i in range(len(date_data)) if flagged_by_autoencoder[i])
+        actual_fraud_all = sum(1 for i in range(len(date_data)) if actual_labels[i])
+        
+        # Summary for displayed transactions
         total_transactions = len(all_columns_transactions)
         flagged_transactions = sum(1 for t in all_columns_transactions if t['autoencoder_flagged'])
         actual_fraud = sum(1 for t in all_columns_transactions if t['is_fraudulent'])
         
+        # Calculate summary statistics for all transactions
+        total_all_transactions = len(date_data)
+        flagged_all_transactions = sum(1 for i in range(len(date_data)) if flagged_by_autoencoder[i])
+        actual_fraud_all = sum(1 for i in range(len(date_data)) if actual_labels[i])
+        
+        # Summary for displayed transactions
+        total_transactions = len(all_columns_transactions)
+        flagged_transactions = sum(1 for t in all_columns_transactions if t['autoencoder_flagged'])
+        actual_fraud = sum(1 for t in all_columns_transactions if t['is_fraudulent'])
+        
+        # Prepare feature importance summary
+        feature_importance_summary = {
+            "top_global_features": [
+                {"feature": feature, "importance": float(importance)}
+                for feature, importance in sorted(
+                    dict(zip(rf_feature_names, rf_model.feature_importances_)).items(),
+                    key=lambda x: x[1], reverse=True
+                )[:10]
+            ]
+        }
+        
+        # Return the requested page
+        start_idx = page * page_size
+        end_idx = min(start_idx + page_size, len(all_columns_transactions))
+        page_transactions = all_columns_transactions[start_idx:end_idx]
+        
         return {
             "date": request.date,
-            "summary": {
-                "total_transactions": total_transactions,
-                "flagged_transactions": flagged_transactions,
-                "actual_fraud": actual_fraud,
-                "threshold_score": float(threshold_score)
+            "threshold_used": threshold_value,
+            "pagination": {
+                "page": page,
+                "page_size": page_size,
+                "total_pages": (len(all_columns_transactions) + page_size - 1) // page_size,
+                "total_transactions": len(all_columns_transactions),
+                "has_next": end_idx < len(all_columns_transactions),
+                "has_prev": page > 0
             },
-            "transactions": all_columns_transactions,
-            "feature_importance_summary": {
-                "top_global_features": [
-                    {"feature": feature, "importance": float(importance)}
-                    for feature, importance in sorted(
-                        dict(zip(rf_feature_names, rf_model.feature_importances_)).items(),
-                        key=lambda x: x[1], reverse=True
-                    )[:10]
-                ]
-            }
+            "transactions": page_transactions,
+            "summary": {
+                "total_transactions": total_all_transactions,
+                "flagged_transactions": flagged_all_transactions,
+                "actual_fraud": actual_fraud_all,
+                "threshold_score": float(threshold_score),
+                "precision": (actual_fraud_all / flagged_all_transactions * 100) if flagged_all_transactions > 0 else 0
+            },
+            "feature_importance_summary": feature_importance_summary
         }
         
     except Exception as e:
@@ -2375,12 +2477,12 @@ async def clear_visualization_cache():
         ]
         
         removed_count = 0
-        for file_name in cache_files:
-            file_path = static_dir / file_name
+        for file in cache_files:
+            file_path = static_dir / file
             if file_path.exists():
                 file_path.unlink()
                 removed_count += 1
-                logger.info(f"Removed cached file: {file_name}")
+                logger.info(f"Removed cached file: {file}")
         
         logger.info(f"Cache cleared: {removed_count} files removed")
         
@@ -2396,6 +2498,405 @@ async def clear_visualization_cache():
             "success": False,
             "error": str(e)
         }
+
+@app.post("/api/clear-prediction-cache")
+async def clear_prediction_cache():
+    """Clear all cached prediction data to force regeneration."""
+    try:
+        clear_cache()
+        return {
+            "success": True,
+            "message": "Prediction cache cleared successfully"
+        }
+    except Exception as e:
+        logger.error(f"Error clearing prediction cache: {str(e)}")
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
+@app.get("/api/cache-status")
+async def get_cache_status():
+    """Get information about cached data."""
+    try:
+        cache_files = []
+        if os.path.exists(CACHE_DIR):
+            for file in os.listdir(CACHE_DIR):
+                if file.endswith('.pkl'):
+                    file_path = os.path.join(CACHE_DIR, file)
+                    file_size = os.path.getsize(file_path)
+                    cache_files.append({
+                        "file": file,
+                        "size_bytes": file_size,
+                        "size_mb": round(file_size / (1024 * 1024), 2)
+                    })
+        
+        return {
+            "cache_directory": CACHE_DIR,
+            "cache_files_count": len(cache_files),
+            "cache_files": cache_files,
+            "total_size_mb": round(sum(f["size_mb"] for f in cache_files), 2)
+        }
+    except Exception as e:
+        logger.error(f"Error getting cache status: {str(e)}")
+        return {
+            "error": str(e)
+        }
+
+def calculate_anomaly_scores_and_threshold(scaled_features, threshold_percentile):
+    """
+    Calculate anomaly scores and threshold consistently across all endpoints.
+    
+    Args:
+        scaled_features: Scaled feature matrix
+        threshold_percentile: Threshold percentile (e.g., 95 for 95th percentile)
+    
+    Returns:
+        tuple: (anomaly_scores, threshold_score, flagged_transactions)
+    """
+    # Get autoencoder reconstruction
+    reconstructed = model.model.predict(scaled_features)
+    
+    # Calculate Mean Squared Error (reconstruction error)
+    mse = np.mean(np.power(scaled_features - reconstructed, 2), axis=1)
+    
+    # Calculate threshold on raw MSE values (before normalization)
+    threshold_score = np.percentile(mse, threshold_percentile)
+    
+    # Calculate normalized anomaly scores for display (0-1 range)
+    # Higher scores = more anomalous = higher fraud probability
+    anomaly_scores = (mse - np.percentile(mse, 5)) / (np.percentile(mse, 95) - np.percentile(mse, 5))
+    anomaly_scores = np.clip(anomaly_scores, 0, 1)
+    
+    # Apply threshold using raw MSE values
+    flagged_transactions = mse > threshold_score
+    
+    return anomaly_scores, threshold_score, flagged_transactions
+
+@app.post("/api/all-columns-transactions-fast")
+async def get_all_columns_transactions_fast(request: DateAnalysisRequest, page: int = 0, page_size: int = 100):
+    """
+    Fast version of all-columns-transactions that only calculates feature importance for the current page.
+    This is much faster than the original endpoint.
+    """
+    if model is None or scaler is None or rf_model is None:
+        raise HTTPException(status_code=503, detail="Models not loaded")
+    
+    try:
+        # Use provided threshold or default to the trained threshold
+        threshold_value = request.threshold if request.threshold is not None else threshold
+        
+        # Filter data for the requested date
+        if request.date == "All Dates":
+            date_data = full_data.copy()
+        else:
+            date_data = full_data[full_data['date'] == request.date].copy()
+            
+        if len(date_data) == 0:
+            raise HTTPException(status_code=404, detail=f"No data found for date {request.date}")
+        
+        logger.info(f"Fast processing: Analyzing {len(date_data)} transactions for page {page}")
+        
+        # Engineer features
+        feature_engineer = FeatureFactory.create("combined")
+        df_features = feature_engineer.generate_features(date_data)
+        
+        # Get numeric features for autoencoder
+        df_numeric = df_features.select_dtypes(include=[np.number])
+        if 'is_fraudulent' in df_numeric.columns:
+            actual_labels = df_numeric['is_fraudulent'].values
+            df_numeric = df_numeric.drop(columns=['is_fraudulent'])
+        else:
+            actual_labels = np.zeros(len(df_numeric))
+        
+        # Scale features for autoencoder
+        scaled_features = scaler.transform(df_numeric)
+        
+        # Calculate reconstruction errors for all transactions
+        reconstructed = model.model.predict(scaled_features)
+        mse_scores = np.mean(np.power(scaled_features - reconstructed, 2), axis=1)
+        
+        # Calculate standardized anomaly scores (0-1 range) - less aggressive normalization
+        anomaly_scores = (mse_scores - np.percentile(mse_scores, 10)) / (np.percentile(mse_scores, 90) - np.percentile(mse_scores, 10))
+        anomaly_scores = np.clip(anomaly_scores, 0, 1)
+        
+        # Apply threshold using raw MSE values
+        threshold_score = np.percentile(mse_scores, threshold_value)
+        flagged_by_autoencoder = mse_scores > threshold_score
+        
+        # Get all transactions sorted by reconstruction error (highest MSE first)
+        all_indices = np.argsort(mse_scores)[::-1]
+        
+        # Calculate pagination
+        start_idx = page * page_size
+        end_idx = min(start_idx + page_size, len(all_indices))
+        page_indices = all_indices[start_idx:end_idx]
+        
+        # Get Random Forest predictions and feature importance
+        rf_features_data = df_features.select_dtypes(include=[np.number])
+        if 'is_fraudulent' in rf_features_data.columns:
+            rf_features_data = rf_features_data.drop(columns=['is_fraudulent'])
+        
+        # Get Random Forest predictions
+        rf_predictions = rf_model.predict(rf_features_data)
+        rf_probabilities = rf_model.predict_proba(rf_features_data)[:, 1]  # Probability of fraud
+        
+        # Calculate feature importance ONLY for the current page transactions (much faster!)
+        feature_importance_per_transaction = []
+        
+        for idx, i in enumerate(page_indices):
+            # Get feature importance for this specific transaction
+            transaction_importance = {}
+            transaction_features = rf_features_data.iloc[i].values
+            
+            # Use Random Forest's feature importances as base
+            base_importance = dict(zip(rf_feature_names, rf_model.feature_importances_))
+            
+            # Adjust importance based on feature values (higher values = more important for this transaction)
+            for feature_name, feature_value in zip(rf_feature_names, transaction_features):
+                # Normalize feature value and combine with base importance
+                normalized_value = abs(feature_value) / (rf_features_data[feature_name].max() + 1e-8)
+                transaction_importance[feature_name] = base_importance[feature_name] * (1 + normalized_value)
+            
+            # Sort by importance
+            sorted_importance = sorted(transaction_importance.items(), key=lambda x: x[1], reverse=True)
+            feature_importance_per_transaction.append(sorted_importance)
+        
+        # Prepare all columns transaction data (current page of transactions sorted by reconstruction error)
+        all_columns_transactions = []
+        
+        for idx, i in enumerate(page_indices):
+            transaction = date_data.iloc[i]
+            # Get top 5 most important features for this transaction
+            top_features = feature_importance_per_transaction[idx][:5]
+            
+            # Calculate risk level based on anomaly score
+            risk_level = get_risk_level(anomaly_scores[i])
+            
+            # Determine review priority
+            if anomaly_scores[i] > np.percentile(anomaly_scores, 95):
+                review_priority = "High"
+            elif anomaly_scores[i] > np.percentile(anomaly_scores, 85):
+                review_priority = "Medium"
+            else:
+                review_priority = "Low"
+            
+            # Create transaction data with all original columns
+            transaction_data = {
+                # Original columns from the data
+                "transaction_id": str(transaction.get('transaction_id', f"TXN_{i:06d}")),
+                "transaction_date": str(transaction.get('transaction_date', '')),
+                "transaction_amount": float(transaction.get('transaction_amount', 0)),
+                "quantity": int(transaction.get('quantity', 0)),
+                "customer_age": int(transaction.get('customer_age', 0)),
+                "account_age_days": int(transaction.get('account_age_days', 0)),
+                "payment_method": str(transaction.get('payment_method', 'Unknown')),
+                "product_category": str(transaction.get('product_category', 'Unknown')),
+                "device_used": str(transaction.get('device_used', 'Unknown')),
+                "customer_location": str(transaction.get('customer_location', 'Unknown')),
+                "transaction_hour": int(transaction.get('transaction_hour', 0)),
+                "is_fraudulent": bool(transaction.get('is_fraudulent', False)),
+                
+                # Engineered features (all 36+ columns)
+                "transaction_amount_log": float(df_features.iloc[i].get('transaction_amount_log', 0)),
+                "amount_per_item": float(df_features.iloc[i].get('amount_per_item', 0)),
+                "payment_method_encoded": int(df_features.iloc[i].get('payment_method_encoded', 0)),
+                "product_category_encoded": int(df_features.iloc[i].get('product_category_encoded', 0)),
+                "device_used_encoded": int(df_features.iloc[i].get('device_used_encoded', 0)),
+                "is_late_night": int(df_features.iloc[i].get('is_late_night', 0)),
+                "is_burst_transaction": int(df_features.iloc[i].get('is_burst_transaction', 0)),
+                "amount_per_age": float(df_features.iloc[i].get('amount_per_age', 0)),
+                "amount_per_account_age": float(df_features.iloc[i].get('amount_per_account_age', 0)),
+                "customer_age_band": int(df_features.iloc[i].get('customer_age_band', 0)),
+                "high_amount_flag": int(df_features.iloc[i].get('high_amount_flag', 0)),
+                "new_account_flag": int(df_features.iloc[i].get('new_account_flag', 0)),
+                "young_customer_flag": int(df_features.iloc[i].get('young_customer_flag', 0)),
+                "late_night_flag": int(df_features.iloc[i].get('late_night_flag', 0)),
+                "high_quantity_flag": int(df_features.iloc[i].get('high_quantity_flag', 0)),
+                "unusual_location_flag": int(df_features.iloc[i].get('unusual_location_flag', 0)),
+                "amount_age_interaction": int(df_features.iloc[i].get('amount_age_interaction', 0)),
+                "account_age_interaction": int(df_features.iloc[i].get('account_age_interaction', 0)),
+                "fraud_risk_score": int(df_features.iloc[i].get('fraud_risk_score', 0)),
+                "rolling_avg_amount_3": float(df_features.iloc[i].get('rolling_avg_amount_3', 0)),
+                "rolling_std_amount_3": float(df_features.iloc[i].get('rolling_std_amount_3', 0)),
+                "transaction_amount_rank": float(df_features.iloc[i].get('transaction_amount_rank', 0)),
+                "account_age_rank": float(df_features.iloc[i].get('account_age_rank', 0)),
+                "amount_x_hour": float(df_features.iloc[i].get('amount_x_hour', 0)),
+                "amount_per_hour": float(df_features.iloc[i].get('amount_per_hour', 0)),
+                
+                # Model predictions and scores
+                "mse_score": float(mse_scores[i]),
+                "anomaly_score": float(anomaly_scores[i]),
+                "autoencoder_flagged": bool(flagged_by_autoencoder[i]),
+                "rf_prediction": bool(rf_predictions[i]),
+                "rf_probability": float(rf_probabilities[i]),
+                "risk_level": risk_level,
+                "review_priority": review_priority,
+                
+                # Feature importance
+                "top_features": [
+                    {
+                        "feature": feature_name,
+                        "importance": float(importance),
+                        "value": float(rf_features_data.iloc[i][feature_name])
+                    }
+                    for feature_name, importance in top_features
+                ],
+                "all_features": {
+                    feature_name: {
+                        "importance": float(importance),
+                        "value": float(rf_features_data.iloc[i][feature_name])
+                    }
+                    for feature_name, importance in feature_importance_per_transaction[idx]
+                }
+            }
+            
+            all_columns_transactions.append(transaction_data)
+        
+        # Sort by anomaly score (highest first)
+        all_columns_transactions.sort(key=lambda x: x['anomaly_score'], reverse=True)
+        
+        # Calculate summary statistics for all transactions
+        total_all_transactions = len(date_data)
+        flagged_all_transactions = sum(1 for i in range(len(date_data)) if flagged_by_autoencoder[i])
+        actual_fraud_all = sum(1 for i in range(len(date_data)) if actual_labels[i])
+        
+        # Calculate actual fraud caught (true positives)
+        actual_fraud_caught = sum(1 for i in range(len(date_data)) if flagged_by_autoencoder[i] and actual_labels[i])
+        
+        # Summary for displayed transactions
+        total_transactions = len(all_columns_transactions)
+        flagged_transactions = sum(1 for t in all_columns_transactions if t['autoencoder_flagged'])
+        actual_fraud = sum(1 for t in all_columns_transactions if t['is_fraudulent'])
+        
+        # Prepare feature importance summary
+        feature_importance_summary = {
+            "top_global_features": [
+                {"feature": feature, "importance": float(importance)}
+                for feature, importance in sorted(
+                    dict(zip(rf_feature_names, rf_model.feature_importances_)).items(),
+                    key=lambda x: x[1], reverse=True
+                )[:10]
+            ]
+        }
+        
+        return {
+            "date": request.date,
+            "threshold_used": threshold_value,
+            "pagination": {
+                "page": page,
+                "page_size": page_size,
+                "total_pages": (len(all_indices) + page_size - 1) // page_size,
+                "total_transactions": len(all_indices),
+                "has_next": end_idx < len(all_indices),
+                "has_prev": page > 0
+            },
+            "transactions": all_columns_transactions,
+            "summary": {
+                "total_transactions": total_all_transactions,
+                "flagged_transactions": flagged_all_transactions,
+                "actual_fraud": actual_fraud_caught,
+                "threshold_score": float(threshold_score),
+                "precision": (actual_fraud_caught / flagged_all_transactions * 100) if flagged_all_transactions > 0 else 0
+            },
+            "feature_importance_summary": feature_importance_summary
+        }
+        
+    except Exception as e:
+        logger.error(f"Error in get_all_columns_transactions_fast: {str(e)}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"Failed to get all columns transactions: {str(e)}")
+
+@app.post("/api/predict-fast")
+async def predict_fast(request: DateAnalysisRequest):
+    """
+    Fast prediction endpoint that uses a sample of transactions for quick results.
+    This is much faster than the full prediction endpoint.
+    """
+    if model is None or scaler is None:
+        raise HTTPException(status_code=503, detail="Model not loaded")
+    
+    try:
+        # Use provided threshold or default to the trained threshold from YAML
+        threshold_value = request.threshold if request.threshold is not None else threshold
+        
+        # Filter data for the requested date
+        if request.date == "All Dates":
+            date_data = full_data
+        else:
+            date_data = full_data[full_data['transaction_date'] == request.date]
+        
+        # Use a sample of transactions for faster processing (e.g., 1000 transactions)
+        sample_size = min(1000, len(date_data))
+        if len(date_data) > sample_size:
+            date_data = date_data.sample(n=sample_size, random_state=42)
+        
+        logger.info(f"Fast prediction on {len(date_data)} transactions (sample) with threshold {threshold_value}")
+        
+        # Generate features for the sample
+        feature_factory = FeatureFactory(date_data)
+        features = feature_factory.generate_combined_features()
+        
+        # Scale features
+        scaled_features = scaler.transform(features)
+        
+        # Get reconstruction errors
+        reconstructed = model.predict(scaled_features)
+        mse_scores = np.mean((scaled_features - reconstructed) ** 2, axis=1)
+        
+        # Calculate threshold score
+        threshold_score = np.percentile(mse_scores, threshold_value)
+        
+        # Flag transactions
+        flagged_mask = mse_scores > threshold_score
+        flagged_count = np.sum(flagged_mask)
+        not_flagged_count = len(mse_scores) - flagged_count
+        
+        # Calculate actual fraud for flagged transactions
+        flagged_indices = np.where(flagged_mask)[0]
+        actual_fraud_count = 0
+        if len(flagged_indices) > 0:
+            flagged_data = date_data.iloc[flagged_indices]
+            actual_fraud_count = np.sum(flagged_data['is_fraud'] == 1)
+        
+        false_alarms_count = flagged_count - actual_fraud_count
+        precision = (actual_fraud_count / flagged_count * 100) if flagged_count > 0 else 0
+        
+        # Scale up the results to estimate full dataset performance
+        scale_factor = len(full_data) / len(date_data)
+        estimated_total = int(len(full_data))
+        estimated_flagged = int(flagged_count * scale_factor)
+        estimated_not_flagged = estimated_total - estimated_flagged
+        estimated_actual_fraud = int(actual_fraud_count * scale_factor)
+        estimated_false_alarms = estimated_flagged - estimated_actual_fraud
+        
+        logger.info(f"Fast prediction complete: {flagged_count} flagged, {not_flagged_count} not flagged (sample)")
+        logger.info(f"Of {flagged_count} flagged: {actual_fraud_count} actual fraud, {false_alarms_count} false alarms")
+        logger.info(f"Estimated full dataset: {estimated_flagged} flagged out of {estimated_total}")
+        
+        return {
+            "date": request.date,
+            "threshold_used": threshold_value,
+            "threshold_score": float(threshold_score),
+            "metrics": {
+                "total_transactions": estimated_total,
+                "flagged_transactions": estimated_flagged,
+                "not_flagged": estimated_not_flagged,
+                "flagged_actual_fraud": estimated_actual_fraud,
+                "flagged_false_alarms": estimated_false_alarms,
+                "precision": precision
+            },
+            "sample_info": {
+                "sample_size": len(date_data),
+                "scale_factor": scale_factor,
+                "is_estimate": True
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"Error in fast prediction: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Prediction error: {str(e)}")
 
 if __name__ == "__main__":
     import uvicorn
