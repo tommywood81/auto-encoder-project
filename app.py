@@ -17,9 +17,6 @@ from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 from datetime import datetime, timedelta
 import json
-import random
-import pickle
-import hashlib
 
 # Add src to path
 sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
@@ -66,31 +63,31 @@ class DateAnalysisRequest(BaseModel):
     date: str
     threshold: Optional[float] = None
 
-# Cache utility functions
-def get_cache_key(date: str, threshold: float, endpoint: str) -> str:
-    """Generate a unique cache key for a specific request."""
-    key_string = f"{date}_{threshold}_{endpoint}"
-    return hashlib.md5(key_string.encode()).hexdigest()
+# Remove cache utility functions and related code
+# def get_cache_key(date: str, threshold: float, endpoint: str) -> str:
+#     """Generate a unique cache key for a specific request."""
+#     key_string = f"{date}_{threshold}_{endpoint}"
+#     return hashlib.md5(key_string.encode()).hexdigest()
 
-def save_cache(key: str, data: dict):
-    """Save data to cache."""
-    cache_file = os.path.join(CACHE_DIR, f"{key}.pkl")
-    with open(cache_file, 'wb') as f:
-        pickle.dump(data, f)
+# def save_cache(key: str, data: dict):
+#     """Save data to cache."""
+#     cache_file = os.path.join(CACHE_DIR, f"{key}.pkl")
+#     with open(cache_file, 'wb') as f:
+#         pickle.dump(data, f)
 
-def load_cache(key: str) -> Optional[dict]:
-    """Load data from cache."""
-    cache_file = os.path.join(CACHE_DIR, f"{key}.pkl")
-    if os.path.exists(cache_file):
-        with open(cache_file, 'rb') as f:
-            return pickle.load(f)
-    return None
+# def load_cache(key: str) -> Optional[dict]:
+#     """Load data from cache."""
+#     cache_file = os.path.join(CACHE_DIR, f"{key}.pkl")
+#     if os.path.exists(cache_file):
+#         with open(cache_file, 'rb') as f:
+#             return pickle.load(f)
+#     return None
 
-def clear_cache():
-    """Clear all cache files."""
-    for file in os.listdir(CACHE_DIR):
-        if file.endswith('.pkl'):
-            os.remove(os.path.join(CACHE_DIR, file))
+# def clear_cache():
+#     """Clear all cache files."""
+#     for file in os.listdir(CACHE_DIR):
+#         if file.endswith('.pkl'):
+#             os.remove(os.path.join(CACHE_DIR, file))
 
 def get_risk_level(anomaly_score):
     """Convert anomaly score to risk level"""
@@ -276,21 +273,6 @@ async def predict_with_threshold(request: DateAnalysisRequest):
         
         # Calculate precision
         precision = (actual_fraud_caught / flagged_transactions * 100) if flagged_transactions > 0 else 0
-        
-        # Cache the results
-        cache_key = get_cache_key(request.date, threshold_value, "predict")
-        cache_data = {
-            "total_transactions": total_transactions,
-            "flagged_transactions": flagged_transactions,
-            "actual_fraud": actual_fraud_caught,
-            "precision": precision,
-            "threshold_score": float(threshold_score),
-            "anomaly_scores": anomaly_scores.tolist(),
-            "flagged_by_autoencoder": flagged_by_autoencoder.tolist(),
-            "actual_labels": actual_labels.tolist(),
-            "date_data": date_data.to_dict('records')
-        }
-        save_cache(cache_key, cache_data)
         
         return {
             "total_transactions": total_transactions,

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Test runner for fraud detection system using real data.
+Test runner for fraud detection system
 """
 
 import unittest
