@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Autoencoder Fraud Detection Demo</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔍</text></svg>">
-    <script src="https://cdn.plot.ly/plotly-2.32.0.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -26,7 +25,6 @@
             margin: 0 auto;
             background: #ffffff;
             border-radius: 10px;
-            overflow: hidden;
             border: 1px solid #000000;
         }
 
@@ -48,42 +46,9 @@
             opacity: 0.9;
         }
 
-        .tabs {
-            display: flex;
-            background: #ffffff;
-            border-bottom: 1px solid #000000;
-        }
-
-        .tab {
-            flex: 1;
-            padding: 20px;
-            text-align: center;
-            cursor: pointer;
-            border: none;
-            background: transparent;
-            font-size: 1.1em;
-            font-weight: 600;
-            color: #000000;
-        }
-
-        .tab.active {
-            background: #ffffff;
-            color: #000000;
-            border-bottom: 3px solid #000000;
-        }
-
-        .tab:hover {
-            background: #ffffff;
-            color: #000000;
-        }
-
-        .tab-content {
-            display: none;
+        .content {
             padding: 40px;
-        }
-
-        .tab-content.active {
-            display: block;
+            text-align: center;
         }
 
         .predict-button {
@@ -97,23 +62,11 @@
             cursor: pointer;
             margin-bottom: 30px;
             text-transform: uppercase;
+            transition: background-color 0.3s ease;
         }
 
         .predict-button:hover {
             background: #333333;
-        }
-
-        .results {
-            display: none;
-            margin-top: 30px;
-            padding: 20px;
-            background: #ffffff;
-            border-radius: 5px;
-            border: 1px solid #000000;
-        }
-
-        .results.show {
-            display: block;
         }
 
         .loading {
@@ -155,52 +108,54 @@
             display: block;
         }
 
-        .result-row {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
-            margin-top: 20px;
-        }
-
-        .result-card {
-            background: #ffffff;
-            padding: 20px;
-            border-radius: 8px;
-            border: 1px solid #000000;
-            text-align: center;
-        }
-
-        .result-card h3 {
-            margin-bottom: 10px;
-            color: #000000;
-        }
-
-        .result-value {
-            font-size: 1.5em;
-            font-weight: bold;
-            color: #000000;
-        }
-
-        .visualization-container {
-            margin-top: 30px;
-            text-align: center;
-        }
-
-        .plot-container {
-            width: 100%;
-            height: 600px;
-            margin: 20px 0;
-        }
-
-        .no-visualization {
+        .results {
             display: none;
-            text-align: center;
-            padding: 40px;
-            color: #000000;
+            margin-top: 30px;
+            text-align: left;
         }
 
-        .no-visualization.show {
-            display: block;
+        .table-container {
+            margin-top: 20px;
+            border: 1px solid #000000;
+            border-radius: 5px;
+            overflow: auto;
+            max-height: 400px;
+            max-width: 100%;
+        }
+
+        .transaction-table {
+            width: 100%;
+            min-width: 600px;
+            border-collapse: collapse;
+        }
+
+        .transaction-table th,
+        .transaction-table td {
+            padding: 12px;
+            text-align: left;
+            border: 1px solid #000000;
+            white-space: nowrap;
+            min-width: 120px;
+        }
+
+        .transaction-table th {
+            background-color: #f8f9fa;
+            font-weight: bold;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .transaction-table tr:nth-child(even) {
+            background-color: #f8f9fa;
+        }
+
+        .transaction-table tr:nth-child(odd) {
+            background-color: #ffffff;
+        }
+
+        .transaction-table tr:hover {
+            background-color: #e9ecef;
         }
     </style>
 </head>
@@ -208,120 +163,41 @@
     <div class="main-container">
         <div class="header">
             <h1 class="title">Autoencoder Fraud Detection</h1>
-            <p class="subtitle">Unsupervised anomaly detection for fraud prevention</p>
+            <p class="subtitle">Transaction Analysis</p>
         </div>
 
-        <div class="tabs">
-            <button class="tab active" onclick="switchTab('business')">Business Use</button>
-            <button class="tab" onclick="switchTab('datascience')">Data Science</button>
-        </div>
-
-        <!-- Business Use Tab -->
-        <div id="business-tab" class="tab-content active">
-            <div style="text-align: center;">
-                <div class="info-box" style="margin-bottom: 30px;">
-                    <h3>Fraud Detection Analysis</h3>
-                    <p>Click the button below to analyze the first transaction and view the prediction results.</p>
-                </div>
-                
-                <button class="predict-button" onclick="runPrediction()">
-                    Analyze Transaction
-                </button>
-                
-                <div class="loading" id="loading">
-                    <div class="spinner"></div>
-                    <p>Analyzing transaction...</p>
-                </div>
-                
-                <div class="error" id="error">
-                    <p id="error-message">An error occurred while processing the request.</p>
-                </div>
-                
-                <div class="results" id="results">
-                    <h3>Transaction Analysis Result</h3>
-                    
-                    <!-- Prediction Results -->
-                    <div class="result-row" style="margin-bottom: 30px;">
-                        <div class="result-card">
-                            <h3>Anomaly Score</h3>
-                            <div class="result-value" id="anomaly-score">-</div>
-                        </div>
-                        <div class="result-card">
-                            <h3>Actual Label</h3>
-                            <div class="result-value" id="actual-label">-</div>
-                        </div>
-                    </div>
-                    
-                    <!-- Transaction Details Table -->
-                    <div style="margin-top: 30px;">
-                        <h3>Transaction Details</h3>
-                        <div style="overflow-x: auto; margin-top: 20px; border: 1px solid #000000; border-radius: 5px;">
-                            <table id="transaction-table" style="width: 100%; border-collapse: collapse; font-size: 14px;">
-                                <thead>
-                                    <tr style="background-color: #f8f9fa; border-bottom: 2px solid #000000;">
-                                        <th style="padding: 12px; text-align: left; border: 1px solid #000000; font-weight: bold;">Field</th>
-                                        <th style="padding: 12px; text-align: left; border: 1px solid #000000; font-weight: bold;">Value</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="transaction-tbody">
-                                    <!-- Transaction data will be populated here -->
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
+        <div class="content">
+            <button class="predict-button" onclick="runPrediction()">
+                Analyze Transaction
+            </button>
+            
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <p>Analyzing transaction...</p>
             </div>
-        </div>
-
-        <!-- Data Science Tab -->
-        <div id="datascience-tab" class="tab-content">
-            <div class="no-visualization" id="no-visualization">
-                <h3>No Visualization Available</h3>
-                <p>Please run a prediction from the Business Use tab first to generate the 3D latent space visualisation.</p>
+            
+            <div class="error" id="error">
+                <p id="error-message">An error occurred while processing the request.</p>
             </div>
-
-            <div class="visualization-container" id="visualization-container">
-                <div class="viz-section">
-                    <h3>Interactive 3D Latent Space Visualisation</h3>
-                    <div class="viz-item">
-                        <h4>3D Latent Space Visualisation</h4>
-                        <div class="info-box" style="margin-bottom: 20px;">
-                            <h5>Interactive Controls:</h5>
-                            <ul>
-                                <li><strong>Rotate:</strong> Click and drag to rotate the 3D plot</li>
-                                <li><strong>Zoom:</strong> Use mouse wheel to zoom in/out</li>
-                                <li><strong>Pan:</strong> Right-click and drag to pan around</li>
-                                <li><strong>Reset:</strong> Double-click to reset the view</li>
-                            </ul>
-                        </div>
-                        <div id="plot-3d" class="plot-container" style="height: 600px; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.1);"></div>
-                    </div>
+            
+            <div class="results" id="results">
+                <h3>Transaction Data</h3>
+                <div class="table-container">
+                    <table class="transaction-table" id="transaction-table">
+                        <thead>
+                            <tr id="header-row">
+                            </tr>
+                        </thead>
+                        <tbody id="transaction-tbody">
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
     </div>
 
     <script>
-        function switchTab(tabName) {
-            // Hide all tab contents
-            document.querySelectorAll('.tab-content').forEach(content => {
-                content.classList.remove('active');
-            });
-            
-            // Remove active class from all tabs
-            document.querySelectorAll('.tab').forEach(tab => {
-                tab.classList.remove('active');
-            });
-            
-            // Show selected tab content
-            document.getElementById(tabName + '-tab').classList.add('active');
-            
-            // Add active class to clicked tab
-            event.target.classList.add('active');
-        }
-
         async function runPrediction() {
-            // Show loading
             document.getElementById('loading').classList.add('show');
             document.getElementById('results').style.display = 'none';
             document.getElementById('error').classList.remove('show');
@@ -340,33 +216,32 @@
                 
                 const data = await response.json();
                 
-                // Update results
-                document.getElementById('anomaly-score').textContent = data.anomaly_score.toFixed(4);
-                document.getElementById('actual-label').textContent = data.actual_label === 1 ? 'Fraudulent' : 'Normal';
+                const headerRow = document.getElementById('header-row');
+                const tbody = document.getElementById('transaction-tbody');
                 
-                // Populate transaction details table
-                const transactionTbody = document.getElementById('transaction-tbody');
-                transactionTbody.innerHTML = ''; // Clear previous data
-                for (const key in data.transaction_data) {
-                    const row = document.createElement('tr');
-                    const fieldCell = document.createElement('td');
-                    fieldCell.textContent = key;
-                    fieldCell.style.padding = '12px';
-                    fieldCell.style.border = '1px solid #000000';
-                    fieldCell.style.fontWeight = 'bold';
-                    fieldCell.style.backgroundColor = '#f8f9fa';
-                    fieldCell.style.borderBottom = '2px solid #000000';
-                    row.appendChild(fieldCell);
-
-                    const valueCell = document.createElement('td');
-                    valueCell.textContent = data.transaction_data[key];
-                    valueCell.style.padding = '12px';
-                    valueCell.style.border = '1px solid #000000';
-                    row.appendChild(valueCell);
-                    transactionTbody.appendChild(row);
-                }
+                // Clear previous data
+                headerRow.innerHTML = '';
+                tbody.innerHTML = '';
                 
-                // Show results
+                // Get column names
+                const columns = Object.keys(data.transaction_data);
+                
+                // Create header row
+                columns.forEach(column => {
+                    const th = document.createElement('th');
+                    th.textContent = column;
+                    headerRow.appendChild(th);
+                });
+                
+                // Create data row
+                const dataRow = document.createElement('tr');
+                columns.forEach(column => {
+                    const td = document.createElement('td');
+                    td.textContent = data.transaction_data[column];
+                    dataRow.appendChild(td);
+                });
+                tbody.appendChild(dataRow);
+                
                 document.getElementById('results').style.display = 'block';
                 
             } catch (error) {
@@ -374,7 +249,6 @@
                 document.getElementById('error-message').textContent = `Error: ${error.message}`;
                 document.getElementById('error').classList.add('show');
             } finally {
-                // Hide loading
                 document.getElementById('loading').classList.remove('show');
             }
         }

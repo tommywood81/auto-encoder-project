@@ -27,12 +27,11 @@ DATA_PATH = os.path.join(CONFIG.data.cleaned_dir, "ecommerce_cleaned.csv")
 model = None
 scaler = None
 test_features = None
-test_labels = None
 original_data = None
 
 @app.on_event("startup")
 def load_everything():
-    global model, scaler, test_features, test_labels, original_data
+    global model, scaler, test_features, original_data
     # Load model
     model = tf.keras.models.load_model(MODEL_PATH, compile=False)
     # Load scaler
@@ -44,10 +43,7 @@ def load_everything():
     df_features = feature_engineer.generate_features(df)
     df_numeric = df_features.select_dtypes(include=[np.number])
     if 'is_fraudulent' in df_numeric.columns:
-        test_labels = df_numeric['is_fraudulent'].values
         df_numeric = df_numeric.drop(columns=['is_fraudulent'])
-    else:
-        test_labels = np.zeros(len(df_numeric))
     test_features = scaler.transform(df_numeric)
 
 @app.get("/", response_class=HTMLResponse)
@@ -63,15 +59,8 @@ def predict_first_row():
     if model is None or scaler is None or test_features is None or original_data is None:
         raise HTTPException(status_code=503, detail="Model or data not loaded")
     
-    # Predict reconstruction for the first row
-    x = test_features[0:1]
-    reconstructed = model.predict(x)
-    mse = float(np.mean(np.square(x - reconstructed)))
-    
-    # Combine original data with prediction results
+    # Return only the transaction data
     result = {
-        "transaction_data": original_data,
-        "anomaly_score": mse,
-        "actual_label": int(test_labels[0]) if test_labels is not None else None
+        "transaction_data": original_data
     }
     return JSONResponse(result) 
