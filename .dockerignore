@@ -29,6 +29,7 @@ data/engineered/
 
 # Exclude unnecessary model files
 models/*.pkl
+!models/final_model_scaler.pkl
 models/*.joblib
 !models/*.h5
 !models/*.pth
