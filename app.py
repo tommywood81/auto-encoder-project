@@ -32,10 +32,11 @@ test_features = None
 original_data = None
 model_metrics = None
 threshold = None
+all_predictions = None
 
 @app.on_event("startup")
 def load_everything():
-    global model, scaler, test_features, original_data, model_metrics, threshold
+    global model, scaler, test_features, original_data, model_metrics, threshold, all_predictions
     # Load model
     model = tf.keras.models.load_model(MODEL_PATH, compile=False)
     # Load scaler
@@ -45,7 +46,7 @@ def load_everything():
         model_metrics = yaml.safe_load(file)
     # Load and process test data
     df = pd.read_csv(DATA_PATH)
-    original_data = df.iloc[0:1].to_dict('records')[0]  # Store first row
+    original_data = df.to_dict('records')  # Store all rows
     feature_engineer = FeatureFactory.create("combined")
     df_features = feature_engineer.generate_features(df)
     df_numeric = df_features.select_dtypes(include=[np.number])
@@ -60,8 +61,12 @@ def load_everything():
     all_mse = np.mean(np.square(test_features - all_reconstructions), axis=1)
     threshold = np.percentile(all_mse, threshold_percentile)
     
+    # Pre-calculate all predictions
+    all_predictions = all_mse > threshold
+    
     print(f"Model loaded successfully with {len(test_features)} transactions available for prediction")
     print(f"Threshold set at: {threshold:.4f} ({threshold_percentile}th percentile)")
+    print(f"Total transactions flagged as fraud: {np.sum(all_predictions)}")
 
 @app.get("/", response_class=HTMLResponse)
 def read_root():
@@ -72,29 +77,31 @@ def health_check():
     return {"status": "healthy"}
 
 @app.post("/predict")
-def predict_first_row():
-    if model is None or scaler is None or test_features is None or original_data is None or model_metrics is None or threshold is None:
+def predict_test_set():
+    if model is None or scaler is None or test_features is None or original_data is None or model_metrics is None or threshold is None or all_predictions is None:
         raise HTTPException(status_code=503, detail="Model or data not loaded")
     
     try:
-        # Make prediction using the loaded model
-        # Get reconstruction error (anomaly score) for the first transaction
-        reconstructions = model.predict(test_features[0:1], verbose=0)
-        mse_score = np.mean(np.square(test_features[0:1] - reconstructions), axis=1)[0]
+        # Get all reconstruction errors (anomaly scores)
+        all_reconstructions = model.predict(test_features, verbose=0)
+        all_mse_scores = np.mean(np.square(test_features - all_reconstructions), axis=1)
         
-        # Determine if it's flagged as fraud based on the model's threshold
-        # The 95th percentile threshold is already baked into the model during training
-        is_flagged = mse_score > threshold
+        # Add fraud prediction column to each transaction
+        transactions_with_predictions = []
+        for i, transaction in enumerate(original_data):
+            transaction_copy = transaction.copy()
+            transaction_copy['AE_Predicts_Fraud'] = bool(all_predictions[i])
+            transaction_copy['Anomaly_Score'] = float(all_mse_scores[i])
+            transactions_with_predictions.append(transaction_copy)
+        
+        # Calculate dataset statistics
+        total_transactions = len(original_data)
+        flagged_as_fraud = np.sum(all_predictions)
+        fraud_percentage = (flagged_as_fraud / total_transactions) * 100
         
         # Add prediction results to the response
         result = {
-            "transaction_data": original_data,
-            "prediction": {
-                "anomaly_score": float(mse_score),
-                "threshold": float(threshold),
-                "is_flagged": bool(is_flagged),
-                "fraud_probability": float(min(mse_score / threshold, 2.0))  # Normalized score
-            },
+            "transaction_data": transactions_with_predictions,
             "model_performance": {
                 "roc_auc": float(model_metrics.get('roc_auc', 0)),
                 "accuracy": float(model_metrics.get('accuracy', 0)),
@@ -105,7 +112,11 @@ def predict_first_row():
                 "model_type": model_metrics.get('model_type', 'Unknown'),
                 "feature_strategy": model_metrics.get('feature_strategy', 'Unknown'),
                 "latent_dim": int(model_metrics.get('latent_dim', 0)),
-                "threshold_percentile": int(model_metrics.get('threshold_percentile', 0))
+                "threshold_percentile": int(model_metrics.get('threshold_percentile', 0)),
+                "total_transactions": total_transactions,
+                "flagged_as_fraud": int(flagged_as_fraud),
+                "fraud_percentage": float(fraud_percentage),
+                "model_threshold": float(threshold)
             }
         }
         

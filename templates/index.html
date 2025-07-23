@@ -215,12 +215,12 @@
 
         <div class="content">
             <button class="predict-button" onclick="runPrediction()">
-                Analyze Transaction
+                Analyze All Transactions
             </button>
             
             <div class="loading" id="loading">
                 <div class="spinner"></div>
-                <p>Analyzing transaction...</p>
+                <p>Analyzing transactions...</p>
             </div>
             
             <div class="error" id="error">
@@ -267,23 +267,21 @@
                             <span class="label">Training Date:</span>
                             <span class="value" id="training-date">-</span>
                         </div>
-                    </div>
-                </div>
-                
-                <div class="prediction-result" id="prediction-result" style="display: none;">
-                    <h3>Transaction Analysis Result</h3>
-                    <div class="prediction-card">
                         <div class="prediction-item">
-                            <span class="label">Anomaly Score:</span>
-                            <span class="value" id="anomaly-score">-</span>
+                            <span class="label">Total Transactions:</span>
+                            <span class="value" id="total-transactions">-</span>
+                        </div>
+                        <div class="prediction-item">
+                            <span class="label">Flagged as Fraud:</span>
+                            <span class="value" id="flagged-as-fraud">-</span>
+                        </div>
+                        <div class="prediction-item">
+                            <span class="label">Fraud Percentage:</span>
+                            <span class="value" id="fraud-percentage">-</span>
                         </div>
                         <div class="prediction-item">
                             <span class="label">Model Threshold:</span>
-                            <span class="value" id="threshold">-</span>
-                        </div>
-                        <div class="prediction-item">
-                            <span class="label">Fraud Prediction:</span>
-                            <span class="value" id="fraud-prediction">-</span>
+                            <span class="value" id="model-threshold">-</span>
                         </div>
                     </div>
                 </div>
@@ -330,8 +328,8 @@
                 headerRow.innerHTML = '';
                 tbody.innerHTML = '';
                 
-                // Get column names
-                const columns = Object.keys(data.transaction_data);
+                // Get column names from the first transaction
+                const columns = Object.keys(data.transaction_data[0]);
                 
                 // Create header row
                 columns.forEach(column => {
@@ -340,14 +338,32 @@
                     headerRow.appendChild(th);
                 });
                 
-                // Create data row
-                const dataRow = document.createElement('tr');
-                columns.forEach(column => {
-                    const td = document.createElement('td');
-                    td.textContent = data.transaction_data[column];
-                    dataRow.appendChild(td);
+                // Create data rows for all transactions
+                data.transaction_data.forEach(transaction => {
+                    const dataRow = document.createElement('tr');
+                    columns.forEach(column => {
+                        const td = document.createElement('td');
+                        const value = transaction[column];
+                        
+                        // Special formatting for fraud prediction
+                        if (column === 'AE_Predicts_Fraud') {
+                            if (value === true) {
+                                td.textContent = '🚨 FRAUD';
+                                td.className = 'fraud-flagged';
+                            } else {
+                                td.textContent = '✅ SAFE';
+                                td.className = 'fraud-safe';
+                            }
+                        } else if (column === 'Anomaly_Score') {
+                            td.textContent = parseFloat(value).toFixed(4);
+                        } else {
+                            td.textContent = value;
+                        }
+                        
+                        dataRow.appendChild(td);
+                    });
+                    tbody.appendChild(dataRow);
                 });
-                tbody.appendChild(dataRow);
                 
                 // Display model performance statistics
                 if (data.model_performance) {
@@ -360,24 +376,12 @@
                     document.getElementById('feature-strategy').textContent = data.model_performance.feature_strategy;
                     document.getElementById('latent-dim').textContent = data.model_performance.latent_dim;
                     document.getElementById('training-date').textContent = data.model_performance.training_date;
+                    document.getElementById('total-transactions').textContent = data.model_performance.total_transactions.toLocaleString();
+                    document.getElementById('flagged-as-fraud').textContent = data.model_performance.flagged_as_fraud.toLocaleString();
+                    document.getElementById('fraud-percentage').textContent = data.model_performance.fraud_percentage.toFixed(1) + '%';
+                    document.getElementById('model-threshold').textContent = data.model_performance.model_threshold.toFixed(4);
                     
                     document.getElementById('prediction-summary').style.display = 'block';
-                }
-                
-                // Display prediction result
-                if (data.prediction) {
-                    document.getElementById('anomaly-score').textContent = data.prediction.anomaly_score.toFixed(4);
-                    document.getElementById('threshold').textContent = data.prediction.threshold.toFixed(4);
-                    
-                    const fraudPredictionElement = document.getElementById('fraud-prediction');
-                    if (data.prediction.is_flagged) {
-                        fraudPredictionElement.textContent = '🚨 FRAUD DETECTED';
-                        fraudPredictionElement.className = 'value fraud-flagged';
-                    } else {
-                        fraudPredictionElement.textContent = '✅ SAFE TRANSACTION';
-                        fraudPredictionElement.className = 'value fraud-safe';
-                    }
-                    document.getElementById('prediction-result').style.display = 'block';
                 }
                 
                 document.getElementById('results').style.display = 'block';
