@@ -157,6 +157,53 @@
         .transaction-table tr:hover {
             background-color: #e9ecef;
         }
+
+        .prediction-summary {
+            margin-bottom: 30px;
+            text-align: left;
+        }
+
+        .prediction-card {
+            background: #f8f9fa;
+            border: 1px solid #000000;
+            border-radius: 5px;
+            padding: 20px;
+            margin-top: 15px;
+        }
+
+        .prediction-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            padding: 8px 0;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .prediction-item:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+        }
+
+        .prediction-item .label {
+            font-weight: bold;
+            color: #000000;
+        }
+
+        .prediction-item .value {
+            font-weight: 600;
+            color: #000000;
+        }
+
+        .fraud-flagged {
+            color: #dc3545 !important;
+            font-weight: 700;
+        }
+
+        .fraud-safe {
+            color: #28a745 !important;
+            font-weight: 700;
+        }
     </style>
 </head>
 <body>
@@ -181,6 +228,28 @@
             </div>
             
             <div class="results" id="results">
+                <div class="prediction-summary" id="prediction-summary" style="display: none;">
+                    <h3>Fraud Detection Results</h3>
+                    <div class="prediction-card">
+                        <div class="prediction-item">
+                            <span class="label">Anomaly Score:</span>
+                            <span class="value" id="anomaly-score">-</span>
+                        </div>
+                        <div class="prediction-item">
+                            <span class="label">Threshold:</span>
+                            <span class="value" id="threshold">-</span>
+                        </div>
+                        <div class="prediction-item">
+                            <span class="label">Fraud Probability:</span>
+                            <span class="value" id="fraud-probability">-</span>
+                        </div>
+                        <div class="prediction-item">
+                            <span class="label">Status:</span>
+                            <span class="value" id="fraud-status">-</span>
+                        </div>
+                    </div>
+                </div>
+                
                 <h3>Transaction Data</h3>
                 <div class="table-container">
                     <table class="transaction-table" id="transaction-table">
@@ -241,6 +310,24 @@
                     dataRow.appendChild(td);
                 });
                 tbody.appendChild(dataRow);
+                
+                // Display prediction results
+                if (data.prediction) {
+                    document.getElementById('anomaly-score').textContent = data.prediction.anomaly_score.toFixed(4);
+                    document.getElementById('threshold').textContent = data.prediction.threshold.toFixed(4);
+                    document.getElementById('fraud-probability').textContent = (data.prediction.fraud_probability * 100).toFixed(1) + '%';
+                    
+                    const statusElement = document.getElementById('fraud-status');
+                    if (data.prediction.is_flagged) {
+                        statusElement.textContent = '🚨 FRAUD FLAGGED';
+                        statusElement.className = 'value fraud-flagged';
+                    } else {
+                        statusElement.textContent = '✅ SAFE';
+                        statusElement.className = 'value fraud-safe';
+                    }
+                    
+                    document.getElementById('prediction-summary').style.display = 'block';
+                }
                 
                 document.getElementById('results').style.display = 'block';
                 
