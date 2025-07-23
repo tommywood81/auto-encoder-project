@@ -229,23 +229,61 @@
             
             <div class="results" id="results">
                 <div class="prediction-summary" id="prediction-summary" style="display: none;">
-                    <h3>Fraud Detection Results</h3>
+                    <h3>Model Performance Statistics</h3>
+                    <div class="prediction-card">
+                        <div class="prediction-item">
+                            <span class="label">ROC-AUC Score:</span>
+                            <span class="value" id="roc-auc">-</span>
+                        </div>
+                        <div class="prediction-item">
+                            <span class="label">Accuracy:</span>
+                            <span class="value" id="accuracy">-</span>
+                        </div>
+                        <div class="prediction-item">
+                            <span class="label">Precision:</span>
+                            <span class="value" id="precision">-</span>
+                        </div>
+                        <div class="prediction-item">
+                            <span class="label">Recall:</span>
+                            <span class="value" id="recall">-</span>
+                        </div>
+                        <div class="prediction-item">
+                            <span class="label">F1 Score:</span>
+                            <span class="value" id="f1-score">-</span>
+                        </div>
+                        <div class="prediction-item">
+                            <span class="label">Model Type:</span>
+                            <span class="value" id="model-type">-</span>
+                        </div>
+                        <div class="prediction-item">
+                            <span class="label">Feature Strategy:</span>
+                            <span class="value" id="feature-strategy">-</span>
+                        </div>
+                        <div class="prediction-item">
+                            <span class="label">Latent Dimensions:</span>
+                            <span class="value" id="latent-dim">-</span>
+                        </div>
+                        <div class="prediction-item">
+                            <span class="label">Training Date:</span>
+                            <span class="value" id="training-date">-</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="prediction-result" id="prediction-result" style="display: none;">
+                    <h3>Transaction Analysis Result</h3>
                     <div class="prediction-card">
                         <div class="prediction-item">
                             <span class="label">Anomaly Score:</span>
                             <span class="value" id="anomaly-score">-</span>
                         </div>
                         <div class="prediction-item">
-                            <span class="label">Threshold:</span>
+                            <span class="label">Model Threshold:</span>
                             <span class="value" id="threshold">-</span>
                         </div>
                         <div class="prediction-item">
-                            <span class="label">Fraud Probability:</span>
-                            <span class="value" id="fraud-probability">-</span>
-                        </div>
-                        <div class="prediction-item">
-                            <span class="label">Status:</span>
-                            <span class="value" id="fraud-status">-</span>
+                            <span class="label">Fraud Prediction:</span>
+                            <span class="value" id="fraud-prediction">-</span>
                         </div>
                     </div>
                 </div>
@@ -311,22 +349,35 @@
                 });
                 tbody.appendChild(dataRow);
                 
-                // Display prediction results
+                // Display model performance statistics
+                if (data.model_performance) {
+                    document.getElementById('roc-auc').textContent = (data.model_performance.roc_auc * 100).toFixed(1) + '%';
+                    document.getElementById('accuracy').textContent = (data.model_performance.accuracy * 100).toFixed(1) + '%';
+                    document.getElementById('precision').textContent = (data.model_performance.precision * 100).toFixed(1) + '%';
+                    document.getElementById('recall').textContent = (data.model_performance.recall * 100).toFixed(1) + '%';
+                    document.getElementById('f1-score').textContent = (data.model_performance.f1_score * 100).toFixed(1) + '%';
+                    document.getElementById('model-type').textContent = data.model_performance.model_type;
+                    document.getElementById('feature-strategy').textContent = data.model_performance.feature_strategy;
+                    document.getElementById('latent-dim').textContent = data.model_performance.latent_dim;
+                    document.getElementById('training-date').textContent = data.model_performance.training_date;
+                    
+                    document.getElementById('prediction-summary').style.display = 'block';
+                }
+                
+                // Display prediction result
                 if (data.prediction) {
                     document.getElementById('anomaly-score').textContent = data.prediction.anomaly_score.toFixed(4);
                     document.getElementById('threshold').textContent = data.prediction.threshold.toFixed(4);
-                    document.getElementById('fraud-probability').textContent = (data.prediction.fraud_probability * 100).toFixed(1) + '%';
                     
-                    const statusElement = document.getElementById('fraud-status');
+                    const fraudPredictionElement = document.getElementById('fraud-prediction');
                     if (data.prediction.is_flagged) {
-                        statusElement.textContent = '🚨 FRAUD FLAGGED';
-                        statusElement.className = 'value fraud-flagged';
+                        fraudPredictionElement.textContent = '🚨 FRAUD DETECTED';
+                        fraudPredictionElement.className = 'value fraud-flagged';
                     } else {
-                        statusElement.textContent = '✅ SAFE';
-                        statusElement.className = 'value fraud-safe';
+                        fraudPredictionElement.textContent = '✅ SAFE TRANSACTION';
+                        fraudPredictionElement.className = 'value fraud-safe';
                     }
-                    
-                    document.getElementById('prediction-summary').style.display = 'block';
+                    document.getElementById('prediction-result').style.display = 'block';
                 }
                 
                 document.getElementById('results').style.display = 'block';
