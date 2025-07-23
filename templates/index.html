@@ -195,15 +195,7 @@
             color: #000000;
         }
 
-        .fraud-flagged {
-            color: #dc3545 !important;
-            font-weight: 700;
-        }
 
-        .fraud-safe {
-            color: #28a745 !important;
-            font-weight: 700;
-        }
     </style>
 </head>
 <body>
@@ -338,22 +330,21 @@
                     headerRow.appendChild(th);
                 });
                 
+                // Sort transactions by anomaly score (highest to lowest)
+                const sortedTransactions = data.transaction_data.sort((a, b) => {
+                    return parseFloat(b.Anomaly_Score) - parseFloat(a.Anomaly_Score);
+                });
+                
                 // Create data rows for all transactions
-                data.transaction_data.forEach(transaction => {
+                sortedTransactions.forEach(transaction => {
                     const dataRow = document.createElement('tr');
                     columns.forEach(column => {
                         const td = document.createElement('td');
                         const value = transaction[column];
                         
-                        // Special formatting for fraud prediction
+                        // Special formatting for fraud prediction (no emojis or colors)
                         if (column === 'AE_Predicts_Fraud') {
-                            if (value === true) {
-                                td.textContent = '🚨 FRAUD';
-                                td.className = 'fraud-flagged';
-                            } else {
-                                td.textContent = '✅ SAFE';
-                                td.className = 'fraud-safe';
-                            }
+                            td.textContent = value === true ? 'FRAUD' : 'SAFE';
                         } else if (column === 'Anomaly_Score') {
                             td.textContent = parseFloat(value).toFixed(4);
                         } else {
