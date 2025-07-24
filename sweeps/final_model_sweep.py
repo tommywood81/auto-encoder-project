@@ -13,6 +13,9 @@ import sys
 import time
 import logging
 import numpy as np
+import pickle
+import pandas as pd
+from sklearn.metrics import roc_auc_score, precision_score, recall_score, f1_score, accuracy_score, confusion_matrix
 from typing import Dict, List, Tuple, Optional, Any
 from pathlib import Path
 from datetime import datetime
@@ -84,7 +87,6 @@ def train_model_with_config(config: Dict, entity: Optional[str] = None, run_name
             if not data_path.exists():
                 raise FileNotFoundError(f"Cleaned data not found: {data_path}")
             
-            import pandas as pd
             df = pd.read_csv(data_path)
             logger.info(f"Data loaded successfully. Shape: {df.shape}")
             
@@ -132,8 +134,6 @@ def train_model_with_config(config: Dict, entity: Optional[str] = None, run_name
             logger.info(f"Training history length: {len(history.history['loss'])} epochs")
             
             # Evaluate model
-            from sklearn.metrics import roc_auc_score, precision_score, recall_score, confusion_matrix
-            
             logger.info(f"Starting model evaluation...")
             
             # Get predictions using autoencoder's built-in methods
@@ -239,7 +239,6 @@ def train_model_with_config_no_wandb(config: Dict) -> Tuple[bool, float, Dict, A
         if not data_path.exists():
             raise FileNotFoundError(f"Cleaned data not found: {data_path}")
         
-        import pandas as pd
         df = pd.read_csv(data_path)
         logger.info(f"Data loaded successfully. Shape: {df.shape}")
         
@@ -276,8 +275,6 @@ def train_model_with_config_no_wandb(config: Dict) -> Tuple[bool, float, Dict, A
         logger.info(f"Training completed. Final loss: {final_loss:.6f}")
         
         # Evaluate model
-        from sklearn.metrics import roc_auc_score, precision_score, recall_score, f1_score, accuracy_score
-        
         logger.info(f"Starting model evaluation...")
         
         # Get predictions using autoencoder's built-in methods
@@ -506,13 +503,31 @@ def run_final_sweep(entity: Optional[str] = None):
         logger.info(f"Best ROC AUC: {best_roc_auc:.4f}")
         
         # Save best configuration
-        config_loader.update_config("final_optimized_config", {"model": best_config['model']})
-        print(f"\nBest configuration saved to configs/final_optimized_config.yaml")
+        config_loader = ConfigLoader(config_dir="configs")
+        config_path = Path("configs/final_optimized_config.yaml")
+        model_info_path = Path("models/final_model_info.yaml")
+        previous_roc_auc = None
+        if model_info_path.exists():
+            with open(model_info_path, 'r') as f:
+                model_info = yaml.safe_load(f)
+                previous_roc_auc = model_info.get('roc_auc', None)
+        if previous_roc_auc is None and config_path.exists():
+            with open(config_path, 'r') as f:
+                config_yaml = yaml.safe_load(f)
+                previous_roc_auc = config_yaml.get('roc_auc', None)
+        if previous_roc_auc is not None:
+            print(f"Previous best ROC AUC: {previous_roc_auc}")
+            print(f"New best ROC AUC: {best_roc_auc}")
+        if previous_roc_auc is None or best_roc_auc > previous_roc_auc:
+            config_loader.save_config(best_config, "final_optimized_config")
+            print("\nBest config saved to configs/final_optimized_config.yaml.")
+            print("Run run_pipeline.py --config configs/final_optimized_config.yaml to reproduce the production model.")
+        else:
+            print("\nBest config NOT updated because the new ROC AUC is not better than the previous best.")
         
         # Check if we have a better model than the existing final model
         current_final_roc_auc = 0.0
         try:
-            import yaml
             final_model_info_path = Path("models/final_model_info.yaml")
             if final_model_info_path.exists():
                 with open(final_model_info_path, 'r') as f:
@@ -540,7 +555,6 @@ def run_final_sweep(entity: Optional[str] = None):
                 
                 # Save the scaler
                 scaler_path = models_dir / "final_model_scaler.pkl"
-                import pickle
                 with open(scaler_path, 'wb') as f:
                     pickle.dump(best_autoencoder.scaler, f)
                 logger.info(f"Final scaler saved to: {scaler_path}")
@@ -553,10 +567,10 @@ def run_final_sweep(entity: Optional[str] = None):
                     
                     # Performance metrics
                     'roc_auc': float(best_roc_auc),
-                    'precision': float(metrics.get('precision', 0.0)),
-                    'recall': float(metrics.get('recall', 0.0)),
-                    'f1_score': float(metrics.get('f1_score', 0.0)),
-                    'accuracy': float(metrics.get('accuracy', 0.0)),
+                    'precision': float(best_params.get('precision', 0.0)),
+                    'recall': float(best_params.get('recall', 0.0)),
+                    'f1_score': float(best_params.get('f1_score', 0.0)),
+                    'accuracy': float(best_params.get('accuracy', 0.0)),
                     
                     # Model architecture
                     'latent_dim': best_config['model']['latent_dim'],
@@ -608,7 +622,6 @@ def run_final_sweep(entity: Optional[str] = None):
                 }
                 
                 model_info_path = models_dir / "final_model_info.yaml"
-                import yaml
                 with open(model_info_path, 'w') as f:
                     yaml.dump(model_info, f, default_flow_style=False)
                 logger.info(f"Final model info saved to: {model_info_path}")
@@ -623,8 +636,8 @@ def run_final_sweep(entity: Optional[str] = None):
                 logger.info("Logging final model details to W&B group: final-model-details")
                 try:
                     with wandb.init(
-                        project=config['wandb']['project'],
-                        entity=config['wandb'].get('entity'),
+                        project=best_config['wandb']['project'],
+                        entity=best_config['wandb'].get('entity'),
                         group="final-model-details",
                         name=f"final-model-{best_roc_auc:.4f}",
                         tags=["final_model", "production_ready"],
