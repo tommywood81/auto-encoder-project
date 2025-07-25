@@ -142,13 +142,92 @@ def generate_graph_2_reconstruction_error_histogram(anomaly_scores_df):
 def generate_graph_3_autoencoder_architecture(model):
     """Graph 3: Autoencoder Architecture Diagram"""
     try:
-        from tensorflow.keras.utils import plot_model
-        plot_path = os.path.join(STATIC_DIR, '03_autoencoder_architecture.png')
-        plot_model(model, to_file=plot_path, show_shapes=True, show_layer_names=True, 
-                  dpi=120, rankdir='TB')
+        # Create a simple architecture diagram using matplotlib
+        fig, ax = plt.subplots(1, 1, figsize=(12, 8))
+        
+        # Get model layers
+        layers = model.layers
+        layer_names = []
+        layer_sizes = []
+        
+        for layer in layers:
+            if hasattr(layer, 'units'):
+                layer_names.append(f"{layer.name}\n({layer.units})")
+                layer_sizes.append(layer.units)
+            elif hasattr(layer, 'filters'):
+                layer_names.append(f"{layer.name}\n({layer.filters})")
+                layer_sizes.append(layer.filters)
+            else:
+                layer_names.append(layer.name)
+                layer_sizes.append(100)  # Default size for non-parametric layers
+        
+        # Create a simple flow diagram
+        y_positions = np.linspace(0.1, 0.9, len(layer_names))
+        
+        # Draw boxes for each layer
+        for i, (name, size) in enumerate(zip(layer_names, layer_sizes)):
+            # Normalize size for visualization
+            width = 0.15
+            height = 0.08
+            
+            # Color based on layer type
+            if 'input' in name.lower():
+                color = 'lightblue'
+            elif 'output' in name.lower():
+                color = 'lightgreen'
+            elif 'dense' in name.lower():
+                color = 'lightcoral'
+            else:
+                color = 'lightgray'
+            
+            # Draw rectangle
+            rect = plt.Rectangle((0.4 - width/2, y_positions[i] - height/2), 
+                               width, height, facecolor=color, edgecolor='black', linewidth=2)
+            ax.add_patch(rect)
+            
+            # Add text
+            ax.text(0.4, y_positions[i], name, ha='center', va='center', 
+                   fontsize=10, fontweight='bold')
+            
+            # Draw arrows between layers
+            if i < len(layer_names) - 1:
+                ax.arrow(0.4, y_positions[i] - height/2, 
+                        0, y_positions[i+1] - y_positions[i] - height, 
+                        head_width=0.02, head_length=0.02, fc='black', ec='black')
+        
+        # Add title and labels
+        ax.set_title('Autoencoder Architecture', fontsize=16, fontweight='bold')
+        ax.set_xlim(0, 1)
+        ax.set_ylim(0, 1)
+        ax.axis('off')
+        
+        # Add legend
+        legend_elements = [
+            plt.Rectangle((0, 0), 1, 1, facecolor='lightblue', label='Input Layer'),
+            plt.Rectangle((0, 0), 1, 1, facecolor='lightcoral', label='Hidden Layers'),
+            plt.Rectangle((0, 0), 1, 1, facecolor='lightgreen', label='Output Layer')
+        ]
+        ax.legend(handles=legend_elements, loc='upper right', bbox_to_anchor=(0.98, 0.98))
+        
+        plt.tight_layout()
+        save_figure(fig, '03_autoencoder_architecture.png')
         logger.info("Generated autoencoder architecture diagram")
+        
     except Exception as e:
         logger.error(f"Could not generate architecture diagram: {e}")
+        # Create a simple text-based diagram as fallback
+        try:
+            fig, ax = plt.subplots(1, 1, figsize=(10, 6))
+            ax.text(0.5, 0.5, 'Autoencoder Architecture\n\nInput Layer → Hidden Layers → Latent Space → Hidden Layers → Output Layer\n\n(Architecture diagram could not be generated due to missing Graphviz)', 
+                   ha='center', va='center', fontsize=12, fontweight='bold',
+                   bbox=dict(boxstyle="round,pad=0.3", facecolor="lightgray", alpha=0.8))
+            ax.set_xlim(0, 1)
+            ax.set_ylim(0, 1)
+            ax.axis('off')
+            save_figure(fig, '03_autoencoder_architecture.png')
+            logger.info("Generated fallback architecture diagram")
+        except Exception as e2:
+            logger.error(f"Could not generate fallback architecture diagram: {e2}")
 
 def generate_graph_4_training_history(model_info):
     """Graph 4: Training vs Validation Loss Curve"""
