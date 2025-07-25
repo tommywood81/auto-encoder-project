@@ -292,6 +292,17 @@ def run_pipeline(config: Dict[str, Any]) -> Dict[str, Any]:
     results = autoencoder.train()
     logger.info("Model training completed")
     
+    # Extract training history for loss curve generation
+    if 'history' in results:
+        history = results['history']
+        training_history = {
+            'loss': history.history['loss'],
+            'val_loss': history.history.get('val_loss', []),
+            'reconstruction_error': history.history.get('reconstruction_error', [])
+        }
+        model_info['training_history'] = training_history
+        logger.info(f"Training history saved: {len(training_history['loss'])} epochs")
+    
     # Step 4: Save model and scaler
     save_model_and_scaler(autoencoder, model_info)
     
