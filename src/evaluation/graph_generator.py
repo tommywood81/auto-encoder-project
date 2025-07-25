@@ -115,24 +115,33 @@ def generate_graph_2_reconstruction_error_histogram(anomaly_scores_df):
     """Graph 2: Reconstruction Error Histogram - Shows natural separation"""
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 6))
     
-    # Overall histogram
-    ax1.hist(anomaly_scores_df['anomaly_score'], bins=50, alpha=0.7, color='skyblue', edgecolor='black')
-    ax1.axvline(anomaly_scores_df['anomaly_score'].quantile(0.95), color='red', linestyle='--', 
-                linewidth=2, label='95th Percentile Threshold')
-    ax1.set_title('Reconstruction Error Distribution', fontsize=16, fontweight='bold')
+    # Calculate appropriate x-axis limits for better visualization
+    scores = anomaly_scores_df['anomaly_score']
+    threshold_95 = scores.quantile(0.95)
+    threshold_99 = scores.quantile(0.99)
+    
+    # Set x-axis limits to focus on the relevant range (up to 99th percentile)
+    x_max = min(threshold_99 * 1.2, scores.max())
+    x_min = max(0, scores.min())
+    
+    # Overall histogram with zoomed x-axis
+    ax1.hist(scores, bins=50, alpha=0.7, color='skyblue', edgecolor='black', range=(x_min, x_max))
+    ax1.axvline(threshold_95, color='red', linestyle='--', linewidth=2, label='95th Percentile Threshold')
+    ax1.set_title('Reconstruction Error Distribution (Zoomed)', fontsize=16, fontweight='bold')
     ax1.set_xlabel('Reconstruction Error (MSE)', fontsize=12)
     ax1.set_ylabel('Frequency', fontsize=12)
+    ax1.set_xlim(x_min, x_max)
     ax1.legend()
     ax1.grid(True, alpha=0.3)
     
-    # Log scale for better visualization
-    ax2.hist(anomaly_scores_df['anomaly_score'], bins=50, alpha=0.7, color='lightcoral', edgecolor='black')
-    ax2.axvline(anomaly_scores_df['anomaly_score'].quantile(0.95), color='red', linestyle='--', 
-                linewidth=2, label='95th Percentile Threshold')
+    # Log scale for better visualization with zoomed x-axis
+    ax2.hist(scores, bins=50, alpha=0.7, color='lightcoral', edgecolor='black', range=(x_min, x_max))
+    ax2.axvline(threshold_95, color='red', linestyle='--', linewidth=2, label='95th Percentile Threshold')
     ax2.set_yscale('log')
-    ax2.set_title('Reconstruction Error Distribution (Log Scale)', fontsize=16, fontweight='bold')
+    ax2.set_title('Reconstruction Error Distribution (Log Scale, Zoomed)', fontsize=16, fontweight='bold')
     ax2.set_xlabel('Reconstruction Error (MSE)', fontsize=12)
     ax2.set_ylabel('Frequency (Log Scale)', fontsize=12)
+    ax2.set_xlim(x_min, x_max)
     ax2.legend()
     ax2.grid(True, alpha=0.3)
     
@@ -235,24 +244,36 @@ def generate_graph_4_training_history(model_info):
         history = model_info['training_history']
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 6))
         
-        # Loss plot
-        ax1.plot(history['loss'], label='Training Loss', color='blue', linewidth=2)
-        if 'val_loss' in history:
-            ax1.plot(history['val_loss'], label='Validation Loss', color='red', linewidth=2)
+        # Loss plot - show all epochs
+        epochs = range(1, len(history['loss']) + 1)
+        ax1.plot(epochs, history['loss'], label='Training Loss', color='blue', linewidth=2)
+        if 'val_loss' in history and len(history['val_loss']) > 0:
+            ax1.plot(epochs, history['val_loss'], label='Validation Loss', color='red', linewidth=2)
         ax1.set_title('Training History - Loss', fontsize=16, fontweight='bold')
         ax1.set_xlabel('Epoch', fontsize=12)
         ax1.set_ylabel('Loss', fontsize=12)
+        ax1.set_xlim(1, len(epochs))
         ax1.legend()
         ax1.grid(True, alpha=0.3)
         
-        # Reconstruction error plot
-        if 'reconstruction_error' in history:
-            ax2.plot(history['reconstruction_error'], label='Reconstruction Error', color='green', linewidth=2)
+        # Reconstruction error plot or placeholder
+        if 'reconstruction_error' in history and len(history['reconstruction_error']) > 0:
+            ax2.plot(epochs, history['reconstruction_error'], label='Reconstruction Error', color='green', linewidth=2)
             ax2.set_title('Training History - Reconstruction Error', fontsize=16, fontweight='bold')
             ax2.set_xlabel('Epoch', fontsize=12)
             ax2.set_ylabel('Reconstruction Error', fontsize=12)
+            ax2.set_xlim(1, len(epochs))
             ax2.legend()
             ax2.grid(True, alpha=0.3)
+        else:
+            # Placeholder for missing reconstruction error data
+            ax2.text(0.5, 0.5, 'Reconstruction Error\nNot Available\n\nTraining completed\nsuccessfully with\nloss monitoring only', 
+                    ha='center', va='center', transform=ax2.transAxes, fontsize=12, fontweight='bold',
+                    bbox=dict(boxstyle="round,pad=0.3", facecolor="lightgray", alpha=0.8))
+            ax2.set_title('Training History - Reconstruction Error', fontsize=16, fontweight='bold')
+            ax2.set_xlim(0, 1)
+            ax2.set_ylim(0, 1)
+            ax2.axis('off')
         
         plt.tight_layout()
         save_figure(fig, '04_training_history.png')
@@ -488,6 +509,18 @@ def generate_graph_9_latent_space_visualization(latent_space, y_true):
             ax2.set_title('Latent Space - t-SNE Projection', fontsize=16, fontweight='bold')
             ax2.legend()
             ax2.grid(True, alpha=0.3)
+            
+            # Set appropriate axis limits to zoom in on the data
+            x_min, x_max = latent_2d_tsne[:, 0].min(), latent_2d_tsne[:, 0].max()
+            y_min, y_max = latent_2d_tsne[:, 1].min(), latent_2d_tsne[:, 1].max()
+            
+            # Add some padding to the limits
+            x_padding = (x_max - x_min) * 0.1
+            y_padding = (y_max - y_min) * 0.1
+            
+            ax2.set_xlim(x_min - x_padding, x_max + x_padding)
+            ax2.set_ylim(y_min - y_padding, y_max + y_padding)
+            
         except Exception as e:
             logger.warning(f"t-SNE failed: {e}")
             ax2.text(0.5, 0.5, 't-SNE visualization\nnot available\n(dataset too large)', 
