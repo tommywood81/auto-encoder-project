@@ -140,34 +140,46 @@ def generate_predictions(autoencoder: BaselineAutoencoder, df_features: pd.DataF
     if 'is_fraudulent' in df_numeric.columns:
         df_numeric = df_numeric.drop(columns=['is_fraudulent'])
     
-    # Get anomaly scores
-    anomaly_scores = autoencoder.predict_anomaly_scores(df_numeric.values)
+    # Apply temporal split (same as in autoencoder training)
+    total_samples = len(df_features)
+    train_size = int(0.8 * total_samples)
     
-    # Apply threshold to get binary predictions
-    binary_predictions = (anomaly_scores > threshold).astype(int)
+    # Split based on temporal order (first 80% for training, last 20% for testing)
+    df_train = df_features.iloc[:train_size]
+    df_test = df_features.iloc[train_size:]
+    df_numeric_train = df_numeric.iloc[:train_size]
+    df_numeric_test = df_numeric.iloc[train_size:]
     
-    # Create predictions dataframe
-    predictions_df = df_features.copy()
-    predictions_df['anomaly_score'] = anomaly_scores
-    predictions_df['predicted_fraud'] = binary_predictions
-    predictions_df['predicted_label'] = predictions_df['predicted_fraud'].map({0: 'not_fraud', 1: 'fraud'})
+    logger.info(f"Temporal split: train={len(df_train)}, test={len(df_test)}")
     
-    # Save final_predictions.csv (with all original data + predictions)
-    predictions_path = Path("predictions/final_predictions.csv")
-    predictions_df.to_csv(predictions_path, index=False)
-    logger.info(f"Final predictions saved to: {predictions_path}")
+    # Get anomaly scores for test set only (for evaluation)
+    test_anomaly_scores = autoencoder.predict_anomaly_scores(df_numeric_test.values)
     
-    # Save labelled_predictions.csv (simplified version with key columns)
+    # Apply threshold to get binary predictions for test set
+    test_binary_predictions = (test_anomaly_scores > threshold).astype(int)
+    
+    # Create test predictions dataframe
+    test_predictions_df = df_test.copy()
+    test_predictions_df['anomaly_score'] = test_anomaly_scores
+    test_predictions_df['predicted_fraud'] = test_binary_predictions
+    test_predictions_df['predicted_label'] = test_predictions_df['predicted_fraud'].map({0: 'not_fraud', 1: 'fraud'})
+    
+    # Save test predictions for evaluation
+    test_predictions_path = Path("predictions/test_predictions.csv")
+    test_predictions_df.to_csv(test_predictions_path, index=False)
+    logger.info(f"Test predictions saved to: {test_predictions_path}")
+    
+    # Save labelled test predictions (simplified version with key columns)
     labelled_columns = ['anomaly_score', 'predicted_fraud', 'predicted_label']
-    if 'is_fraudulent' in predictions_df.columns:
+    if 'is_fraudulent' in test_predictions_df.columns:
         labelled_columns.insert(0, 'is_fraudulent')
     
-    labelled_df = predictions_df[labelled_columns].copy()
+    labelled_test_df = test_predictions_df[labelled_columns].copy()
     labelled_path = Path("predictions/labelled_predictions.csv")
-    labelled_df.to_csv(labelled_path, index=False)
-    logger.info(f"Labelled predictions saved to: {labelled_path}")
+    labelled_test_df.to_csv(labelled_path, index=False)
+    logger.info(f"Labelled test predictions saved to: {labelled_path}")
     
-    return predictions_df
+    return test_predictions_df
 
 def save_intermediate_files(autoencoder: BaselineAutoencoder, df_features: pd.DataFrame, 
                           threshold: float, model_info: Dict[str, Any]):
@@ -179,23 +191,35 @@ def save_intermediate_files(autoencoder: BaselineAutoencoder, df_features: pd.Da
     if 'is_fraudulent' in df_numeric.columns:
         df_numeric = df_numeric.drop(columns=['is_fraudulent'])
     
-    # Save anomaly scores
-    anomaly_scores = autoencoder.predict_anomaly_scores(df_numeric.values)
-    anomaly_df = pd.DataFrame({
-        'anomaly_score': anomaly_scores,
-        'is_fraudulent': df_features['is_fraudulent'] if 'is_fraudulent' in df_features.columns else None
+    # Apply temporal split (same as in autoencoder training)
+    total_samples = len(df_features)
+    train_size = int(0.8 * total_samples)
+    
+    # Split based on temporal order (first 80% for training, last 20% for testing)
+    df_train = df_features.iloc[:train_size]
+    df_test = df_features.iloc[train_size:]
+    df_numeric_train = df_numeric.iloc[:train_size]
+    df_numeric_test = df_numeric.iloc[train_size:]
+    
+    logger.info(f"Temporal split for intermediate files: train={len(df_train)}, test={len(df_test)}")
+    
+    # Save test set anomaly scores (for evaluation and graphs)
+    test_anomaly_scores = autoencoder.predict_anomaly_scores(df_numeric_test.values)
+    test_anomaly_df = pd.DataFrame({
+        'anomaly_score': test_anomaly_scores,
+        'is_fraudulent': df_test['is_fraudulent'] if 'is_fraudulent' in df_test.columns else None
     })
     anomaly_path = Path("intermediate/anomaly_scores.csv")
-    anomaly_df.to_csv(anomaly_path, index=False)
-    logger.info(f"Anomaly scores saved to: {anomaly_path}")
+    test_anomaly_df.to_csv(anomaly_path, index=False)
+    logger.info(f"Test set anomaly scores saved to: {anomaly_path}")
     
-    # Save latent space (get encoder part of autoencoder)
-    X_scaled = autoencoder.scaler.transform(df_numeric.values)
+    # Save test set latent space (get encoder part of autoencoder)
+    X_test_scaled = autoencoder.scaler.transform(df_numeric_test.values)
     encoder = autoencoder.model.layers[0]  # First layer is encoder
-    latent_space = encoder.predict(X_scaled)
+    test_latent_space = encoder.predict(X_test_scaled)
     latent_path = Path("intermediate/latent_space.npy")
-    np.save(latent_path, latent_space)
-    logger.info(f"Latent space saved to: {latent_path}")
+    np.save(latent_path, test_latent_space)
+    logger.info(f"Test set latent space saved to: {latent_path}")
     
     # Save threshold
     threshold_info = {
@@ -356,10 +380,10 @@ def main():
         print(f"\nEnhanced pipeline completed successfully!")
         print(f"ROC AUC: {results['roc_auc']:.4f}")
         print(f"Files saved:")
-        print(f"  - predictions/final_predictions.csv")
+        print(f"  - predictions/test_predictions.csv")
         print(f"  - predictions/labelled_predictions.csv")
-        print(f"  - intermediate/anomaly_scores.csv")
-        print(f"  - intermediate/latent_space.npy")
+        print(f"  - intermediate/anomaly_scores.csv (test set only)")
+        print(f"  - intermediate/latent_space.npy (test set only)")
         print(f"  - intermediate/threshold_info.yaml")
         print(f"  - results/metrics.json")
         print(f"  - results/evaluation_metrics.yaml")

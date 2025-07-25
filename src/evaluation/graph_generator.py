@@ -318,8 +318,65 @@ def generate_graph_7_threshold_sweep(y_true, anomaly_scores):
     plt.tight_layout()
     save_figure(fig, '07_threshold_sweep.png')
 
-def generate_graph_8_latent_space_visualization(latent_space, y_true):
-    """Graph 8: Latent Space Visualization"""
+def generate_graph_8_confusion_matrix(y_true, anomaly_scores, threshold_percentile=95):
+    """Graph 8: Confusion Matrix - Shows model performance at selected threshold"""
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 6))
+    
+    # Calculate threshold and predictions
+    threshold = np.percentile(anomaly_scores, threshold_percentile)
+    y_pred = (anomaly_scores > threshold).astype(int)
+    
+    # Create confusion matrix
+    cm = confusion_matrix(y_true, y_pred)
+    
+    # Plot confusion matrix
+    sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', ax=ax1,
+                xticklabels=['Legitimate', 'Fraudulent'],
+                yticklabels=['Legitimate', 'Fraudulent'])
+    ax1.set_title(f'Confusion Matrix (Threshold: {threshold_percentile}%)', fontsize=16, fontweight='bold')
+    ax1.set_xlabel('Predicted', fontsize=12)
+    ax1.set_ylabel('Actual', fontsize=12)
+    
+    # Calculate metrics
+    tn, fp, fn, tp = cm.ravel()
+    total = tn + fp + fn + tp
+    
+    accuracy = (tp + tn) / total
+    precision = tp / (tp + fp) if (tp + fp) > 0 else 0
+    recall = tp / (tp + fn) if (tp + fn) > 0 else 0
+    f1 = 2 * (precision * recall) / (precision + recall) if (precision + recall) > 0 else 0
+    
+    # Create metrics summary
+    metrics_text = f"""
+    Model Performance Metrics:
+    
+    Accuracy: {accuracy:.3f}
+    Precision: {precision:.3f}
+    Recall: {recall:.3f}
+    F1-Score: {f1:.3f}
+    
+    Confusion Matrix Breakdown:
+    
+    True Negatives: {tn:,} (Legitimate correctly identified)
+    False Positives: {fp:,} (Legitimate flagged as fraud)
+    False Negatives: {fn:,} (Fraud missed)
+    True Positives: {tp:,} (Fraud correctly identified)
+    
+    Threshold: {threshold:.4f} ({threshold_percentile}th percentile)
+    """
+    
+    ax2.text(0.1, 0.9, metrics_text, transform=ax2.transAxes, fontsize=11, 
+             verticalalignment='top', bbox=dict(boxstyle='round', facecolor='lightblue', alpha=0.8))
+    ax2.set_xlim(0, 1)
+    ax2.set_ylim(0, 1)
+    ax2.axis('off')
+    ax2.set_title('Performance Summary', fontsize=16, fontweight='bold')
+    
+    plt.tight_layout()
+    save_figure(fig, '08_confusion_matrix.png')
+
+def generate_graph_9_latent_space_visualization(latent_space, y_true):
+    """Graph 9: Latent Space Visualization"""
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 6))
     
     # PCA visualization
@@ -363,8 +420,8 @@ def generate_graph_8_latent_space_visualization(latent_space, y_true):
     plt.tight_layout()
     save_figure(fig, '08_latent_space_visualization.png')
 
-def generate_graph_9_anomaly_scores_over_time(anomaly_scores_df):
-    """Graph 9: Anomaly Scores Over Time"""
+def generate_graph_10_anomaly_scores_over_time(anomaly_scores_df):
+    """Graph 10: Anomaly Scores Over Time"""
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(15, 10))
     
     # Check if we have time information
@@ -412,9 +469,9 @@ def generate_graph_9_anomaly_scores_over_time(anomaly_scores_df):
     ax2.grid(True, alpha=0.3)
     
     plt.tight_layout()
-    save_figure(fig, '09_anomaly_scores_over_time.png')
+    save_figure(fig, '10_anomaly_scores_over_time.png')
 
-def generate_graph_10_top_anomalies_table(predictions_df, anomaly_scores_df, n=10):
+def generate_graph_11_top_anomalies_table(predictions_df, anomaly_scores_df, n=10):
     """Graph 10: Top-N Anomalies Table/Bar"""
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 8))
     
@@ -460,10 +517,10 @@ def generate_graph_10_top_anomalies_table(predictions_df, anomaly_scores_df, n=1
     ax2.set_title('Anomaly Summary', fontsize=16, fontweight='bold')
     
     plt.tight_layout()
-    save_figure(fig, '10_top_anomalies.png')
+    save_figure(fig, '11_top_anomalies.png')
 
 def generate_all_graphs():
-    """Generate all 10 graphs following the narrative flow"""
+    """Generate all 11 graphs following the narrative flow"""
     try:
         logger.info("Starting comprehensive graph generation...")
         ensure_directories()
@@ -481,7 +538,7 @@ def generate_all_graphs():
         
         logger.info("Generating narrative flow graphs...")
         
-        # Section 1: Problem + Data
+        # Section 1: Problem + Data (use full dataset for class distribution)
         logger.info("1. Class Distribution")
         generate_graph_1_class_distribution(df)
         
@@ -496,11 +553,13 @@ def generate_all_graphs():
         logger.info("4. Training History")
         generate_graph_4_training_history(model_info)
         
-        # Section 3: Evaluation
+        # Section 3: Evaluation (use test set data only)
         logger.info("5. ROC Curve")
         if 'anomaly_scores' in intermediate_files:
-            y_true = df['is_fraudulent'].values
-            anomaly_scores = intermediate_files['anomaly_scores']['anomaly_score'].values
+            # Use test set data for evaluation
+            test_anomaly_scores = intermediate_files['anomaly_scores']
+            y_true = test_anomaly_scores['is_fraudulent'].values
+            anomaly_scores = test_anomaly_scores['anomaly_score'].values
             generate_graph_5_roc_curve(y_true, anomaly_scores)
         
         logger.info("6. Precision-Recall Curve")
@@ -511,18 +570,22 @@ def generate_all_graphs():
         if 'anomaly_scores' in intermediate_files:
             generate_graph_7_threshold_sweep(y_true, anomaly_scores)
         
-        # Section 4: Insight & Action
-        logger.info("8. Latent Space Visualization")
-        if 'latent_space' in intermediate_files:
-            generate_graph_8_latent_space_visualization(intermediate_files['latent_space'], y_true)
-        
-        logger.info("9. Anomaly Scores Over Time")
+        logger.info("8. Confusion Matrix")
         if 'anomaly_scores' in intermediate_files:
-            generate_graph_9_anomaly_scores_over_time(intermediate_files['anomaly_scores'])
+            generate_graph_8_confusion_matrix(y_true, anomaly_scores)
         
-        logger.info("10. Top Anomalies")
+        # Section 4: Insight & Action (use test set data)
+        logger.info("9. Latent Space Visualization")
+        if 'latent_space' in intermediate_files:
+            generate_graph_9_latent_space_visualization(intermediate_files['latent_space'], y_true)
+        
+        logger.info("10. Anomaly Scores Over Time")
+        if 'anomaly_scores' in intermediate_files:
+            generate_graph_10_anomaly_scores_over_time(intermediate_files['anomaly_scores'])
+        
+        logger.info("11. Top Anomalies")
         if 'predictions' in intermediate_files:
-            generate_graph_10_top_anomalies_table(intermediate_files['predictions'], 
+            generate_graph_11_top_anomalies_table(intermediate_files['predictions'], 
                                                 intermediate_files['anomaly_scores'])
         
         logger.info("All graphs generated successfully!")
@@ -535,7 +598,7 @@ def generate_all_graphs():
 if __name__ == "__main__":
     try:
         generate_all_graphs()
-        print("All 10 narrative flow graphs generated successfully!")
+        print("All 11 narrative flow graphs generated successfully!")
     except Exception as e:
         print(f"Error: {e}")
         sys.exit(1) 
