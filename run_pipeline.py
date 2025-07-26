@@ -16,6 +16,7 @@ from typing import Dict, Any, Tuple
 from sklearn.metrics import roc_auc_score, precision_score, recall_score, f1_score, accuracy_score, confusion_matrix
 import joblib
 import pickle
+import tensorflow as tf
 
 # Add src to path
 sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
@@ -105,20 +106,44 @@ def dict_to_pipeline_config(config_dict: Dict[str, Any]) -> PipelineConfig:
     
     return pipeline_config
 
-def save_model_and_scaler(autoencoder: BaselineAutoencoder, model_info: Dict[str, Any]):
-    """Save the trained model and scaler."""
-    logger.info("Saving model and scaler...")
+def load_existing_model_and_scaler(autoencoder: BaselineAutoencoder, model_info: Dict[str, Any]) -> bool:
+    """Load the existing trained model and scaler. Returns True if scaler was loaded successfully."""
+    logger.info("Loading existing model and scaler...")
     
-    # Save model
-    model_path = Path("models/final_model.h5")
-    autoencoder.model.save(model_path)
-    logger.info(f"Model saved to: {model_path}")
+    # Load model
+    model_path = Path("models/autoencoder.h5")
+    if not model_path.exists():
+        raise FileNotFoundError(f"Model file not found: {model_path}")
     
-    # Save scaler
-    scaler_path = Path("models/final_model_scaler.pkl")
-    with open(scaler_path, 'wb') as f:
-        pickle.dump(autoencoder.scaler, f)
-    logger.info(f"Scaler saved to: {scaler_path}")
+    autoencoder.model = tf.keras.models.load_model(model_path, compile=False)
+    logger.info(f"Model loaded from: {model_path}")
+    
+    # Load scaler
+    scaler_path = Path("models/autoencoder_scaler.pkl")
+    if not scaler_path.exists():
+        raise FileNotFoundError(f"Scaler file not found: {scaler_path}")
+    
+    scaler_loaded = False
+    try:
+        # Try loading with joblib first (how we saved it)
+        autoencoder.scaler = joblib.load(scaler_path)
+        logger.info(f"Scaler loaded from: {scaler_path}")
+        scaler_loaded = True
+    except Exception as e:
+        logger.warning(f"Failed to load scaler with joblib from {scaler_path}: {e}")
+        try:
+            # Try loading with pickle as fallback
+            with open(scaler_path, 'rb') as f:
+                autoencoder.scaler = pickle.load(f)
+            logger.info(f"Scaler loaded from: {scaler_path} (using pickle)")
+            scaler_loaded = True
+        except Exception as e2:
+            logger.warning(f"Failed to load scaler with pickle from {scaler_path}: {e2}")
+            logger.info("Creating new scaler and fitting on data...")
+            # Create a new scaler and fit it on the data
+            from sklearn.preprocessing import StandardScaler
+            autoencoder.scaler = StandardScaler()
+            # We'll need to fit it later when we have the data
     
     # Update model_info with actual paths
     model_info['model_path'] = str(model_path)
@@ -129,6 +154,8 @@ def save_model_and_scaler(autoencoder: BaselineAutoencoder, model_info: Dict[str
     with open(model_info_path, 'w') as f:
         yaml.dump(model_info, f, default_flow_style=False)
     logger.info(f"Updated model info saved to: {model_info_path}")
+    
+    return scaler_loaded
 
 def generate_predictions(autoencoder: BaselineAutoencoder, df_features: pd.DataFrame, 
                         threshold: float, model_info: Dict[str, Any]) -> pd.DataFrame:
@@ -140,9 +167,10 @@ def generate_predictions(autoencoder: BaselineAutoencoder, df_features: pd.DataF
     if 'is_fraudulent' in df_numeric.columns:
         df_numeric = df_numeric.drop(columns=['is_fraudulent'])
     
-    # Apply temporal split (same as in autoencoder training)
+    # Apply time-aware split (first 80% train, last 20% test)
+    # Data is already sorted by transaction_date, so we can use index for time split
     total_samples = len(df_features)
-    train_size = int(0.8 * total_samples)
+    train_size = int(0.8 * total_samples)  # 80% for training, 20% for testing
     
     # Split based on temporal order (first 80% for training, last 20% for testing)
     df_train = df_features.iloc[:train_size]
@@ -150,7 +178,9 @@ def generate_predictions(autoencoder: BaselineAutoencoder, df_features: pd.DataF
     df_numeric_train = df_numeric.iloc[:train_size]
     df_numeric_test = df_numeric.iloc[train_size:]
     
-    logger.info(f"Temporal split: train={len(df_train)}, test={len(df_test)}")
+    logger.info(f"Time-aware split: train={len(df_train)}, test={len(df_test)}")
+    logger.info(f"Train period: transactions 0 to {train_size-1}")
+    logger.info(f"Test period: transactions {train_size} to {total_samples-1}")
     
     # Get anomaly scores for test set only (for evaluation)
     test_anomaly_scores = autoencoder.predict_anomaly_scores(df_numeric_test.values)
@@ -191,9 +221,10 @@ def save_intermediate_files(autoencoder: BaselineAutoencoder, df_features: pd.Da
     if 'is_fraudulent' in df_numeric.columns:
         df_numeric = df_numeric.drop(columns=['is_fraudulent'])
     
-    # Apply temporal split (same as in autoencoder training)
+    # Apply time-aware split (first 80% train, last 20% test)
+    # Data is already sorted by transaction_date, so we can use index for time split
     total_samples = len(df_features)
-    train_size = int(0.8 * total_samples)
+    train_size = int(0.8 * total_samples)  # 80% for training, 20% for testing
     
     # Split based on temporal order (first 80% for training, last 20% for testing)
     df_train = df_features.iloc[:train_size]
@@ -201,7 +232,9 @@ def save_intermediate_files(autoencoder: BaselineAutoencoder, df_features: pd.Da
     df_numeric_train = df_numeric.iloc[:train_size]
     df_numeric_test = df_numeric.iloc[train_size:]
     
-    logger.info(f"Temporal split for intermediate files: train={len(df_train)}, test={len(df_test)}")
+    logger.info(f"Time-aware split for intermediate files: train={len(df_train)}, test={len(df_test)}")
+    logger.info(f"Train period: transactions 0 to {train_size-1}")
+    logger.info(f"Test period: transactions {train_size} to {total_samples-1}")
     
     # Save test set anomaly scores (for evaluation and graphs)
     test_anomaly_scores = autoencoder.predict_anomaly_scores(df_numeric_test.values)
@@ -276,8 +309,8 @@ def compute_evaluation_metrics(predictions_df: pd.DataFrame, model_info: Dict[st
     return metrics
 
 def run_pipeline(config: Dict[str, Any]) -> Dict[str, Any]:
-    """Run the complete fraud detection pipeline with given config."""
-    logger.info(f"Starting enhanced fraud detection pipeline...")
+    """Run the complete fraud detection pipeline with existing model."""
+    logger.info(f"Starting enhanced fraud detection pipeline with existing model...")
     
     # Load best hyperparameters from final_model_info.yaml
     model_info = load_final_model_info()
@@ -310,37 +343,74 @@ def run_pipeline(config: Dict[str, Any]) -> Dict[str, Any]:
     df_features = feature_engineer.generate_features(df_cleaned)
     logger.info(f"Features generated: {len(df_features.columns)} features")
     
-    # Step 3: Model training
-    logger.info("Step 3: Model training...")
+    # Step 3: Load existing model
+    logger.info("Step 3: Loading existing model...")
     autoencoder = BaselineAutoencoder(pipeline_config)
-    results = autoencoder.train()
-    logger.info("Model training completed")
+    scaler_loaded = load_existing_model_and_scaler(autoencoder, model_info)
+    logger.info("Model loading completed")
     
-    # Extract training history for loss curve generation
-    if 'history' in results:
-        history = results['history']
-        training_history = {
-            'loss': history.history['loss'],
-            'val_loss': history.history.get('val_loss', []),
-            'reconstruction_error': history.history.get('reconstruction_error', [])
-        }
-        model_info['training_history'] = training_history
-        logger.info(f"Training history saved: {len(training_history['loss'])} epochs")
+    # If scaler wasn't loaded successfully, fit it on the data
+    if not scaler_loaded:
+        logger.info("Fitting new scaler on data...")
+        df_numeric = df_features.select_dtypes(include=[np.number])
+        if 'is_fraudulent' in df_numeric.columns:
+            df_numeric = df_numeric.drop(columns=['is_fraudulent'])
+        autoencoder.scaler.fit(df_numeric.values)
+        logger.info("New scaler fitted successfully")
     
-    # Step 4: Save model and scaler
-    save_model_and_scaler(autoencoder, model_info)
+    # Create a mock results dict for compatibility with existing code
+    results = {
+        'roc_auc': model_info.get('roc_auc', 0.0),
+        'threshold': model_info.get('threshold_value', 0.0)
+    }
     
-    # Step 5: Generate predictions
-    threshold = model_info.get('threshold_value', results.get('threshold', 0))
+    # Step 4: Generate predictions
+    # Calculate threshold the same way as original training
+    threshold_percentile = model_info.get('threshold_percentile', 95)
+    
+    # Calculate threshold from training data (same as original training)
+    logger.info(f"Calculating threshold using {threshold_percentile}th percentile...")
+    
+    # Get training data for threshold calculation
+    df_numeric = df_features.select_dtypes(include=[np.number])
+    if 'is_fraudulent' in df_numeric.columns:
+        df_numeric = df_numeric.drop(columns=['is_fraudulent'])
+    
+    # Use time-aware split (first 80% train, last 20% test)
+    # Data is already sorted by transaction_date, so we can use index for time split
+    total_samples = len(df_features)
+    train_size = int(0.8 * total_samples)  # 80% for training, 20% for testing
+    
+    # Split based on temporal order (first 80% for training, last 20% for testing)
+    df_train = df_features.iloc[:train_size]
+    df_test = df_features.iloc[train_size:]
+    df_numeric_train = df_numeric.iloc[:train_size]
+    df_numeric_test = df_numeric.iloc[train_size:]
+    
+    logger.info(f"Time-aware split: train={len(df_train)}, test={len(df_test)}")
+    logger.info(f"Train period: transactions 0 to {train_size-1}")
+    logger.info(f"Test period: transactions {train_size} to {total_samples-1}")
+    
+    # Get only normal (non-fraudulent) training data for threshold calculation
+    train_normal_mask = df_train['is_fraudulent'] == 0
+    df_numeric_train_normal = df_numeric_train[train_normal_mask]
+    
+    # Calculate anomaly scores on normal training data
+    train_anomaly_scores = autoencoder.predict_anomaly_scores(df_numeric_train_normal.values)
+    
+    # Calculate threshold as 95th percentile of normal training data
+    threshold = np.percentile(train_anomaly_scores, threshold_percentile)
+    logger.info(f"Threshold calculated: {threshold:.6f} (percentile {threshold_percentile})")
+    
     predictions_df = generate_predictions(autoencoder, df_features, threshold, model_info)
     
-    # Step 6: Save intermediate files
+    # Step 5: Save intermediate files
     save_intermediate_files(autoencoder, df_features, threshold, model_info)
     
-    # Step 7: Compute evaluation metrics
+    # Step 6: Compute evaluation metrics
     metrics = compute_evaluation_metrics(predictions_df, model_info)
     
-    # Step 8: Model evaluation summary
+    # Step 7: Model evaluation summary
     roc_auc = results.get('roc_auc', 0.0)
     logger.info(f"Model evaluation completed - ROC AUC: {roc_auc:.4f}")
     
@@ -353,7 +423,7 @@ def run_pipeline(config: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 def main():
-    parser = argparse.ArgumentParser(description="Enhanced Fraud Detection Pipeline")
+    parser = argparse.ArgumentParser(description="Enhanced Fraud Detection Pipeline (using existing model)")
     parser.add_argument(
         "--config",
         type=str,
@@ -379,6 +449,8 @@ def main():
         results = run_pipeline(config)
         print(f"\nEnhanced pipeline completed successfully!")
         print(f"ROC AUC: {results['roc_auc']:.4f}")
+        print(f"Model loaded from: models/autoencoder.h5")
+        print(f"Scaler loaded from: models/autoencoder_scaler.pkl")
         print(f"Files saved:")
         print(f"  - predictions/test_predictions.csv")
         print(f"  - predictions/labelled_predictions.csv")
@@ -387,8 +459,6 @@ def main():
         print(f"  - intermediate/threshold_info.yaml")
         print(f"  - results/metrics.json")
         print(f"  - results/evaluation_metrics.yaml")
-        print(f"  - models/final_model.h5")
-        print(f"  - models/final_model_scaler.pkl")
         print(f"Run python src/evaluation/graph_generator.py to create visualizations")
     except Exception as e:
         logger.error(f"Pipeline failed: {str(e)}")
