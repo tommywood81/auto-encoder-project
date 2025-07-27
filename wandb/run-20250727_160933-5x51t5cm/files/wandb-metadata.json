@@ -1,0 +1,38 @@
+{
+  "os": "Windows-10-10.0.26100-SP0",
+  "python": "CPython 3.11.3",
+  "startedAt": "2025-07-27T06:09:33.290616Z",
+  "program": "C:\\Users\\tommy\\projects\\auto-encoder-project\\experiments\\feature_tuning.py",
+  "codePath": "experiments\\feature_tuning.py",
+  "codePathLocal": "experiments\\feature_tuning.py",
+  "git": {
+    "remote": "https://github.com/tommywood81/auto-encoder-project.git",
+    "commit": "67964ab1ce386cb41bdd029881dfdabacd7ad933"
+  },
+  "email": "tommywood81@gmail.com",
+  "root": "C:\\Users\\tommy\\projects\\auto-encoder-project",
+  "host": "LAPTOP-U7F1NDJK",
+  "executable": "C:\\Users\\tommy\\projects\\auto-encoder-project\\env\\Scripts\\python.exe",
+  "cpu_count": 4,
+  "cpu_count_logical": 8,
+  "gpu": "GeForce GTX 1650",
+  "gpu_count": 1,
+  "disk": {
+    "/": {
+      "total": "254855344128",
+      "used": "252057477120"
+    }
+  },
+  "memory": {
+    "total": "34188873728"
+  },
+  "gpu_nvidia": [
+    {
+      "name": "GeForce GTX 1650",
+      "architecture": "Turing",
+      "uuid": "GPU-1fae71aa-5bd3-0913-de7a-02c43e0b27b4"
+    }
+  ],
+  "cudaVersion": "11.0",
+  "writerId": "a1m8qz6t3slj6ib0o558h27k6eezr9d9"
+}

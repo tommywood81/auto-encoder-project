@@ -64,6 +64,19 @@ def train_final_model():
     
     # Generate features
     logger.info("Generating features with combined strategy...")
+    
+    # Load best feature configuration from feature tuning
+    feature_tuning_path = Path("configs/feature_tuning_simple.yaml")
+    if feature_tuning_path.exists():
+        with open(feature_tuning_path, 'r') as f:
+            feature_tuning_results = yaml.safe_load(f)
+        best_feature_config = feature_tuning_results['best_configuration']['configuration']
+        logger.info(f"Loaded best feature configuration: {feature_tuning_results['best_configuration']['name']}")
+        logger.info(f"Best feature config ROC AUC: {feature_tuning_results['best_configuration']['roc_auc']:.4f}")
+    else:
+        logger.warning("Feature tuning results not found, using default strategy")
+        best_feature_config = None
+    
     feature_engineer = FeatureFactory.create("combined")
     df_features = feature_engineer.generate_features(df)
     logger.info(f"Features generated. Shape: {df_features.shape}")

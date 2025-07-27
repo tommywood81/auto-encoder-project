@@ -1,32 +1,21 @@
-data:
-  random_state: 42
-  test_split: 0.2
-  train_split: 0.7
-  val_split: 0.1
 features:
-  scaling: standard
   strategy: combined
 model:
   activation_fn: relu
   batch_size: 128
-  dropout_rate: 0.2
   early_stopping: true
   epochs: 50
-  hidden_dims:
-  - 64
-  - 32
-  input_dim: null
-  l2_reg: 0.001
   latent_dim: 16
   learning_rate: 0.015
-  patience: 10
   threshold: 99
+training:
+  early_stopping_patience: 5
+  min_delta: 0.001
+  reduce_lr_patience: 3
+  validation_split: 0.2
 wandb:
   entity: null
-  group: final_optimized
-  log_model: true
   project: fraud-detection-autoencoder
   tags:
-  - final
-  - optimized
-  - best_model
+  - best_features
+  - best_strategy_behavioral

@@ -1,0 +1,13 @@
+all_results: []
+best_configuration:
+  configuration: null
+  name: null
+  roc_auc: 0
+summary:
+  average_roc_auc: 0
+  best_roc_auc: 0
+  failed_runs: 8
+  successful_runs: 0
+  total_configurations: 8
+  total_time: 0
+  worst_roc_auc: 0

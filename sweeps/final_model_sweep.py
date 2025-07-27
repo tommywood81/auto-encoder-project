@@ -79,6 +79,19 @@ def train_model_with_config(config: Dict, entity: Optional[str] = None, run_name
             # Load data and generate features
             strategy = config['features']['strategy']
             logger.info(f"Using feature strategy: {strategy}")
+            
+            # Load best feature configuration from feature tuning
+            feature_tuning_path = Path("configs/feature_tuning_simple.yaml")
+            if feature_tuning_path.exists():
+                with open(feature_tuning_path, 'r') as f:
+                    feature_tuning_results = yaml.safe_load(f)
+                best_feature_config = feature_tuning_results['best_configuration']['configuration']
+                logger.info(f"Loaded best feature configuration: {feature_tuning_results['best_configuration']['name']}")
+                logger.info(f"Best feature config ROC AUC: {feature_tuning_results['best_configuration']['roc_auc']:.4f}")
+            else:
+                logger.warning("Feature tuning results not found, using default strategy")
+                best_feature_config = None
+            
             pipeline_config = PipelineConfig.get_config(strategy)
             
             # Load cleaned data

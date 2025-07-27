@@ -1,0 +1,157 @@
+_wandb:
+    value:
+        cli_version: 0.21.0
+        e:
+            kaeey42bn3vo1gg7dxumvcwe1e6znrsg:
+                codePath: sweeps\final_model_sweep.py
+                codePathLocal: sweeps\final_model_sweep.py
+                cpu_count: 4
+                cpu_count_logical: 8
+                cudaVersion: "11.0"
+                disk:
+                    /:
+                        total: "254855344128"
+                        used: "252098002944"
+                email: tommywood81@gmail.com
+                executable: C:\Users\tommy\projects\auto-encoder-project\env\Scripts\python.exe
+                git:
+                    commit: 67964ab1ce386cb41bdd029881dfdabacd7ad933
+                    remote: https://github.com/tommywood81/auto-encoder-project.git
+                gpu: GeForce GTX 1650
+                gpu_count: 1
+                gpu_nvidia:
+                    - architecture: Turing
+                      name: GeForce GTX 1650
+                      uuid: GPU-1fae71aa-5bd3-0913-de7a-02c43e0b27b4
+                host: LAPTOP-U7F1NDJK
+                memory:
+                    total: "34188873728"
+                os: Windows-10-10.0.26100-SP0
+                program: C:\Users\tommy\projects\auto-encoder-project\sweeps\final_model_sweep.py
+                python: CPython 3.11.3
+                root: C:\Users\tommy\projects\auto-encoder-project
+                startedAt: "2025-07-27T08:02:20.406838Z"
+                writerId: kaeey42bn3vo1gg7dxumvcwe1e6znrsg
+        m: []
+        python_version: 3.11.3
+        t:
+            "1":
+                - 2
+                - 3
+                - 5
+                - 53
+            "2":
+                - 2
+                - 3
+                - 5
+                - 53
+            "3":
+                - 2
+                - 13
+                - 15
+                - 16
+            "4": 3.11.3
+            "5": 0.21.0
+            "8":
+                - 2
+                - 3
+            "12": 0.21.0
+            "13": windows-amd64
+model_info:
+    value:
+        accuracy: 0
+        activation_fn: relu
+        batch_size: 128
+        best_hyperparameters:
+            learning_rate: 0.008
+            threshold: 97
+        dropout_rate: 0.2
+        early_stopping: true
+        epochs: 50
+        f1_score: 0
+        feature_count: unknown
+        feature_scaling: standard
+        feature_strategy: combined
+        hidden_dims:
+            - 64
+            - 32
+        l2_reg: 0.001
+        latent_dim: 16
+        learning_rate: 0.008
+        model_path: models\final_model.h5
+        model_type: autoencoder
+        patience: 10
+        precision: 0
+        random_state: 42
+        recall: 0
+        roc_auc: 0.7348573717410505
+        scaler_path: models\final_model_scaler.pkl
+        sweep_hyperparameter_ranges:
+            learning_rate:
+                - 0.005
+                - 0.008
+                - 0.01
+                - 0.012
+                - 0.015
+            threshold:
+                - 95
+                - 96
+                - 97
+                - 98
+                - 99
+        sweep_top_results:
+            - learning_rate: 0.008
+              rank: 1
+              roc_auc: 0.7348573717410505
+              threshold: 97
+            - learning_rate: 0.012
+              rank: 2
+              roc_auc: 0.7327369724389077
+              threshold: 98
+            - learning_rate: 0.005
+              rank: 3
+              roc_auc: 0.7279120662407219
+              threshold: 97
+            - learning_rate: 0.012
+              rank: 4
+              roc_auc: 0.7270607947810649
+              threshold: 96
+            - learning_rate: 0.005
+              rank: 5
+              roc_auc: 0.7261093667157913
+              threshold: 96
+        sweep_total_combinations: 25
+        task: fraud_detection
+        test_split: 0.1
+        threshold_percentile: 97
+        train_split: 0.8
+        training_date: "2025-07-27 18:02:20"
+        val_split: 0.1
+sweep_summary:
+    value:
+        best_hyperparameters:
+            learning_rate: 0.008
+            threshold: 97
+        best_roc_auc: 0.7348573717410505
+        top_5_results:
+            - learning_rate: 0.008
+              rank: 1
+              roc_auc: 0.7348573717410505
+              threshold: 97
+            - learning_rate: 0.012
+              rank: 2
+              roc_auc: 0.7327369724389077
+              threshold: 98
+            - learning_rate: 0.005
+              rank: 3
+              roc_auc: 0.7279120662407219
+              threshold: 97
+            - learning_rate: 0.012
+              rank: 4
+              roc_auc: 0.7270607947810649
+              threshold: 96
+            - learning_rate: 0.005
+              rank: 5
+              roc_auc: 0.7261093667157913
+              threshold: 96
+        total_combinations: 25

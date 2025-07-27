@@ -1,0 +1,1 @@
+{"rank":1,"_runtime":0,"training_config":{"epochs":50,"early_stopping":true,"batch_size":128},"model_architecture":{"latent_dim":16,"hidden_dims":[64,32],"activation_fn":"relu","dropout_rate":0.2},"roc_auc":0.7348573717410505,"_timestamp":1.7536033331840794e+09,"_step":0,"learning_rate":0.008,"threshold_percentile":97,"_wandb":{"runtime":0}}
