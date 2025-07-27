@@ -1,0 +1,1 @@
+{"time_taken":45.4691379070282,"current_config":"config_060_features_6","roc_auc":0.6910921841255976,"_wandb":{"runtime":2690},"current_roc_auc":0.6910921841255976,"_timestamp":1.7536155864077272e+09,"best_config":"config_030_fraud_5","_runtime":2690,"feature_count":27,"_step":65,"best_roc_auc":0.7204620125694595,"config_name":"config_060_features_6","epochs_trained":11}
