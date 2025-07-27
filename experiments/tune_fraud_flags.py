@@ -15,7 +15,7 @@ from datetime import datetime
 import itertools
 
 # Add src to path
-sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
 from src.config import PipelineConfig
 from src.data.data_cleaning import DataCleaner
