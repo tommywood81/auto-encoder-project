@@ -1,0 +1,22 @@
+features:
+  strategy: optimized
+model:
+  activation_fn: relu
+  batch_size: 128
+  early_stopping: true
+  epochs: 12
+  latent_dim: 16
+  learning_rate: 0.003
+  patience: 5
+  threshold: 94
+training:
+  early_stopping_patience: 5
+  min_delta: 0.001
+  reduce_lr_patience: 3
+  validation_split: 0.2
+wandb:
+  entity: null
+  project: fraud-detection-autoencoder
+  tags:
+  - best_features
+  - best_strategy_behavioral

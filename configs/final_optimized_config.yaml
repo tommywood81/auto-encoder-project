@@ -1,13 +1,16 @@
+# Best configuration from final model sweep (ROC AUC: 0.7186)
+# Learning Rate: 0.003, Threshold: 94
 features:
-  strategy: combined
+  strategy: optimized
 model:
   activation_fn: relu
   batch_size: 128
   early_stopping: true
-  epochs: 50
+  epochs: 12
   latent_dim: 16
-  learning_rate: 0.015
-  threshold: 99
+  learning_rate: 0.003
+  patience: 5
+  threshold: 94
 training:
   early_stopping_patience: 5
   min_delta: 0.001

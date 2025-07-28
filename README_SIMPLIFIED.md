@@ -1,8 +1,24 @@
-# Simplified Fraud Detection Pipeline
+# Unsupervised Fraud Detection with Autoencoders
 
-A clean, production-grade fraud detection system using autoencoders with proper data leakage prevention.
+This project demonstrates an unsupervised fraud detection system using an autoencoder neural network. The goal is to identify anomalous e-commerce transactions in a synthetic dataset designed to simulate real-world fraud scenarios.
 
-## 🎯 Key Features
+## 🎯 Project Overview
+
+During the exploratory data analysis (EDA), it became clear that the dataset exhibits a largely linear structure, with no single feature or pair of features standing out as clearly indicative of fraud. However, fraudulent behavior is often subtle and nonlinear in nature, making traditional rules-based detection ineffective. This makes an autoencoder model particularly well-suited, as it learns to reconstruct normal transaction patterns and flags deviations without requiring labeled fraud examples.
+
+To improve model performance, I implemented a series of feature engineering strategies, including behavioral flags, temporal markers, and relational indicators. These enhancements helped push the model's AUC-ROC to 75, demonstrating meaningful signal in detecting anomalies. However, I made a conscious decision not to over-tune the features. In a real-world setting, feature engineering would be guided by business knowledge and expert input, not excessive tinkering or blind optimization.
+
+Beyond the model itself, a key focus of this project was the engineering and deployment pipeline. I aimed to create a production-grade file structure, including modularized code, configuration management, and experiment tracking. The application is designed to be deployable to a DigitalOcean droplet, serving real-time fraud inference through an API and user-facing dashboard.
+
+Lastly, this project was also a learning journey into both the fraud detection domain and the broader field of unsupervised learning and anomaly detection. It serves as both a technical artifact and a practical demonstration of how machine learning, software engineering, and domain understanding come together in real-world problem solving.
+
+## 🚀 Key Features
+
+- **No Data Leakage**: Proper train/test separation with leakage-free feature engineering
+- **Simplified Architecture**: Clean, maintainable code with clear separation of concerns
+- **Three-Stage Optimization**: Broad → Narrow → Final tuning sweep process
+- **Production Ready**: Robust error handling, logging, and model persistence
+- **High Performance**: Optimized for AUC ROC >= 0.75
 
 - **No Data Leakage**: Proper train/test separation with leakage-free feature engineering
 - **Simplified Architecture**: Clean, maintainable code with clear separation of concerns
@@ -28,9 +44,123 @@ A clean, production-grade fraud detection system using autoencoders with proper 
 │       └── __init__.py
 ├── tests/
 │   └── test_auc_75.py            # AUC 0.75 test
+├── configs/
+│   └── final_optimized_config.yaml # Model configuration
 ├── main.py                       # Main pipeline
 ├── run_sweeps.py                 # Sweep runner
 └── README_SIMPLIFIED.md
+```
+
+## 📋 Module Overview & Execution Order
+
+### **Core Modules**
+
+#### **1. Data Pipeline (`src/utils/data_loader.py`)**
+- **Purpose**: Handles data loading, cleaning, and time-aware splitting
+- **Key Functions**: 
+  - `load_and_split_data()`: Loads data and performs temporal train/test split
+  - `clean_data()`: Applies EDA-driven cleaning rules (capping amounts, clipping ages)
+  - `save_cleaned_data()`: Persists cleaned data for reuse
+
+#### **2. Feature Engineering (`src/features/feature_engineer.py`)**
+- **Purpose**: Creates 25+ engineered features with leakage-free transformations
+- **Key Functions**:
+  - `fit_transform()`: Fits on training data, transforms both train/test
+  - `_engineer_amount_features()`: Transaction amount transformations
+  - `_engineer_temporal_features()`: Time-based fraud indicators
+  - `_engineer_risk_flags()`: Domain-specific risk combinations
+- **Features**: Amount scaling, temporal markers, customer behavior, risk flags
+
+#### **3. Autoencoder Model (`src/models/autoencoder.py`)**
+- **Purpose**: Production-grade autoencoder for anomaly detection
+- **Key Functions**:
+  - `build_model()`: Constructs neural network architecture
+  - `train()`: Trains with early stopping and AUC monitoring
+  - `predict_anomaly_scores()`: Generates reconstruction error scores
+  - `_calculate_threshold()`: Sets anomaly threshold from normal data
+- **Architecture**: Encoder → Latent Space → Decoder with dropout/batch norm
+
+#### **4. Sweep System (`src/sweeps/sweep_manager.py`)**
+- **Purpose**: Three-stage hyperparameter optimization
+- **Stages**:
+  - **Broad**: Tests 5 architectures (small, medium, large, deep, wide)
+  - **Narrow**: Focuses on top 3 configurations
+  - **Final**: Fine-tunes best configuration
+- **Key Functions**: `run_complete_sweep()`, `run_broad_sweep()`, etc.
+
+### **Execution Scripts**
+
+#### **5. Main Pipeline (`main.py`)**
+- **Purpose**: Unified entry point for all operations
+- **Modes**:
+  - `--mode train`: Train model with optimized configuration
+  - `--mode predict`: Load model and make predictions
+  - `--mode test`: Run AUC 0.75 test
+- **Features**: Automatic data cleaning, model persistence, logging
+
+#### **6. Sweep Runner (`run_sweeps.py`)**
+- **Purpose**: Orchestrates the three-stage optimization process
+- **Stages**: `--stage broad`, `--stage narrow`, `--stage final`, `--stage all`
+- **Features**: Automatic data preparation, result tracking, best model selection
+
+#### **7. Testing (`tests/test_auc_75.py`)**
+- **Purpose**: Validates system performance and quality
+- **Tests**:
+  - AUC ROC >= 0.75 requirement
+  - Feature engineering quality
+  - Model persistence functionality
+  - Prediction consistency
+
+### **🔄 Recommended Execution Order**
+
+#### **For First-Time Setup:**
+```bash
+# 1. Test the system (validates everything works)
+python main.py --mode test
+
+# 2. Train the model with optimized configuration
+python main.py --mode train
+
+# 3. Make predictions on new data
+python main.py --mode predict
+```
+
+#### **For Hyperparameter Optimization:**
+```bash
+# 1. Run complete three-stage sweep
+python run_sweeps.py --stage all
+
+# 2. Train final model with best configuration
+python main.py --mode train
+
+# 3. Validate performance
+python main.py --mode test
+```
+
+#### **For Development/Experimentation:**
+```bash
+# 1. Run individual sweep stages
+python run_sweeps.py --stage broad    # Find promising architectures
+python run_sweeps.py --stage narrow   # Optimize hyperparameters
+python run_sweeps.py --stage final    # Fine-tune best model
+
+# 2. Test changes
+python tests/test_auc_75.py
+
+# 3. Train and validate
+python main.py --mode train
+python main.py --mode test
+```
+
+### **📊 Data Flow**
+
+```
+Raw Data → Data Loader → Feature Engineer → Autoencoder → Predictions
+    ↓           ↓              ↓              ↓            ↓
+  Cleaning   Splitting    Transformations   Training   Anomaly Scores
+    ↓           ↓              ↓              ↓            ↓
+  Capped     Train/Test    Leakage-Free    Threshold   Fraud Labels
+  Values     Temporal      Fitted Only     Calculated   Generated
 ```
 
 ## 🚀 Quick Start

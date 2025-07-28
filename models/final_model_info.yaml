@@ -1,0 +1,16 @@
+best_hyperparameters:
+  feature_strategy: optimized
+  learning_rate: 0.003
+  threshold: 94
+feature_strategy: optimized
+learning_rate: 0.003
+model_path: models\final_autoencoder.h5
+roc_auc: 0.7076330977603309
+scaler_path: models\final_scaler.pkl
+threshold_percentile: 94
+training_config:
+  early_stopping_min_delta: 0.0005
+  early_stopping_monitor: roc_auc
+  early_stopping_patience: 25
+  epochs: 100
+training_date: '2025-07-28 07:48:22'
