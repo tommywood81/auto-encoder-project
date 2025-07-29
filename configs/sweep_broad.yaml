@@ -1,6 +1,10 @@
 seed: 42
 
 model:
+  # Default values for config validation
+  latent_dim: 16
+  hidden_dims: [128, 64, 32]
+  dropout_rate: 0.2
   # Architecture configurations to test
   architectures:
     small:

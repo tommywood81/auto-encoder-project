@@ -1,15 +1,22 @@
 seed: 42
 
 model:
+  # Default values for config validation
+  latent_dim: 16
+  hidden_dims: [128, 64, 32]
+  dropout_rate: 0.2
   # Will be auto-filled by broad sweep with top 3 architectures
   architectures: {}
 
 training:
+  # Default values for config validation
+  batch_size: 64
+  learning_rate: 0.001
+  epochs: 100
   # Hyperparameter variations to test
   batch_sizes: [32, 64, 128]
   learning_rates: [0.0001, 0.0003, 0.001]
   dropout_rates: [0.1, 0.2, 0.3]
-  epochs: 100
   early_stopping: true
   patience: 15
   reduce_lr: true

@@ -29,9 +29,10 @@ class AUCCallback(keras.callbacks.Callback):
         self.best_auc = 0.0
     
     def on_epoch_end(self, epoch, logs=None):
-        # Calculate validation AUC
+        # Calculate validation AUC using anomaly scores
         val_predictions = self.model.predict(self.X_val, verbose=0)
-        val_auc = roc_auc_score(self.y_val, val_predictions)
+        val_anomaly_scores = np.mean(np.square(self.X_val - val_predictions), axis=1)
+        val_auc = roc_auc_score(self.y_val, val_anomaly_scores)
         
         # Update best AUC
         if val_auc > self.best_auc:
@@ -87,22 +88,37 @@ class FraudAutoencoder:
         # Input layer
         input_layer = layers.Input(shape=(input_dim,))
         
-        # Encoder
+        # Encoder with improved architecture
         encoded = input_layer
-        for dim in self.hidden_dims:
+        
+        # First layer with more capacity
+        encoded = layers.Dense(self.hidden_dims[0], activation='relu')(encoded)
+        encoded = layers.BatchNormalization()(encoded)
+        encoded = layers.Dropout(self.dropout_rate)(encoded)
+        
+        # Additional layers with decreasing capacity
+        for dim in self.hidden_dims[1:]:
             encoded = layers.Dense(dim, activation='relu')(encoded)
             encoded = layers.BatchNormalization()(encoded)
             encoded = layers.Dropout(self.dropout_rate)(encoded)
         
-        # Latent space
+        # Latent space with regularization
         latent = layers.Dense(self.latent_dim, activation='relu', name='latent')(encoded)
+        latent = layers.BatchNormalization()(latent)
         
-        # Decoder
+        # Decoder with symmetric architecture
         decoded = latent
-        for dim in reversed(self.hidden_dims):
+        
+        # Additional layers with increasing capacity
+        for dim in reversed(self.hidden_dims[1:]):
             decoded = layers.Dense(dim, activation='relu')(decoded)
             decoded = layers.BatchNormalization()(decoded)
             decoded = layers.Dropout(self.dropout_rate)(decoded)
+        
+        # Final layer with more capacity
+        decoded = layers.Dense(self.hidden_dims[0], activation='relu')(decoded)
+        decoded = layers.BatchNormalization()(decoded)
+        decoded = layers.Dropout(self.dropout_rate)(decoded)
         
         # Output layer
         output_layer = layers.Dense(input_dim, activation='linear', name='output')(decoded)
@@ -112,7 +128,11 @@ class FraudAutoencoder:
         
         # Compile model
         optimizer = keras.optimizers.Adam(learning_rate=self.learning_rate)
-        model.compile(optimizer=optimizer, loss='mse', metrics=['mae'])
+        model.compile(
+            optimizer=optimizer,
+            loss='mse',  # Use 'mse' for proper serialization
+            metrics=['mae']
+        )
         
         logger.info(f"Model built with {model.count_params():,} parameters")
         
@@ -273,61 +293,53 @@ class FraudAutoencoder:
         return predictions
     
     def save_model(self, filepath: str):
-        """Save model and fitted objects."""
+        """Save the trained model."""
+        if self.model is None:
+            raise ValueError("No model to save. Train the model first.")
         
-        if not self.is_fitted:
-            raise ValueError("Model must be fitted before saving")
+        # Ensure filepath has correct extension
+        if not filepath.endswith('.keras'):
+            filepath = filepath + '.keras'
         
-        # Create directory
-        os.makedirs(os.path.dirname(filepath), exist_ok=True)
+        # Save model using native Keras format
+        self.model.save(filepath)
         
-        # Save model
-        model_path = f"{filepath}_model.h5"
-        self.model.save(model_path)
+        # Save scaler and threshold separately
+        scaler_path = filepath.replace('.keras', '_scaler.pkl')
+        threshold_path = filepath.replace('.keras', '_threshold.pkl')
         
-        # Save scaler
-        scaler_path = f"{filepath}_scaler.pkl"
         with open(scaler_path, 'wb') as f:
             pickle.dump(self.scaler, f)
         
-        # Save threshold
-        threshold_path = f"{filepath}_threshold.pkl"
         with open(threshold_path, 'wb') as f:
             pickle.dump(self.threshold, f)
         
-        # Save config
-        config_path = f"{filepath}_config.pkl"
-        with open(config_path, 'wb') as f:
-            pickle.dump(self.config, f)
-        
-        logger.info(f"Model saved to: {filepath}")
+        logger.info(f"Model saved to {filepath}")
+        logger.info(f"Scaler saved to {scaler_path}")
+        logger.info(f"Threshold saved to {threshold_path}")
     
     def load_model(self, filepath: str):
-        """Load model and fitted objects."""
+        """Load a trained model."""
+        # Ensure filepath has correct extension
+        if not filepath.endswith('.keras'):
+            filepath = filepath + '.keras'
         
-        # Load model
-        model_path = f"{filepath}_model.h5"
-        self.model = keras.models.load_model(model_path)
+        # Load model using native Keras format
+        self.model = keras.models.load_model(filepath)
         
-        # Load scaler
-        scaler_path = f"{filepath}_scaler.pkl"
+        # Load scaler and threshold
+        scaler_path = filepath.replace('.keras', '_scaler.pkl')
+        threshold_path = filepath.replace('.keras', '_threshold.pkl')
+        
         with open(scaler_path, 'rb') as f:
             self.scaler = pickle.load(f)
         
-        # Load threshold
-        threshold_path = f"{filepath}_threshold.pkl"
         with open(threshold_path, 'rb') as f:
             self.threshold = pickle.load(f)
         
-        # Load config
-        config_path = f"{filepath}_config.pkl"
-        with open(config_path, 'rb') as f:
-            self.config = pickle.load(f)
-        
-        # Set fitted state
-        self.is_fitted = True
-        
-        logger.info(f"Model loaded from: {filepath}")
+        logger.info(f"Model loaded from {filepath}")
+        logger.info(f"Scaler loaded from {scaler_path}")
+        logger.info(f"Threshold loaded from {threshold_path}")
     
     def get_model_summary(self) -> str:
         """Get model architecture summary."""

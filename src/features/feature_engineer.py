@@ -19,13 +19,17 @@ class FeatureEngineer:
     
     def __init__(self, config: Dict[str, Any]):
         """Initialize feature engineer with configuration."""
-        self.config = config or {}
+        self.config = config
         self.is_fitted = False
         
         # Fitted objects (will be set during fit)
         self.amount_scaler = None
         self.label_encoders = {}
         self.percentile_thresholds = {}
+        self.amount_mean = None
+        self.amount_std = None
+        self.quantity_mean = None
+        self.quantity_std = None
         
         # Feature selection flags
         self.use_amount_features = self.config.get('use_amount_features', True)
@@ -108,25 +112,25 @@ class FeatureEngineer:
         """Engineer amount-related features."""
         
         # Log transform
-        df['amount_log'] = np.log1p(df['amount'])
+        df['amount_log'] = np.log1p(df['transaction_amount'])
         
         # Amount per item
-        df['amount_per_item'] = df['amount'] / (df['quantity'] + 1)
+        df['amount_per_item'] = df['transaction_amount'] / (df['quantity'] + 1)
         
         # Robust scaling (fit on training data only)
         if is_training:
             self.amount_scaler = RobustScaler()
-            df['amount_scaled'] = self.amount_scaler.fit_transform(df[['amount']]).flatten()
+            df['amount_scaled'] = self.amount_scaler.fit_transform(df[['transaction_amount']]).flatten()
         else:
-            df['amount_scaled'] = self.amount_scaler.transform(df[['amount']]).flatten()
+            df['amount_scaled'] = self.amount_scaler.transform(df[['transaction_amount']]).flatten()
         
         # High amount flags (fit percentiles on training data only)
         if is_training:
-            self.percentile_thresholds['amount_95'] = np.percentile(df['amount'], 95)
-            self.percentile_thresholds['amount_99'] = np.percentile(df['amount'], 99)
+            self.percentile_thresholds['amount_95'] = np.percentile(df['transaction_amount'], 95)
+            self.percentile_thresholds['amount_99'] = np.percentile(df['transaction_amount'], 99)
         
-        df['high_amount_95'] = (df['amount'] > self.percentile_thresholds['amount_95']).astype(int)
-        df['high_amount_99'] = (df['amount'] > self.percentile_thresholds['amount_99']).astype(int)
+        df['high_amount_95'] = (df['transaction_amount'] > self.percentile_thresholds['amount_95']).astype(int)
+        df['high_amount_99'] = (df['transaction_amount'] > self.percentile_thresholds['amount_99']).astype(int)
         
         return df
     
@@ -134,17 +138,17 @@ class FeatureEngineer:
         """Apply fitted amount features to test data."""
         
         # Log transform
-        df['amount_log'] = np.log1p(df['amount'])
+        df['amount_log'] = np.log1p(df['transaction_amount'])
         
         # Amount per item
-        df['amount_per_item'] = df['amount'] / (df['quantity'] + 1)
+        df['amount_per_item'] = df['transaction_amount'] / (df['quantity'] + 1)
         
         # Robust scaling (using fitted scaler)
-        df['amount_scaled'] = self.amount_scaler.transform(df[['amount']]).flatten()
+        df['amount_scaled'] = self.amount_scaler.transform(df[['transaction_amount']]).flatten()
         
         # High amount flags (using fitted thresholds)
-        df['high_amount_95'] = (df['amount'] > self.percentile_thresholds['amount_95']).astype(int)
-        df['high_amount_99'] = (df['amount'] > self.percentile_thresholds['amount_99']).astype(int)
+        df['high_amount_95'] = (df['transaction_amount'] > self.percentile_thresholds['amount_95']).astype(int)
+        df['high_amount_99'] = (df['transaction_amount'] > self.percentile_thresholds['amount_99']).astype(int)
         
         return df
     
@@ -152,10 +156,13 @@ class FeatureEngineer:
         """Engineer temporal features."""
         
         # Convert timestamp to datetime
-        df['timestamp'] = pd.to_datetime(df['timestamp'])
+        df['transaction_date'] = pd.to_datetime(df['transaction_date'])
         
-        # Extract hour
-        df['hour'] = df['timestamp'].dt.hour
+        # Extract hour (use existing transaction_hour if available)
+        if 'transaction_hour' in df.columns:
+            df['hour'] = df['transaction_hour']
+        else:
+            df['hour'] = df['transaction_date'].dt.hour
         
         # Time-based flags
         df['is_late_night'] = ((df['hour'] >= 23) | (df['hour'] <= 6)).astype(int)
@@ -240,17 +247,66 @@ class FeatureEngineer:
         # Young customer flag
         df['young_customer'] = (df['customer_age'] <= 18).astype(int)
         
-        # High risk combinations
-        df['high_risk_combination'] = ((df['amount'] > self.percentile_thresholds['amount_95']) & 
-                                      (df['is_late_night'] == 1)).astype(int)
-        
-        df['new_account_high_amount'] = ((df['new_account'] == 1) & 
-                                        (df['amount'] > self.percentile_thresholds['amount_95'])).astype(int)
-        
-        # Interaction features
-        df['amount_quantity_interaction'] = df['amount'] * df['quantity']
-        df['age_account_interaction'] = df['customer_age'] * df['account_age_days']
-        df['amount_hour_interaction'] = df['amount'] * df['hour']
+        # Advanced fraud detection features
+        if self.config.get('use_risk_flags', True):
+            # High risk combinations
+            df['high_risk_combination'] = ((df['transaction_amount'] > self.percentile_thresholds['amount_95']) & 
+                                          (df['is_late_night'] == 1)).astype(int)
+            
+            df['new_account_high_amount'] = ((df['new_account'] == 1) & 
+                                            (df['transaction_amount'] > self.percentile_thresholds['amount_95'])).astype(int)
+            
+            # Interaction features
+            df['amount_quantity_interaction'] = df['transaction_amount'] * df['quantity']
+            df['age_account_interaction'] = df['customer_age'] * df['account_age_days']
+            df['amount_hour_interaction'] = df['transaction_amount'] * df['hour']
+            
+            # Advanced risk scores (ensure all columns exist)
+            risk_score = 0
+            if 'high_amount_95' in df.columns:
+                risk_score += df['high_amount_95'] * 2
+            if 'is_late_night' in df.columns:
+                risk_score += df['is_late_night'] * 1.5
+            if 'new_account' in df.columns:
+                risk_score += df['new_account'] * 1.5
+            if 'high_quantity' in df.columns:
+                risk_score += df['high_quantity'] * 1.2
+            if 'high_risk_combination' in df.columns:
+                risk_score += df['high_risk_combination'] * 3
+            if 'new_account_high_amount' in df.columns:
+                risk_score += df['new_account_high_amount'] * 2.5
+            
+            df['risk_score'] = risk_score
+            
+            # Velocity features
+            df['amount_velocity'] = df['transaction_amount'] / (df['account_age_days'] + 1)
+            df['transaction_velocity'] = 1 / (df['account_age_days'] + 1)
+            
+            # Statistical features
+            if is_training:
+                self.amount_mean = df['transaction_amount'].mean()
+                self.amount_std = df['transaction_amount'].std()
+                self.quantity_mean = df['quantity'].mean()
+                self.quantity_std = df['quantity'].std()
+            
+            df['amount_z_score'] = (df['transaction_amount'] - self.amount_mean) / (self.amount_std + 1e-8)
+            df['quantity_z_score'] = (df['quantity'] - self.quantity_mean) / (self.quantity_std + 1e-8)
+            
+            # Advanced statistical features
+            df['amount_quantile'] = df['transaction_amount'].rank(pct=True)
+            df['quantity_quantile'] = df['quantity'].rank(pct=True)
+            
+            # Interaction with risk factors
+            df['amount_risk_interaction'] = df['amount_z_score'] * df['risk_score']
+            df['quantity_risk_interaction'] = df['quantity_z_score'] * df['risk_score']
+            
+            # Time-based risk features
+            df['hour_risk'] = df['hour'] * df['risk_score']
+            df['late_night_high_amount'] = df['is_late_night'] * df['high_amount_95']
+            
+            # Customer behavior features
+            df['customer_risk_profile'] = df['customer_age'] * df['account_age_days'] * df['risk_score']
+            df['transaction_complexity'] = df['transaction_amount'] * df['quantity'] * df['risk_score']
         
         return df
     
@@ -263,17 +319,60 @@ class FeatureEngineer:
         # Young customer flag
         df['young_customer'] = (df['customer_age'] <= 18).astype(int)
         
-        # High risk combinations
-        df['high_risk_combination'] = ((df['amount'] > self.percentile_thresholds['amount_95']) & 
-                                      (df['is_late_night'] == 1)).astype(int)
-        
-        df['new_account_high_amount'] = ((df['new_account'] == 1) & 
-                                        (df['amount'] > self.percentile_thresholds['amount_95'])).astype(int)
-        
-        # Interaction features
-        df['amount_quantity_interaction'] = df['amount'] * df['quantity']
-        df['age_account_interaction'] = df['customer_age'] * df['account_age_days']
-        df['amount_hour_interaction'] = df['amount'] * df['hour']
+        # Advanced fraud detection features (using fitted thresholds)
+        if self.config.get('use_risk_flags', True):
+            # High risk combinations
+            df['high_risk_combination'] = ((df['transaction_amount'] > self.percentile_thresholds['amount_95']) & 
+                                          (df['is_late_night'] == 1)).astype(int)
+            
+            df['new_account_high_amount'] = ((df['new_account'] == 1) & 
+                                            (df['transaction_amount'] > self.percentile_thresholds['amount_95'])).astype(int)
+            
+            # Interaction features
+            df['amount_quantity_interaction'] = df['transaction_amount'] * df['quantity']
+            df['age_account_interaction'] = df['customer_age'] * df['account_age_days']
+            df['amount_hour_interaction'] = df['transaction_amount'] * df['hour']
+            
+            # Advanced risk scores (using fitted thresholds)
+            risk_score = 0
+            if 'high_amount_95' in df.columns:
+                risk_score += df['high_amount_95'] * 2
+            if 'is_late_night' in df.columns:
+                risk_score += df['is_late_night'] * 1.5
+            if 'new_account' in df.columns:
+                risk_score += df['new_account'] * 1.5
+            if 'high_quantity' in df.columns:
+                risk_score += df['high_quantity'] * 1.2
+            if 'high_risk_combination' in df.columns:
+                risk_score += df['high_risk_combination'] * 3
+            if 'new_account_high_amount' in df.columns:
+                risk_score += df['new_account_high_amount'] * 2.5
+            
+            df['risk_score'] = risk_score
+            
+            # Velocity features
+            df['amount_velocity'] = df['transaction_amount'] / (df['account_age_days'] + 1)
+            df['transaction_velocity'] = 1 / (df['account_age_days'] + 1)
+            
+            # Statistical features (using fitted statistics)
+            df['amount_z_score'] = (df['transaction_amount'] - self.amount_mean) / (self.amount_std + 1e-8)
+            df['quantity_z_score'] = (df['quantity'] - self.quantity_mean) / (self.quantity_std + 1e-8)
+            
+            # Advanced statistical features
+            df['amount_quantile'] = df['transaction_amount'].rank(pct=True)
+            df['quantity_quantile'] = df['quantity'].rank(pct=True)
+            
+            # Interaction with risk factors
+            df['amount_risk_interaction'] = df['amount_z_score'] * df['risk_score']
+            df['quantity_risk_interaction'] = df['quantity_z_score'] * df['risk_score']
+            
+            # Time-based risk features
+            df['hour_risk'] = df['hour'] * df['risk_score']
+            df['late_night_high_amount'] = df['is_late_night'] * df['high_amount_95']
+            
+            # Customer behavior features
+            df['customer_risk_profile'] = df['customer_age'] * df['account_age_days'] * df['risk_score']
+            df['transaction_complexity'] = df['transaction_amount'] * df['quantity'] * df['risk_score']
         
         return df
     
@@ -286,9 +385,11 @@ class FeatureEngineer:
             if col in df.columns:
                 df = df.drop(columns=[col])
         
-        # Drop timestamp column (temporal features extracted)
-        if 'timestamp' in df.columns:
-            df = df.drop(columns=['timestamp'])
+        # Drop timestamp/date columns (temporal features extracted)
+        date_cols = ['timestamp', 'transaction_date']
+        for col in date_cols:
+            if col in df.columns:
+                df = df.drop(columns=[col])
         
         # Handle any remaining non-numeric columns
         non_numeric_cols = df.select_dtypes(exclude=[np.number]).columns

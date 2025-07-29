@@ -8,9 +8,11 @@ import pandas as pd
 import numpy as np
 import os
 import sys
+import tensorflow as tf
+from sklearn.metrics import roc_auc_score
 
 # Add src to path
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
 from src.config_loader import ConfigLoader
 from src.features.feature_engineer import FeatureEngineer
@@ -28,17 +30,17 @@ def run_auc_test():
     try:
         # Load configuration
         config_loader = ConfigLoader("configs/final_optimized_config.yaml")
-        print(f"✅ Configuration loaded from: configs/final_optimized_config.yaml")
+        print(f"[PASS] Configuration loaded from: configs/final_optimized_config.yaml")
         
         # Load and split data
         df_train, df_test = load_and_split_data("data/cleaned/ecommerce_cleaned.csv")
-        print(f"✅ Data loaded: {len(df_train)} train, {len(df_test)} test samples")
+        print(f"[PASS] Data loaded: {len(df_train)} train, {len(df_test)} test samples")
         
         # Feature engineering
         feature_config = config_loader.get_feature_config()
         feature_engineer = FeatureEngineer(feature_config)
         df_train_features, df_test_features = feature_engineer.fit_transform(df_train, df_test)
-        print(f"✅ Feature engineering completed: {len(df_train_features.columns)} features")
+        print(f"[PASS] Feature engineering completed: {len(df_train_features.columns)} features")
         
         # Get model and training configuration
         model_config = config_loader.get_model_config()
@@ -51,10 +53,10 @@ def run_auc_test():
             'threshold_percentile': feature_config.get('threshold_percentile', 95)
         }
         
-        print(f"✅ Model config: latent_dim={model_config['latent_dim']}, "
+        print(f"[PASS] Model config: latent_dim={model_config['latent_dim']}, "
               f"hidden_dims={model_config['hidden_dims']}, "
               f"dropout_rate={model_config['dropout_rate']}")
-        print(f"✅ Training config: batch_size={training_config['batch_size']}, "
+        print(f"[PASS] Training config: batch_size={training_config['batch_size']}, "
               f"learning_rate={training_config['learning_rate']}, "
               f"epochs={training_config['epochs']}")
         
@@ -64,7 +66,7 @@ def run_auc_test():
         y_train = df_train_features['is_fraudulent'].values
         y_test = df_test_features['is_fraudulent'].values
         
-        print(f"✅ Data prepared: {X_train.shape[0]} train, {X_test.shape[0]} test samples")
+        print(f"[PASS] Data prepared: {X_train.shape[0]} train, {X_test.shape[0]} test samples")
         
         # Train model
         results = autoencoder.train(X_train, X_test, y_train, y_test)
@@ -73,7 +75,7 @@ def run_auc_test():
         test_auc = results['test_auc']
         threshold = results['threshold']
         
-        print(f"✅ Training completed")
+        print(f"[PASS] Training completed")
         print(f"   Test AUC: {test_auc:.4f}")
         print(f"   Threshold: {threshold:.6f}")
         print(f"   Target AUC: 0.7500")
@@ -81,7 +83,7 @@ def run_auc_test():
         # Assert AUC requirement
         assert test_auc >= 0.75, f"AUC test FAILED: {test_auc:.4f} < 0.75"
         
-        print(f"✅ AUC test PASSED: {test_auc:.4f} >= 0.75")
+        print(f"[PASS] AUC test PASSED: {test_auc:.4f} >= 0.75")
         
         # Additional quality checks
         test_feature_engineering_quality(df_train_features, df_test_features)
@@ -90,7 +92,7 @@ def run_auc_test():
         return True
         
     except Exception as e:
-        print(f"❌ AUC test FAILED with error: {e}")
+        print(f"[FAIL] AUC test FAILED with error: {e}")
         return False
 
 
@@ -119,7 +121,7 @@ def test_feature_engineering_quality(df_train_features, df_test_features):
         assert abs(test_min) < 1e6, f"Extreme minimum value in test feature {col}: {test_min}"
         assert abs(test_max) < 1e6, f"Extreme maximum value in test feature {col}: {test_max}"
     
-    print(f"✅ Feature engineering quality checks passed")
+    print(f"[PASS] Feature engineering quality checks passed")
 
 
 def test_model_quality(autoencoder, X_test, y_test):
@@ -148,7 +150,7 @@ def test_model_quality(autoencoder, X_test, y_test):
     assert threshold > 0, "Threshold should be positive"
     assert threshold < score_max, "Threshold should be less than maximum score"
     
-    print(f"✅ Model quality checks passed")
+    print(f"[PASS] Model quality checks passed")
     print(f"   Predictions: {fraud_predictions}/{len(predictions)} ({fraud_predictions/len(predictions):.2%})")
     print(f"   Actual fraud: {fraud_actual}/{len(y_test)} ({fraud_actual/len(y_test):.2%})")
     print(f"   Anomaly scores: {score_min:.4f} to {score_max:.4f} (mean: {score_mean:.4f}, std: {score_std:.4f})")
@@ -171,48 +173,37 @@ def test_config_driven_approach():
     assert 'batch_size' in training_config, "Training config missing batch_size"
     assert 'learning_rate' in training_config, "Training config missing learning_rate"
     
-    print("✅ Config-driven approach test passed")
+    print("[PASS] Config-driven approach test passed")
 
 
 def test_reproducibility():
-    """Test that results are reproducible with same config."""
+    """Test that the pipeline produces reproducible results."""
     
-    # Load data
-    df_train, df_test = load_and_split_data("data/cleaned/ecommerce_cleaned.csv")
+    print("=" * 60)
+    print("TESTING PIPELINE REPRODUCIBILITY")
+    print("=" * 60)
     
-    # Load config
-    config_loader = ConfigLoader("configs/final_optimized_config.yaml")
-    feature_config = config_loader.get_feature_config()
-    model_config = config_loader.get_model_config()
-    training_config = config_loader.get_training_config()
+    # Set seeds for reproducibility
+    np.random.seed(42)
+    tf.random.set_seed(42)
+    os.environ['PYTHONHASHSEED'] = '42'
     
-    # Combine configurations
-    combined_config = {
-        **model_config,
-        **training_config,
-        'threshold_percentile': feature_config.get('threshold_percentile', 95)
-    }
+    # Run pipeline first time
+    results1 = run_auc_test()
     
-    # Feature engineering
-    feature_engineer = FeatureEngineer(feature_config)
-    df_train_features, df_test_features = feature_engineer.fit_transform(df_train, df_test)
+    # Reset seeds
+    np.random.seed(42)
+    tf.random.set_seed(42)
+    os.environ['PYTHONHASHSEED'] = '42'
     
-    # Train two models with same config
-    autoencoder1 = FraudAutoencoder(combined_config)
-    autoencoder2 = FraudAutoencoder(combined_config)
+    # Run pipeline second time
+    results2 = run_auc_test()
     
-    X_train, X_test = autoencoder1.prepare_data(df_train_features, df_test_features)
-    y_train = df_train_features['is_fraudulent'].values
-    y_test = df_test_features['is_fraudulent'].values
-    
-    results1 = autoencoder1.train(X_train, X_test, y_train, y_test)
-    results2 = autoencoder2.train(X_train, X_test, y_train, y_test)
-    
-    # Results should be very close (allowing for small differences)
+    # Results should be very similar (allowing for small numerical differences)
     assert abs(results1['test_auc'] - results2['test_auc']) < 1e-3, "Results not reproducible"
     assert abs(results1['threshold'] - results2['threshold']) < 1e-3, "Threshold not reproducible"
     
-    print("✅ Reproducibility test passed")
+    print("[PASS] Pipeline reproducibility test passed")
 
 
 if __name__ == "__main__":
@@ -225,10 +216,10 @@ if __name__ == "__main__":
     
     if success:
         print("\n" + "=" * 60)
-        print("✅ ALL TESTS PASSED!")
-        print("✅ Model achieves AUC ROC >= 0.75")
-        print("✅ Config-driven approach working")
-        print("✅ Results are reproducible")
+        print("[PASS] ALL TESTS PASSED!")
+        print("[PASS] Model achieves AUC ROC >= 0.75")
+        print("[PASS] Config-driven approach working")
+        print("[PASS] Results are reproducible")
         print("=" * 60)
     else:
         print("\n" + "=" * 60)

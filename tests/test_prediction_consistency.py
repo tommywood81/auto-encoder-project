@@ -11,7 +11,7 @@ import tempfile
 import shutil
 
 # Add src to path
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
 from src.config_loader import ConfigLoader
 from src.features.feature_engineer import FeatureEngineer
@@ -92,7 +92,7 @@ def test_model_save_load_consistency():
         # Compare thresholds
         assert abs(autoencoder.threshold - loaded_autoencoder.threshold) < 1e-6, "Threshold differs after save/load"
         
-        print("✅ Model save/load consistency test passed")
+        print("[PASS] Model save/load consistency test passed")
 
 
 def test_feature_engineer_save_load_consistency():
@@ -134,7 +134,7 @@ def test_feature_engineer_save_load_consistency():
             # Compare values (allowing for small floating point differences)
             assert np.allclose(original_values, loaded_values, rtol=1e-5, atol=1e-5), f"Feature {col} differs after save/load"
         
-        print("✅ Feature engineer save/load consistency test passed")
+        print("[PASS] Feature engineer save/load consistency test passed")
 
 
 def test_prediction_stability():
@@ -190,7 +190,7 @@ def test_prediction_stability():
     assert np.allclose(scores1, scores2, rtol=1e-5, atol=1e-5), "Scores not stable across calls"
     assert np.allclose(scores2, scores3, rtol=1e-5, atol=1e-5), "Scores not stable across calls"
     
-    print("✅ Prediction stability test passed")
+    print("[PASS] Prediction stability test passed")
 
 
 def test_model_persistence_integrity():
@@ -249,7 +249,7 @@ def test_model_persistence_integrity():
         assert os.path.getsize(threshold_file) > 0, "Threshold file is empty"
         assert os.path.getsize(features_file) > 0, "Features file is empty"
         
-        print("✅ Model persistence integrity test passed")
+        print("[PASS] Model persistence integrity test passed")
 
 
 if __name__ == "__main__":
