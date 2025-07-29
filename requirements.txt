@@ -1,15 +1,15 @@
-tensorflow>=2.10.0
-pandas>=1.3.0
+# Core ML libraries
+tensorflow>=2.8.0
+scikit-learn>=1.1.0
 numpy>=1.21.0
-scikit-learn>=1.0.0
-fastapi>=0.104.0
-uvicorn[standard]>=0.24.0
-python-multipart>=0.0.6
-requests>=2.25.0
-wandb>=0.15.0 
-matplotlib>=3.5.0
-seaborn>=0.11.0
-plotly>=5.0.0
-jinja2 
-pyviz
-pydot 
+pandas>=1.4.0
+
+# Configuration and utilities
+pyyaml>=6.0
+wandb>=0.13.0
+
+# Testing
+pytest>=7.0.0
+
+# Optional: for better performance
+# tensorflow-gpu>=2.8.0  # Uncomment if GPU is available 

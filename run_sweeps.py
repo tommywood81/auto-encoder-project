@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Main Sweep Runner for Fraud Detection
-Three-stage optimization: broad → narrow → final tuning
+Sweep Runner for Fraud Detection Pipeline
+Config-driven three-stage hyperparameter optimization
 """
 
 import os
@@ -14,7 +14,7 @@ from pathlib import Path
 sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
 
 from src.sweeps.sweep_manager import SweepManager
-from src.utils.data_loader import load_cleaned_data, clean_data, save_cleaned_data
+from src.utils.data_loader import load_and_split_data, clean_data, save_cleaned_data
 
 # Configure logging
 logging.basicConfig(
@@ -25,9 +25,21 @@ logger = logging.getLogger(__name__)
 
 
 def main():
-    """Run the complete sweep process."""
-    
+    """Run the sweep process for hyperparameter optimization."""
+
     parser = argparse.ArgumentParser(description="Fraud Detection Sweep Runner")
+    parser.add_argument(
+        "--stage",
+        type=str,
+        choices=["broad", "narrow", "final", "all"],
+        default="all",
+        help="Sweep stage to run"
+    )
+    parser.add_argument(
+        "--config",
+        type=str,
+        help="Path to configuration file (auto-determined if not specified)"
+    )
     parser.add_argument(
         "--data_path",
         type=str,
@@ -40,72 +52,106 @@ def main():
         default="data/raw/Fraudulent_E-Commerce_Transaction_Data_2.csv",
         help="Path to the raw data file (if cleaned data doesn't exist)"
     )
-    parser.add_argument(
-        "--stage",
-        type=str,
-        choices=["broad", "narrow", "final", "all"],
-        default="all",
-        help="Which stage to run"
-    )
-    
+
     args = parser.parse_args()
-    
+
     print("=" * 80)
     print("FRAUD DETECTION SWEEP RUNNER")
     print("=" * 80)
-    
+    print(f"Stage: {args.stage}")
+    print("=" * 80)
+
+    # Determine config file based on stage
+    if args.config:
+        config_path = args.config
+    else:
+        if args.stage == "broad":
+            config_path = "configs/sweep_broad.yaml"
+        elif args.stage == "narrow":
+            config_path = "configs/sweep_narrow.yaml"
+        elif args.stage == "final":
+            config_path = "configs/sweep_final.yaml"
+        else:
+            config_path = "configs/sweep_broad.yaml"  # Default for "all"
+
+    print(f"Config: {config_path}")
+
     # Check if cleaned data exists, if not clean raw data
     if not os.path.exists(args.data_path):
         logger.info(f"Cleaned data not found at {args.data_path}")
         if os.path.exists(args.raw_data_path):
             logger.info(f"Cleaning raw data from {args.raw_data_path}")
-            df_raw = load_cleaned_data(args.raw_data_path)
+            df_raw = pd.read_csv(args.raw_data_path)
             df_cleaned = clean_data(df_raw)
             save_cleaned_data(df_cleaned, args.data_path)
             logger.info(f"Cleaned data saved to {args.data_path}")
         else:
             raise FileNotFoundError(f"Neither cleaned nor raw data found")
-    
+
     # Initialize sweep manager
-    sweep_manager = SweepManager()
-    
+    try:
+        sweep_manager = SweepManager(config_path)
+        logger.info(f"Sweep manager initialized with config: {config_path}")
+    except Exception as e:
+        logger.error(f"Failed to initialize sweep manager: {e}")
+        sys.exit(1)
+
+    # Run appropriate stage(s)
     if args.stage == "all":
-        # Run complete three-stage sweep
-        logger.info("Running complete three-stage sweep process...")
-        best_result = sweep_manager.run_complete_sweep(args.data_path)
+        logger.info("Running complete three-stage sweep process")
+        results = sweep_manager.run_complete_sweep()
         
-        print("\n" + "=" * 80)
-        print("SWEEP PROCESS COMPLETED")
-        print("=" * 80)
-        print(f"Best AUC achieved: {best_result['test_auc']:.4f}")
-        print(f"Best configuration: {best_result['name']}")
-        print(f"Threshold: {best_result['threshold']:.6f}")
+        print("\n" + "=" * 60)
+        print("COMPLETE SWEEP PROCESS FINISHED")
+        print("=" * 60)
+        print(f"Best AUC: {results['best_auc']:.4f}")
+        print(f"Best config saved to: configs/final_optimized_config.yaml")
         
+        # Print next steps
+        print("\n" + "=" * 60)
+        print("NEXT STEPS")
+        print("=" * 60)
+        print("1. Train final model:")
+        print("   python main.py --mode train --config configs/final_optimized_config.yaml")
+        print("\n2. Test model performance:")
+        print("   python main.py --mode test --config configs/final_optimized_config.yaml")
+        print("\n3. Make predictions:")
+        print("   python main.py --mode predict --config configs/final_optimized_config.yaml")
+
     elif args.stage == "broad":
-        # Run only broad sweep
-        logger.info("Running broad sweep only...")
-        results = sweep_manager.run_broad_sweep(args.data_path)
+        logger.info("Running broad sweep")
+        results = sweep_manager.run_broad_sweep()
         
-        print("\n" + "=" * 50)
+        print("\n" + "=" * 60)
         print("BROAD SWEEP COMPLETED")
-        print("=" * 50)
-        for i, result in enumerate(results[:3]):
-            print(f"{i+1}. {result['name']}: AUC = {result['test_auc']:.4f}")
-    
+        print("=" * 60)
+        print("Next command to run:")
+        print("python run_sweeps.py --stage narrow --config configs/sweep_narrow.yaml")
+
     elif args.stage == "narrow":
-        # Run narrow sweep (requires broad results)
-        logger.info("Running narrow sweep...")
-        # This would need to load previous broad results
-        print("Narrow sweep requires broad sweep results. Run 'all' or 'broad' first.")
-    
+        logger.info("Running narrow sweep")
+        results = sweep_manager.run_narrow_sweep()
+        
+        print("\n" + "=" * 60)
+        print("NARROW SWEEP COMPLETED")
+        print("=" * 60)
+        print("Next command to run:")
+        print("python run_sweeps.py --stage final --config configs/sweep_final.yaml")
+
     elif args.stage == "final":
-        # Run final tuning (requires narrow results)
-        logger.info("Running final tuning...")
-        # This would need to load previous narrow results
-        print("Final tuning requires narrow sweep results. Run 'all' first.")
-    
+        logger.info("Running final sweep")
+        results = sweep_manager.run_final_sweep()
+        
+        print("\n" + "=" * 60)
+        print("FINAL SWEEP COMPLETED")
+        print("=" * 60)
+        print("Next command to run:")
+        print("python main.py --mode train --config configs/final_optimized_config.yaml")
+
     print("\nSweep process completed successfully!")
 
 
 if __name__ == "__main__":
+    import pandas as pd
+    import numpy as np
     main() 

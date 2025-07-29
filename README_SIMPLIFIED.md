@@ -367,3 +367,150 @@ Monitor key metrics:
 2. Run narrow sweep to optimize hyperparameters
 3. Run final tuning for best performance
 4. Monitor and adjust based on results 
+
+
+Guidelines to follow:
+# 🧠 Unsupervised Fraud Detection with Autoencoders
+
+A production-grade anomaly detection pipeline using an autoencoder to flag fraudulent transactions. Built for reproducibility, clean config management, no data leakage, and experiment tracking.
+
+---
+
+## ✅ Summary of Best Practices
+
+- **Leakage-Free:** Train/test split before all transforms. Test only uses train-fitted scalers.
+- **Config-Driven:** All logic controlled via YAML files. No hardcoded values.
+- **Smart Sweeps:** 3-stage hyperparameter tuning with auto-promotion of best config if AUC improves.
+- **W&B Logging:** Clean, minimal logging of key metrics (AUC, loss, threshold, LR).
+- **Full Reproducibility:** Global `seed` from config sets Python, NumPy, and ML framework.
+- **Deterministic Operations:** GPU ops forced to be deterministic (e.g. cuDNN).
+- **Tests Included:** Validate leakage, AUC, prediction consistency, and config integrity.
+
+---
+
+## 🔧 Config Structure
+
+Config values are stored in:
+
+```
+configs/
+├── sweep_broad.yaml
+├── sweep_narrow.yaml       ← auto-filled by stage 1
+├── sweep_final.yaml        ← auto-filled by stage 2
+└── final_optimized_config.yaml  ← promoted if AUC improves
+```
+
+Sample:
+```yaml
+seed: 42
+model:
+  latent_dim: 24
+  hidden_dims: [256, 128, 64]
+training:
+  batch_size: 64
+  learning_rate: 0.0003
+  epochs: 100
+```
+
+---
+
+## ⚙️ Sweep Logic (Auto-Promotion)
+
+| Stage   | What It Does                        | Output Config                   |
+|---------|-------------------------------------|----------------------------------|
+| Broad   | Test 5 architectures                | → `sweep_narrow.yaml`           |
+| Narrow  | Tune top 3 from broad               | → `sweep_final.yaml`            |
+| Final   | Fine-tune best config from narrow   | → `final_optimized_config.yaml` (if AUC improves)
+
+Each script prints the **exact command** to run next.
+
+---
+
+## 🧬 Reproducibility Enforcement
+
+- `seed` from config is applied to:
+  - `random.seed(seed)`
+  - `np.random.seed(seed)`
+  - `torch.manual_seed(seed)` or `tf.random.set_seed(seed)`
+- Determinism enabled:
+  - PyTorch: `torch.use_deterministic_algorithms(True)`
+  - TensorFlow: `tf.config.experimental.enable_op_determinism()`
+- Ensures identical results across runs with same config + seed.
+
+---
+
+## 🧪 Test Suite
+
+Run with:
+```bash
+pytest tests/
+```
+
+| File                        | Purpose                              |
+|-----------------------------|--------------------------------------|
+| `test_no_data_leak.py`      | ✅ Ensures no test leakage into train |
+| `test_auc_75.py`            | ✅ AUC must meet or exceed 0.75       |
+| `test_config_consistency.py`| ✅ Config keys are present and valid  |
+| `test_model_reproducibility.py` | ✅ Same seed = same model results |
+| `test_prediction_consistency.py` | ✅ Saved model = same outputs   |
+
+---
+
+## 📊 W&B Logging (Clean)
+
+- Metrics: `auc_roc`, `train_loss`, `val_loss`, `threshold`, `lr`, `epoch`
+- Grouping: Based on sweep phase (`sweep_broad`, `sweep_final`, etc.)
+- Summary: Logs best AUC, config hash, and promoted config info
+- No clutter: Avoids `wandb.watch()` and per-layer dumps
+
+---
+
+## 🛠️ Key Commands
+
+```bash
+# Step 1: Broad sweep
+python run_sweeps.py --stage broad --config configs/sweep_broad.yaml
+
+# Step 2: Narrow sweep
+python run_sweeps.py --stage narrow --config configs/sweep_narrow.yaml
+
+# Step 3: Final sweep
+python run_sweeps.py --stage final --config configs/sweep_final.yaml
+
+# Step 4: Train best config
+python main.py --mode train --config configs/final_optimized_config.yaml
+
+# Step 5: Test model
+python main.py --mode test --config configs/final_optimized_config.yaml
+
+# Step 6: Predict on new data
+python main.py --mode predict --config configs/final_optimized_config.yaml
+```
+
+---
+
+## 📂 Project Layout
+
+```
+src/
+├── features/               # Feature engineering
+├── models/                 # Autoencoder model
+├── utils/                  # Data loading, splitting
+├── sweeps/                 # Sweep logic + scoring
+├── config_loader.py        # YAML + validation
+tests/                      # Full test suite
+configs/                    # YAML config files
+main.py                     # Entry point
+run_sweeps.py               # Sweep controller
+```
+
+---
+
+## ✅ Summary
+
+> This pipeline is designed for safe, reproducible ML experimentation:
+> - No data leakage
+> - Deterministic training
+> - Config-controlled experimentation
+> - Smart sweep auto-promotion
+> - Minimal logging, maximal clarity

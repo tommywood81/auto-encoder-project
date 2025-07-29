@@ -1,7 +1,9 @@
 """
-Features package for fraud detection.
+Features package for fraud detection pipeline.
 """
 
-from .feature_engineer import FeatureEngineer
+from src.features.feature_engineer import FeatureEngineer
 
-__all__ = ['FeatureEngineer'] 
+__all__ = [
+    'FeatureEngineer'
+] 

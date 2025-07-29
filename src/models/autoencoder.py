@@ -1,6 +1,6 @@
 """
-Simplified Autoencoder for Fraud Detection
-Production-grade implementation with proper train/test separation
+Production-grade autoencoder for fraud detection.
+Config-driven implementation with clean W&B logging.
 """
 
 import numpy as np
@@ -10,12 +10,44 @@ from tensorflow import keras
 from tensorflow.keras import layers
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import roc_auc_score
-import logging
-from typing import Dict, Any, Tuple, Optional
 import pickle
 import os
+import logging
+import wandb
+from typing import Dict, Any, Tuple, Optional, List
 
 logger = logging.getLogger(__name__)
+
+
+class AUCCallback(keras.callbacks.Callback):
+    """Custom callback to monitor AUC during training."""
+    
+    def __init__(self, X_val, y_val):
+        super().__init__()
+        self.X_val = X_val
+        self.y_val = y_val
+        self.best_auc = 0.0
+    
+    def on_epoch_end(self, epoch, logs=None):
+        # Calculate validation AUC
+        val_predictions = self.model.predict(self.X_val, verbose=0)
+        val_auc = roc_auc_score(self.y_val, val_predictions)
+        
+        # Update best AUC
+        if val_auc > self.best_auc:
+            self.best_auc = val_auc
+        
+        # Log to W&B if available
+        if wandb.run is not None:
+            wandb.log({
+                'val_auc': val_auc,
+                'best_val_auc': self.best_auc,
+                'epoch': epoch
+            })
+        
+        # Update logs
+        logs['val_auc'] = val_auc
+        logs['best_val_auc'] = self.best_auc
 
 
 class FraudAutoencoder:
@@ -23,205 +55,231 @@ class FraudAutoencoder:
     
     def __init__(self, config: Dict[str, Any]):
         """Initialize autoencoder with configuration."""
-        self.config = config
+        self.config = config or {}
         self.model = None
-        self.scaler = StandardScaler()
+        self.scaler = None
         self.threshold = None
         self.is_fitted = False
         
-    def build_model(self, input_dim: int) -> keras.Model:
-        """Build autoencoder architecture."""
+        # Model parameters
+        self.latent_dim = self.config.get('latent_dim', 16)
+        self.hidden_dims = self.config.get('hidden_dims', [128, 64, 32])
+        self.dropout_rate = self.config.get('dropout_rate', 0.2)
         
-        # Get architecture parameters
-        latent_dim = self.config.get('latent_dim', 16)
-        hidden_dims = self.config.get('hidden_dims', [64, 32])
-        activation = self.config.get('activation', 'relu')
-        dropout_rate = self.config.get('dropout_rate', 0.1)
+        # Training parameters
+        self.learning_rate = self.config.get('learning_rate', 0.001)
+        self.batch_size = self.config.get('batch_size', 64)
+        self.epochs = self.config.get('epochs', 100)
+        self.early_stopping = self.config.get('early_stopping', True)
+        self.patience = self.config.get('patience', 15)
+        self.reduce_lr = self.config.get('reduce_lr', True)
+        self.validation_split = self.config.get('validation_split', 0.2)
+        
+        # Threshold parameters
+        self.threshold_percentile = self.config.get('threshold_percentile', 95)
+        
+        logger.info(f"Autoencoder initialized with config: latent_dim={self.latent_dim}, "
+                   f"hidden_dims={self.hidden_dims}, dropout_rate={self.dropout_rate}")
+    
+    def build_model(self, input_dim: int) -> keras.Model:
+        """Build the autoencoder architecture."""
+        
+        # Input layer
+        input_layer = layers.Input(shape=(input_dim,))
         
         # Encoder
-        encoder_input = keras.Input(shape=(input_dim,))
-        x = encoder_input
-        
-        for dim in hidden_dims:
-            x = layers.Dense(dim, activation=activation)(x)
-            x = layers.Dropout(dropout_rate)(x)
-            x = layers.BatchNormalization()(x)
+        encoded = input_layer
+        for dim in self.hidden_dims:
+            encoded = layers.Dense(dim, activation='relu')(encoded)
+            encoded = layers.BatchNormalization()(encoded)
+            encoded = layers.Dropout(self.dropout_rate)(encoded)
         
         # Latent space
-        latent = layers.Dense(latent_dim, activation=activation, name='latent')(x)
+        latent = layers.Dense(self.latent_dim, activation='relu', name='latent')(encoded)
         
         # Decoder
-        for dim in reversed(hidden_dims):
-            x = layers.Dense(dim, activation=activation)(x)
-            x = layers.Dropout(dropout_rate)(x)
-            x = layers.BatchNormalization()(x)
+        decoded = latent
+        for dim in reversed(self.hidden_dims):
+            decoded = layers.Dense(dim, activation='relu')(decoded)
+            decoded = layers.BatchNormalization()(decoded)
+            decoded = layers.Dropout(self.dropout_rate)(decoded)
         
-        # Output
-        decoder_output = layers.Dense(input_dim, activation='linear')(x)
+        # Output layer
+        output_layer = layers.Dense(input_dim, activation='linear', name='output')(decoded)
         
         # Create model
-        model = keras.Model(encoder_input, decoder_output, name='fraud_autoencoder')
+        model = keras.Model(inputs=input_layer, outputs=output_layer, name='fraud_autoencoder')
+        
+        # Compile model
+        optimizer = keras.optimizers.Adam(learning_rate=self.learning_rate)
+        model.compile(optimizer=optimizer, loss='mse', metrics=['mae'])
+        
+        logger.info(f"Model built with {model.count_params():,} parameters")
         
         return model
     
-    def prepare_data(self, df_train: pd.DataFrame, df_test: pd.DataFrame) -> Tuple[np.ndarray, np.ndarray]:
-        """Prepare data for training with proper scaling."""
+    def prepare_data(self, df_train_features: pd.DataFrame, df_test_features: pd.DataFrame) -> Tuple[np.ndarray, np.ndarray]:
+        """Prepare data for training and testing."""
         
-        # Get numeric features only
-        df_train_numeric = df_train.select_dtypes(include=[np.number])
-        df_test_numeric = df_test.select_dtypes(include=[np.number])
+        # Get numeric features (excluding target)
+        train_numeric = df_train_features.select_dtypes(include=[np.number])
+        test_numeric = df_test_features.select_dtypes(include=[np.number])
         
-        # Remove target variable if present
-        if 'is_fraudulent' in df_train_numeric.columns:
-            df_train_numeric = df_train_numeric.drop(columns=['is_fraudulent'])
-        if 'is_fraudulent' in df_test_numeric.columns:
-            df_test_numeric = df_test_numeric.drop(columns=['is_fraudulent'])
+        if 'is_fraudulent' in train_numeric.columns:
+            train_numeric = train_numeric.drop(columns=['is_fraudulent'])
+        if 'is_fraudulent' in test_numeric.columns:
+            test_numeric = test_numeric.drop(columns=['is_fraudulent'])
         
-        # Fit scaler on training data only
-        X_train_scaled = self.scaler.fit_transform(df_train_numeric.values)
-        X_test_scaled = self.scaler.transform(df_test_numeric.values)
+        # Scale features
+        self.scaler = StandardScaler()
+        X_train_scaled = self.scaler.fit_transform(train_numeric.values)
+        X_test_scaled = self.scaler.transform(test_numeric.values)
         
         logger.info(f"Data prepared: train={X_train_scaled.shape}, test={X_test_scaled.shape}")
         
         return X_train_scaled, X_test_scaled
     
     def train(self, X_train: np.ndarray, X_test: np.ndarray, 
-              y_train: np.ndarray, y_test: np.ndarray) -> Dict[str, Any]:
-        """Train the autoencoder."""
+              y_train: np.ndarray, y_test: np.ndarray) -> Dict[str, float]:
+        """Train the autoencoder model."""
         
-        logger.info("Training autoencoder...")
+        logger.info("Starting model training...")
         
         # Build model
-        input_dim = X_train.shape[1]
-        self.model = self.build_model(input_dim)
-        
-        # Compile model
-        learning_rate = self.config.get('learning_rate', 0.001)
-        optimizer = keras.optimizers.Adam(learning_rate=learning_rate)
-        
-        self.model.compile(
-            optimizer=optimizer,
-            loss='mse',
-            metrics=['mae']
-        )
+        self.model = self.build_model(X_train.shape[1])
         
         # Callbacks
         callbacks = []
         
         # Early stopping
-        if self.config.get('early_stopping', True):
+        if self.early_stopping:
             early_stopping = keras.callbacks.EarlyStopping(
                 monitor='val_loss',
-                patience=self.config.get('patience', 10),
+                patience=self.patience,
                 restore_best_weights=True,
                 verbose=1
             )
             callbacks.append(early_stopping)
         
-        # Reduce learning rate
-        if self.config.get('reduce_lr', True):
+        # Learning rate reduction
+        if self.reduce_lr:
             reduce_lr = keras.callbacks.ReduceLROnPlateau(
                 monitor='val_loss',
                 factor=0.5,
-                patience=5,
+                patience=self.patience // 2,
                 min_lr=1e-7,
                 verbose=1
             )
             callbacks.append(reduce_lr)
         
-        # Custom callback for AUC monitoring
-        auc_callback = AUCCallback(X_test, y_test, self.config.get('threshold_percentile', 95))
+        # AUC callback
+        auc_callback = AUCCallback(X_test, y_test)
         callbacks.append(auc_callback)
         
-        # Train model
-        epochs = self.config.get('epochs', 100)
-        batch_size = self.config.get('batch_size', 32)
-        validation_split = self.config.get('validation_split', 0.2)
-        
+        # Training
         history = self.model.fit(
-            X_train,
-            X_train,  # Autoencoder learns to reconstruct input
-            epochs=epochs,
-            batch_size=batch_size,
-            validation_split=validation_split,
+            X_train, X_train,  # Autoencoder: input = target
+            validation_data=(X_test, X_test),
+            epochs=self.epochs,
+            batch_size=self.batch_size,
             callbacks=callbacks,
             verbose=1
         )
         
-        # Calculate threshold using training data
-        self._calculate_threshold(X_train, y_train)
+        # Calculate threshold
+        self._calculate_threshold(X_train)
         
         # Evaluate on test set
-        test_auc = self._evaluate(X_test, y_test)
+        test_auc = self._evaluate_test_set(X_test, y_test)
         
-        self.is_fitted = True
+        # Log final metrics
+        if wandb.run is not None:
+            wandb.log({
+                'final_test_auc': test_auc,
+                'final_threshold': self.threshold,
+                'final_train_loss': history.history['loss'][-1],
+                'final_val_loss': history.history['val_loss'][-1]
+            })
         
         results = {
             'test_auc': test_auc,
             'threshold': self.threshold,
-            'history': history.history
+            'train_loss': history.history['loss'][-1],
+            'val_loss': history.history['val_loss'][-1],
+            'best_val_auc': auc_callback.best_auc
         }
         
-        logger.info(f"Training completed. Test AUC: {test_auc:.4f}")
+        logger.info(f"Training completed. Test AUC: {test_auc:.4f}, Threshold: {self.threshold:.6f}")
         
         return results
     
-    def _calculate_threshold(self, X_train: np.ndarray, y_train: np.ndarray):
-        """Calculate threshold using normal training data."""
+    def _calculate_threshold(self, X_train: np.ndarray):
+        """Calculate anomaly threshold from training data."""
         
-        # Get only normal (non-fraudulent) data
-        normal_mask = y_train == 0
-        X_normal = X_train[normal_mask]
+        # Get reconstruction errors for training data
+        train_reconstructions = self.model.predict(X_train, verbose=0)
+        train_errors = np.mean(np.square(X_train - train_reconstructions), axis=1)
         
-        # Calculate reconstruction error for normal data
-        X_reconstructed = self.model.predict(X_normal)
-        reconstruction_errors = np.mean(np.square(X_normal - X_reconstructed), axis=1)
+        # Calculate threshold based on percentile
+        self.threshold = np.percentile(train_errors, self.threshold_percentile)
         
-        # Calculate threshold as percentile
-        threshold_percentile = self.config.get('threshold_percentile', 95)
-        self.threshold = np.percentile(reconstruction_errors, threshold_percentile)
+        logger.info(f"Threshold calculated: {self.threshold:.6f} (percentile: {self.threshold_percentile})")
         
-        logger.info(f"Threshold calculated: {self.threshold:.6f} (percentile {threshold_percentile})")
-        
-        # Set fitted flag
+        # Set fitted state
         self.is_fitted = True
     
+    def _evaluate_test_set(self, X_test: np.ndarray, y_test: np.ndarray) -> float:
+        """Evaluate model on test set."""
+        
+        # Get reconstruction errors
+        test_reconstructions = self.model.predict(X_test, verbose=0)
+        test_errors = np.mean(np.square(X_test - test_reconstructions), axis=1)
+        
+        # Calculate AUC
+        test_auc = roc_auc_score(y_test, test_errors)
+        
+        return test_auc
+    
     def predict_anomaly_scores(self, X: np.ndarray) -> np.ndarray:
-        """Predict anomaly scores."""
+        """Predict anomaly scores for input data."""
+        
         if not self.is_fitted:
             raise ValueError("Model must be fitted before prediction")
         
-        # Scale input
-        X_scaled = self.scaler.transform(X)
+        # Scale input if needed
+        if self.scaler is not None:
+            X_scaled = self.scaler.transform(X)
+        else:
+            X_scaled = X
         
-        # Get reconstruction
-        X_reconstructed = self.model.predict(X_scaled)
+        # Get reconstruction errors
+        reconstructions = self.model.predict(X_scaled, verbose=0)
+        errors = np.mean(np.square(X_scaled - reconstructions), axis=1)
         
-        # Calculate reconstruction error
-        anomaly_scores = np.mean(np.square(X_scaled - X_reconstructed), axis=1)
-        
-        return anomaly_scores
+        return errors
     
     def predict(self, X: np.ndarray) -> np.ndarray:
-        """Predict fraud labels."""
+        """Predict fraud labels for input data."""
+        
         if not self.is_fitted:
             raise ValueError("Model must be fitted before prediction")
         
-        anomaly_scores = self.predict_anomaly_scores(X)
-        predictions = (anomaly_scores > self.threshold).astype(int)
+        # Get anomaly scores
+        scores = self.predict_anomaly_scores(X)
+        
+        # Apply threshold
+        predictions = (scores > self.threshold).astype(int)
         
         return predictions
     
-    def _evaluate(self, X_test: np.ndarray, y_test: np.ndarray) -> float:
-        """Evaluate model performance."""
-        anomaly_scores = self.predict_anomaly_scores(X_test)
-        auc = roc_auc_score(y_test, anomaly_scores)
-        return auc
-    
     def save_model(self, filepath: str):
-        """Save model and scaler."""
+        """Save model and fitted objects."""
+        
         if not self.is_fitted:
             raise ValueError("Model must be fitted before saving")
+        
+        # Create directory
+        os.makedirs(os.path.dirname(filepath), exist_ok=True)
         
         # Save model
         model_path = f"{filepath}_model.h5"
@@ -237,10 +295,16 @@ class FraudAutoencoder:
         with open(threshold_path, 'wb') as f:
             pickle.dump(self.threshold, f)
         
+        # Save config
+        config_path = f"{filepath}_config.pkl"
+        with open(config_path, 'wb') as f:
+            pickle.dump(self.config, f)
+        
         logger.info(f"Model saved to: {filepath}")
     
     def load_model(self, filepath: str):
-        """Load model and scaler."""
+        """Load model and fitted objects."""
+        
         # Load model
         model_path = f"{filepath}_model.h5"
         self.model = keras.models.load_model(model_path)
@@ -255,42 +319,54 @@ class FraudAutoencoder:
         with open(threshold_path, 'rb') as f:
             self.threshold = pickle.load(f)
         
+        # Load config
+        config_path = f"{filepath}_config.pkl"
+        with open(config_path, 'rb') as f:
+            self.config = pickle.load(f)
+        
+        # Set fitted state
         self.is_fitted = True
+        
         logger.info(f"Model loaded from: {filepath}")
-
-
-class AUCCallback(keras.callbacks.Callback):
-    """Custom callback to monitor AUC during training."""
     
-    def __init__(self, X_val, y_val, threshold_percentile=95):
-        super().__init__()
-        self.X_val = X_val
-        self.y_val = y_val
-        self.threshold_percentile = threshold_percentile
-        self.best_auc = 0
-        self.best_epoch = 0
+    def get_model_summary(self) -> str:
+        """Get model architecture summary."""
+        
+        if self.model is None:
+            return "Model not built yet"
+        
+        # Capture model summary
+        summary_list = []
+        self.model.summary(print_fn=lambda x: summary_list.append(x))
+        
+        return '\n'.join(summary_list)
     
-    def on_epoch_end(self, epoch, logs=None):
-        # Calculate anomaly scores
-        X_reconstructed = self.model.predict(self.X_val)
-        reconstruction_errors = np.mean(np.square(self.X_val - X_reconstructed), axis=1)
+    def get_feature_importance(self, feature_names: List[str]) -> Dict[str, float]:
+        """Get feature importance based on reconstruction error sensitivity."""
         
-        # Calculate threshold
-        threshold = np.percentile(reconstruction_errors, self.threshold_percentile)
+        if not self.is_fitted:
+            raise ValueError("Model must be fitted before getting feature importance")
         
-        # Calculate AUC
-        auc = roc_auc_score(self.y_val, reconstruction_errors)
+        # This is a simplified approach - in practice, you might want more sophisticated methods
+        # For now, we'll use the magnitude of weights in the first layer as a proxy
         
-        # Log AUC
-        logs['val_auc'] = auc
+        if self.model is None:
+            return {}
         
-        # Track best AUC
-        if auc > self.best_auc:
-            self.best_auc = auc
-            self.best_epoch = epoch
+        # Get weights from first layer
+        first_layer_weights = self.model.layers[1].get_weights()[0]  # First dense layer
         
-        if epoch % 10 == 0:
-            logger.info(f"Epoch {epoch}: AUC = {auc:.4f}, Threshold = {threshold:.6f}")
-    
-    def on_train_end(self, logs=None):
-        logger.info(f"Best AUC: {self.best_auc:.4f} at epoch {self.best_epoch}") 
+        # Calculate importance as mean absolute weight
+        importance = np.mean(np.abs(first_layer_weights), axis=1)
+        
+        # Create feature importance dictionary
+        feature_importance = {}
+        for i, feature in enumerate(feature_names):
+            if i < len(importance):
+                feature_importance[feature] = float(importance[i])
+        
+        # Sort by importance
+        feature_importance = dict(sorted(feature_importance.items(), 
+                                       key=lambda x: x[1], reverse=True))
+        
+        return feature_importance 

@@ -1,0 +1,46 @@
+seed: 42
+
+model:
+  # Architecture configurations to test
+  architectures:
+    small:
+      latent_dim: 8
+      hidden_dims: [64, 32]
+      dropout_rate: 0.1
+    medium:
+      latent_dim: 16
+      hidden_dims: [128, 64, 32]
+      dropout_rate: 0.2
+    large:
+      latent_dim: 24
+      hidden_dims: [256, 128, 64, 32]
+      dropout_rate: 0.2
+    deep:
+      latent_dim: 16
+      hidden_dims: [512, 256, 128, 64, 32, 16]
+      dropout_rate: 0.3
+    wide:
+      latent_dim: 32
+      hidden_dims: [1024, 512, 256, 128]
+      dropout_rate: 0.2
+
+training:
+  batch_size: 64
+  learning_rate: 0.001
+  epochs: 50
+  early_stopping: true
+  patience: 10
+  reduce_lr: true
+  validation_split: 0.2
+
+features:
+  threshold_percentile: 95
+  use_amount_features: true
+  use_temporal_features: true
+  use_customer_features: true
+  use_risk_flags: true
+
+sweep:
+  stage: "broad"
+  top_k: 3
+  output_config: "configs/sweep_narrow.yaml" 

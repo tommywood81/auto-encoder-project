@@ -1,21 +1,21 @@
 """
-Fraud Detection Autoencoder Package
-
-This package contains modules for implementing a fraud detection system
-using autoencoders to detect anomalous transactions.
+Fraud Detection Pipeline - Source Package
+Config-driven, production-grade implementation
 """
 
-from .config import PipelineConfig
-from .features.feature_engineer import FeatureEngineer
-from .models.autoencoder import FraudAutoencoder
-from .data import DataCleaner
-
-__version__ = "1.0.0"
-__author__ = "Auto-Encoder Project"
+from src.config_loader import ConfigLoader, load_config
+from src.features.feature_engineer import FeatureEngineer
+from src.models.autoencoder import FraudAutoencoder
+from src.sweeps.sweep_manager import SweepManager
+from src.utils.data_loader import load_and_split_data, clean_data, save_cleaned_data
 
 __all__ = [
-    "PipelineConfig",
-    "FeatureEngineer",
-    "FraudAutoencoder",
-    "DataCleaner"
+    'ConfigLoader',
+    'load_config',
+    'FeatureEngineer',
+    'FraudAutoencoder',
+    'SweepManager',
+    'load_and_split_data',
+    'clean_data',
+    'save_cleaned_data'
 ] 

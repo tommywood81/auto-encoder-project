@@ -1,7 +1,9 @@
 """
-Models package for fraud detection.
+Models package for fraud detection pipeline.
 """
 
-from .autoencoder import FraudAutoencoder
+from src.models.autoencoder import FraudAutoencoder
 
-__all__ = ['FraudAutoencoder'] 
+__all__ = [
+    'FraudAutoencoder'
+] 

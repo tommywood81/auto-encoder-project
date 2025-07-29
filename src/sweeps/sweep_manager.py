@@ -1,413 +1,446 @@
 """
-Simplified Sweep Manager for Fraud Detection
-Three-stage optimization: broad → narrow → final tuning
+Smart sweep manager for three-stage hyperparameter optimization.
+Implements auto-promotion logic and clean W&B logging.
 """
 
 import os
-import sys
 import logging
+import yaml
+import wandb
 import numpy as np
 import pandas as pd
-import yaml
-import json
+from typing import Dict, List, Tuple, Any
 from pathlib import Path
-from typing import Dict, Any, List, Tuple
-from dataclasses import dataclass
-import wandb
 
 # Add src to path
+import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
-from features.feature_engineer import FeatureEngineer
-from models.autoencoder import FraudAutoencoder
-from utils.data_loader import load_and_split_data
+from src.config_loader import ConfigLoader
+from src.features.feature_engineer import FeatureEngineer
+from src.models.autoencoder import FraudAutoencoder
+from src.utils.data_loader import load_and_split_data
 
 logger = logging.getLogger(__name__)
 
 
-@dataclass
-class SweepConfig:
-    """Configuration for sweep stages."""
-    name: str
-    description: str
-    configs: List[Dict[str, Any]]
-    max_runs: int
-    metric: str = 'test_auc'
-    goal: str = 'maximize'
-
-
 class SweepManager:
-    """Manages the three-stage sweep process."""
+    """Manages three-stage hyperparameter optimization with auto-promotion."""
     
-    def __init__(self, project_name: str = "fraud-detection-sweeps"):
-        """Initialize sweep manager."""
-        self.project_name = project_name
+    def __init__(self, config_path: str):
+        """Initialize sweep manager with configuration."""
+        self.config_loader = ConfigLoader(config_path)
+        self.config = self.config_loader.config
+        self.stage = self.config.get('sweep.stage', 'broad')
+        self.best_auc = 0.0
+        self.best_config = None
         self.results = []
+    
+    def run_complete_sweep(self) -> Dict[str, Any]:
+        """Run complete three-stage sweep process."""
+        logger.info("Starting complete three-stage sweep process")
         
-    def run_broad_sweep(self, data_path: str) -> List[Dict[str, Any]]:
-        """Stage 1: Broad sweep to find promising architectures."""
-        
-        logger.info("=" * 80)
+        # Stage 1: Broad sweep
+        logger.info("=" * 60)
         logger.info("STAGE 1: BROAD SWEEP")
-        logger.info("=" * 80)
+        logger.info("=" * 60)
+        broad_results = self.run_broad_sweep()
         
-        # Load data
-        df_train, df_test = load_and_split_data(data_path)
-        
-        # Define broad configurations
-        broad_configs = [
-            # Small architecture
-            {
-                'name': 'small',
-                'model': {
-                    'latent_dim': 8,
-                    'hidden_dims': [32, 16],
-                    'learning_rate': 0.001,
-                    'batch_size': 32,
-                    'epochs': 50,
-                    'dropout_rate': 0.1,
-                    'threshold_percentile': 95
-                }
-            },
-            # Medium architecture
-            {
-                'name': 'medium',
-                'model': {
-                    'latent_dim': 16,
-                    'hidden_dims': [64, 32],
-                    'learning_rate': 0.001,
-                    'batch_size': 64,
-                    'epochs': 50,
-                    'dropout_rate': 0.2,
-                    'threshold_percentile': 95
-                }
-            },
-            # Large architecture
-            {
-                'name': 'large',
-                'model': {
-                    'latent_dim': 32,
-                    'hidden_dims': [128, 64, 32],
-                    'learning_rate': 0.0005,
-                    'batch_size': 128,
-                    'epochs': 50,
-                    'dropout_rate': 0.3,
-                    'threshold_percentile': 95
-                }
-            },
-            # Deep architecture
-            {
-                'name': 'deep',
-                'model': {
-                    'latent_dim': 24,
-                    'hidden_dims': [256, 128, 64, 32],
-                    'learning_rate': 0.0003,
-                    'batch_size': 64,
-                    'epochs': 50,
-                    'dropout_rate': 0.2,
-                    'threshold_percentile': 95
-                }
-            },
-            # Wide architecture
-            {
-                'name': 'wide',
-                'model': {
-                    'latent_dim': 20,
-                    'hidden_dims': [512, 256],
-                    'learning_rate': 0.001,
-                    'batch_size': 32,
-                    'epochs': 50,
-                    'dropout_rate': 0.1,
-                    'threshold_percentile': 95
-                }
-            }
-        ]
-        
-        results = []
-        
-        for config in broad_configs:
-            logger.info(f"Testing configuration: {config['name']}")
-            
-            try:
-                # Feature engineering
-                feature_engineer = FeatureEngineer({})
-                df_train_features, df_test_features = feature_engineer.fit_transform(df_train, df_test)
-                
-                # Model training
-                autoencoder = FraudAutoencoder(config['model'])
-                X_train, X_test = autoencoder.prepare_data(df_train_features, df_test_features)
-                y_train = df_train_features['is_fraudulent'].values
-                y_test = df_test_features['is_fraudulent'].values
-                
-                # Train model
-                result = autoencoder.train(X_train, X_test, y_train, y_test)
-                
-                # Store results
-                config_result = {
-                    'name': config['name'],
-                    'config': config['model'],
-                    'test_auc': result['test_auc'],
-                    'threshold': result['threshold']
-                }
-                results.append(config_result)
-                
-                logger.info(f"Configuration {config['name']}: AUC = {result['test_auc']:.4f}")
-                
-            except Exception as e:
-                logger.error(f"Error with configuration {config['name']}: {e}")
-                continue
-        
-        # Sort by performance
-        results.sort(key=lambda x: x['test_auc'], reverse=True)
-        
-        logger.info("\nBroad sweep results:")
-        for i, result in enumerate(results):
-            logger.info(f"{i+1}. {result['name']}: AUC = {result['test_auc']:.4f}")
-        
-        # Save results
-        self._save_results(results, "broad_sweep_results.json")
-        
-        return results
-    
-    def run_narrow_sweep(self, data_path: str, top_configs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """Stage 2: Narrow sweep on top 3 configurations."""
-        
-        logger.info("=" * 80)
+        # Stage 2: Narrow sweep
+        logger.info("=" * 60)
         logger.info("STAGE 2: NARROW SWEEP")
-        logger.info("=" * 80)
+        logger.info("=" * 60)
+        narrow_results = self.run_narrow_sweep()
         
-        # Load data
-        df_train, df_test = load_and_split_data(data_path)
+        # Stage 3: Final sweep
+        logger.info("=" * 60)
+        logger.info("STAGE 3: FINAL SWEEP")
+        logger.info("=" * 60)
+        final_results = self.run_final_sweep()
         
-        # Take top 3 configurations
-        top_3 = top_configs[:3]
+        # Summary
+        logger.info("=" * 60)
+        logger.info("SWEEP COMPLETE")
+        logger.info("=" * 60)
+        logger.info(f"Best AUC: {self.best_auc:.4f}")
+        logger.info(f"Best config saved to: configs/final_optimized_config.yaml")
         
-        # Generate variations for each top configuration
-        narrow_configs = []
-        
-        for base_config in top_3:
-            base_name = base_config['name']
-            base_model = base_config['config']
-            
-            # Learning rate variations
-            for lr in [0.0001, 0.0005, 0.001, 0.005]:
-                config = {
-                    'name': f"{base_name}_lr_{lr}",
-                    'model': {**base_model, 'learning_rate': lr}
-                }
-                narrow_configs.append(config)
-            
-            # Batch size variations
-            for batch_size in [16, 32, 64, 128]:
-                config = {
-                    'name': f"{base_name}_batch_{batch_size}",
-                    'model': {**base_model, 'batch_size': batch_size}
-                }
-                narrow_configs.append(config)
-            
-            # Dropout variations
-            for dropout in [0.0, 0.1, 0.2, 0.3]:
-                config = {
-                    'name': f"{base_name}_dropout_{dropout}",
-                    'model': {**base_model, 'dropout_rate': dropout}
-                }
-                narrow_configs.append(config)
-        
+        return {
+            'broad_results': broad_results,
+            'narrow_results': narrow_results,
+            'final_results': final_results,
+            'best_auc': self.best_auc,
+            'best_config': self.best_config
+        }
+    
+    def run_broad_sweep(self) -> List[Dict[str, Any]]:
+        """Run broad sweep testing different architectures."""
+        architectures = self.config.get('model.architectures', {})
         results = []
         
-        for config in narrow_configs:
-            logger.info(f"Testing configuration: {config['name']}")
+        # Load data
+        df_train, df_test = load_and_split_data("data/cleaned/ecommerce_cleaned.csv")
+        feature_engineer = FeatureEngineer(self.config.get('features', {}))
+        df_train_features, df_test_features = feature_engineer.fit_transform(df_train, df_test)
+        
+        for arch_name, arch_config in architectures.items():
+            logger.info(f"Testing architecture: {arch_name}")
             
-            try:
-                # Feature engineering
-                feature_engineer = FeatureEngineer({})
-                df_train_features, df_test_features = feature_engineer.fit_transform(df_train, df_test)
+            # Initialize W&B run
+            with wandb.init(
+                project="fraud-detection-autoencoder",
+                group="sweep_broad",
+                name=f"broad_{arch_name}",
+                config={
+                    'architecture': arch_name,
+                    'latent_dim': arch_config['latent_dim'],
+                    'hidden_dims': arch_config['hidden_dims'],
+                    'dropout_rate': arch_config['dropout_rate'],
+                    'batch_size': self.config.get('training.batch_size'),
+                    'learning_rate': self.config.get('training.learning_rate'),
+                    'epochs': self.config.get('training.epochs')
+                }
+            ) as run:
                 
-                # Model training
-                autoencoder = FraudAutoencoder(config['model'])
+                # Create model config
+                model_config = {
+                    'latent_dim': arch_config['latent_dim'],
+                    'hidden_dims': arch_config['hidden_dims'],
+                    'dropout_rate': arch_config['dropout_rate'],
+                    'learning_rate': self.config.get('training.learning_rate'),
+                    'batch_size': self.config.get('training.batch_size'),
+                    'epochs': self.config.get('training.epochs'),
+                    'early_stopping': self.config.get('training.early_stopping'),
+                    'patience': self.config.get('training.patience'),
+                    'reduce_lr': self.config.get('training.reduce_lr'),
+                    'threshold_percentile': self.config.get('features.threshold_percentile')
+                }
+                
+                # Train model
+                autoencoder = FraudAutoencoder(model_config)
                 X_train, X_test = autoencoder.prepare_data(df_train_features, df_test_features)
                 y_train = df_train_features['is_fraudulent'].values
                 y_test = df_test_features['is_fraudulent'].values
                 
-                # Train model
-                result = autoencoder.train(X_train, X_test, y_train, y_test)
+                results_dict = autoencoder.train(X_train, X_test, y_train, y_test)
+                
+                # Log results
+                wandb.log({
+                    'auc_roc': results_dict['test_auc'],
+                    'threshold': results_dict['threshold'],
+                    'train_loss': results_dict.get('train_loss', 0),
+                    'val_loss': results_dict.get('val_loss', 0)
+                })
                 
                 # Store results
-                config_result = {
-                    'name': config['name'],
-                    'config': config['model'],
-                    'test_auc': result['test_auc'],
-                    'threshold': result['threshold']
+                result = {
+                    'architecture': arch_name,
+                    'config': model_config,
+                    'auc': results_dict['test_auc'],
+                    'threshold': results_dict['threshold']
                 }
-                results.append(config_result)
+                results.append(result)
                 
-                logger.info(f"Configuration {config['name']}: AUC = {result['test_auc']:.4f}")
-                
-            except Exception as e:
-                logger.error(f"Error with configuration {config['name']}: {e}")
-                continue
+                logger.info(f"Architecture {arch_name}: AUC = {results_dict['test_auc']:.4f}")
         
-        # Sort by performance
-        results.sort(key=lambda x: x['test_auc'], reverse=True)
+        # Sort by AUC and select top configurations
+        results.sort(key=lambda x: x['auc'], reverse=True)
+        top_k = self.config.get('sweep.top_k', 3)
+        top_results = results[:top_k]
         
-        logger.info("\nNarrow sweep results:")
-        for i, result in enumerate(results):
-            logger.info(f"{i+1}. {result['name']}: AUC = {result['test_auc']:.4f}")
+        # Create narrow sweep config
+        self._create_narrow_config(top_results)
         
-        # Save results
-        self._save_results(results, "narrow_sweep_results.json")
+        logger.info(f"Broad sweep complete. Top {top_k} architectures selected.")
+        for i, result in enumerate(top_results):
+            logger.info(f"{i+1}. {result['architecture']}: AUC = {result['auc']:.4f}")
         
         return results
     
-    def run_final_tuning(self, data_path: str, best_config: Dict[str, Any]) -> Dict[str, Any]:
-        """Stage 3: Final tuning of the best configuration."""
+    def run_narrow_sweep(self) -> List[Dict[str, Any]]:
+        """Run narrow sweep on top architectures."""
+        # Load narrow config
+        narrow_config_path = self.config.get('sweep.output_config', 'configs/sweep_narrow.yaml')
+        if not os.path.exists(narrow_config_path):
+            raise FileNotFoundError(f"Narrow config not found. Run broad sweep first: {narrow_config_path}")
         
-        logger.info("=" * 80)
-        logger.info("STAGE 3: FINAL TUNING")
-        logger.info("=" * 80)
+        narrow_config = ConfigLoader(narrow_config_path)
+        architectures = narrow_config.get('model.architectures', {})
         
-        # Load data
-        df_train, df_test = load_and_split_data(data_path)
-        
-        # Generate fine-tuned variations
-        base_model = best_config['config']
-        
-        # Fine-tune learning rate
-        best_lr = base_model['learning_rate']
-        lr_variations = [best_lr * 0.5, best_lr * 0.8, best_lr, best_lr * 1.2, best_lr * 1.5]
-        
-        # Fine-tune threshold
-        threshold_variations = [90, 92, 94, 95, 96, 98]
-        
-        # Fine-tune epochs
-        epoch_variations = [30, 50, 75, 100]
+        if not architectures:
+            raise ValueError("No architectures found in narrow config. Run broad sweep first.")
         
         results = []
         
-        for lr in lr_variations:
-            for threshold in threshold_variations:
-                for epochs in epoch_variations:
-                    config = {
-                        'name': f"final_lr_{lr}_thresh_{threshold}_epochs_{epochs}",
-                        'model': {
-                            **base_model,
-                            'learning_rate': lr,
-                            'threshold_percentile': threshold,
-                            'epochs': epochs
-                        }
-                    }
-                    
-                    logger.info(f"Testing configuration: {config['name']}")
-                    
-                    try:
-                        # Feature engineering
-                        feature_engineer = FeatureEngineer({})
-                        df_train_features, df_test_features = feature_engineer.fit_transform(df_train, df_test)
+        # Load data
+        df_train, df_test = load_and_split_data("data/cleaned/ecommerce_cleaned.csv")
+        feature_engineer = FeatureEngineer(narrow_config.get('features', {}))
+        df_train_features, df_test_features = feature_engineer.fit_transform(df_train, df_test)
+        
+        # Test hyperparameter combinations
+        batch_sizes = narrow_config.get('training.batch_sizes', [64])
+        learning_rates = narrow_config.get('training.learning_rates', [0.001])
+        dropout_rates = narrow_config.get('training.dropout_rates', [0.2])
+        
+        for arch_name, arch_config in architectures.items():
+            for batch_size in batch_sizes:
+                for lr in learning_rates:
+                    for dropout in dropout_rates:
+                        logger.info(f"Testing: {arch_name}, batch={batch_size}, lr={lr}, dropout={dropout}")
                         
-                        # Model training
-                        autoencoder = FraudAutoencoder(config['model'])
+                        # Initialize W&B run
+                        with wandb.init(
+                            project="fraud-detection-autoencoder",
+                            group="sweep_narrow",
+                            name=f"narrow_{arch_name}_b{batch_size}_lr{lr}_d{dropout}",
+                            config={
+                                'architecture': arch_name,
+                                'batch_size': batch_size,
+                                'learning_rate': lr,
+                                'dropout_rate': dropout,
+                                'latent_dim': arch_config['latent_dim'],
+                                'hidden_dims': arch_config['hidden_dims']
+                            }
+                        ) as run:
+                            
+                            # Create model config
+                            model_config = {
+                                'latent_dim': arch_config['latent_dim'],
+                                'hidden_dims': arch_config['hidden_dims'],
+                                'dropout_rate': dropout,
+                                'learning_rate': lr,
+                                'batch_size': batch_size,
+                                'epochs': narrow_config.get('training.epochs'),
+                                'early_stopping': narrow_config.get('training.early_stopping'),
+                                'patience': narrow_config.get('training.patience'),
+                                'reduce_lr': narrow_config.get('training.reduce_lr'),
+                                'threshold_percentile': narrow_config.get('features.threshold_percentile')
+                            }
+                            
+                            # Train model
+                            autoencoder = FraudAutoencoder(model_config)
+                            X_train, X_test = autoencoder.prepare_data(df_train_features, df_test_features)
+                            y_train = df_train_features['is_fraudulent'].values
+                            y_test = df_test_features['is_fraudulent'].values
+                            
+                            results_dict = autoencoder.train(X_train, X_test, y_train, y_test)
+                            
+                            # Log results
+                            wandb.log({
+                                'auc_roc': results_dict['test_auc'],
+                                'threshold': results_dict['threshold'],
+                                'train_loss': results_dict.get('train_loss', 0),
+                                'val_loss': results_dict.get('val_loss', 0)
+                            })
+                            
+                            # Store results
+                            result = {
+                                'architecture': arch_name,
+                                'config': model_config,
+                                'auc': results_dict['test_auc'],
+                                'threshold': results_dict['threshold']
+                            }
+                            results.append(result)
+                            
+                            logger.info(f"AUC = {results_dict['test_auc']:.4f}")
+        
+        # Sort by AUC and select best configuration
+        results.sort(key=lambda x: x['auc'], reverse=True)
+        best_result = results[0]
+        
+        # Create final sweep config
+        self._create_final_config(best_result)
+        
+        logger.info(f"Narrow sweep complete. Best configuration:")
+        logger.info(f"Architecture: {best_result['architecture']}")
+        logger.info(f"AUC: {best_result['auc']:.4f}")
+        
+        return results
+    
+    def run_final_sweep(self) -> List[Dict[str, Any]]:
+        """Run final sweep for fine-tuning."""
+        # Load final config
+        final_config_path = self.config.get('sweep.output_config', 'configs/sweep_final.yaml')
+        if not os.path.exists(final_config_path):
+            raise FileNotFoundError(f"Final config not found. Run narrow sweep first: {final_config_path}")
+        
+        final_config = ConfigLoader(final_config_path)
+        
+        results = []
+        
+        # Load data
+        df_train, df_test = load_and_split_data("data/cleaned/ecommerce_cleaned.csv")
+        feature_engineer = FeatureEngineer(final_config.get('features', {}))
+        df_train_features, df_test_features = feature_engineer.fit_transform(df_train, df_test)
+        
+        # Test fine-tuning parameters
+        threshold_percentiles = final_config.get('sweep.threshold_percentiles', [95])
+        learning_rates = final_config.get('sweep.learning_rates', [0.001])
+        epochs_list = final_config.get('sweep.epochs', [100])
+        
+        base_config = {
+            'latent_dim': final_config.get('model.latent_dim'),
+            'hidden_dims': final_config.get('model.hidden_dims'),
+            'dropout_rate': final_config.get('model.dropout_rate'),
+            'batch_size': final_config.get('training.batch_size'),
+            'early_stopping': final_config.get('training.early_stopping'),
+            'patience': final_config.get('training.patience'),
+            'reduce_lr': final_config.get('training.reduce_lr')
+        }
+        
+        for threshold in threshold_percentiles:
+            for lr in learning_rates:
+                for epochs in epochs_list:
+                    logger.info(f"Testing: threshold={threshold}, lr={lr}, epochs={epochs}")
+                    
+                    # Initialize W&B run
+                    with wandb.init(
+                        project="fraud-detection-autoencoder",
+                        group="sweep_final",
+                        name=f"final_th{threshold}_lr{lr}_e{epochs}",
+                        config={
+                            'threshold_percentile': threshold,
+                            'learning_rate': lr,
+                            'epochs': epochs,
+                            **base_config
+                        }
+                    ) as run:
+                        
+                        # Create model config
+                        model_config = {
+                            **base_config,
+                            'learning_rate': lr,
+                            'epochs': epochs,
+                            'threshold_percentile': threshold
+                        }
+                        
+                        # Train model
+                        autoencoder = FraudAutoencoder(model_config)
                         X_train, X_test = autoencoder.prepare_data(df_train_features, df_test_features)
                         y_train = df_train_features['is_fraudulent'].values
                         y_test = df_test_features['is_fraudulent'].values
                         
-                        # Train model
-                        result = autoencoder.train(X_train, X_test, y_train, y_test)
+                        results_dict = autoencoder.train(X_train, X_test, y_train, y_test)
+                        
+                        # Log results
+                        wandb.log({
+                            'auc_roc': results_dict['test_auc'],
+                            'threshold': results_dict['threshold'],
+                            'train_loss': results_dict.get('train_loss', 0),
+                            'val_loss': results_dict.get('val_loss', 0)
+                        })
                         
                         # Store results
-                        config_result = {
-                            'name': config['name'],
-                            'config': config['model'],
-                            'test_auc': result['test_auc'],
-                            'threshold': result['threshold']
+                        result = {
+                            'config': model_config,
+                            'auc': results_dict['test_auc'],
+                            'threshold': results_dict['threshold']
                         }
-                        results.append(config_result)
+                        results.append(result)
                         
-                        logger.info(f"Configuration {config['name']}: AUC = {result['test_auc']:.4f}")
+                        logger.info(f"AUC = {results_dict['test_auc']:.4f}")
                         
-                    except Exception as e:
-                        logger.error(f"Error with configuration {config['name']}: {e}")
-                        continue
+                        # Check if this is the best so far
+                        if results_dict['test_auc'] > self.best_auc:
+                            self.best_auc = results_dict['test_auc']
+                            self.best_config = model_config
+                            logger.info(f"New best AUC: {self.best_auc:.4f}")
         
-        # Sort by performance
-        results.sort(key=lambda x: x['test_auc'], reverse=True)
+        # Sort by AUC
+        results.sort(key=lambda x: x['auc'], reverse=True)
+        best_result = results[0]
         
-        logger.info("\nFinal tuning results:")
-        for i, result in enumerate(results):
-            logger.info(f"{i+1}. {result['name']}: AUC = {result['test_auc']:.4f}")
+        # Auto-promote if AUC improved
+        if best_result['auc'] > 0.75:  # Target AUC
+            self._promote_final_config(best_result)
+            logger.info(f"✅ Target AUC achieved! Config auto-promoted.")
+        else:
+            logger.info(f"❌ Target AUC not achieved. Best: {best_result['auc']:.4f}")
         
-        # Save results
-        self._save_results(results, "final_tuning_results.json")
-        
-        # Return best configuration
-        best_result = results[0] if results else None
-        
-        if best_result:
-            logger.info(f"\nBest configuration found:")
-            logger.info(f"Name: {best_result['name']}")
-            logger.info(f"AUC: {best_result['test_auc']:.4f}")
-            logger.info(f"Threshold: {best_result['threshold']:.6f}")
-            
-            # Save best configuration
-            self._save_best_config(best_result)
-        
-        return best_result
+        return results
     
-    def run_complete_sweep(self, data_path: str) -> Dict[str, Any]:
-        """Run the complete three-stage sweep process."""
+    def _create_narrow_config(self, top_results: List[Dict[str, Any]]):
+        """Create narrow sweep config with top architectures."""
+        narrow_config_path = self.config.get('sweep.output_config', 'configs/sweep_narrow.yaml')
         
-        logger.info("Starting complete three-stage sweep process...")
+        # Load base narrow config
+        with open(narrow_config_path, 'r') as f:
+            narrow_config = yaml.safe_load(f)
         
-        # Stage 1: Broad sweep
-        broad_results = self.run_broad_sweep(data_path)
+        # Add top architectures
+        architectures = {}
+        for result in top_results:
+            arch_name = result['architecture']
+            config = result['config']
+            architectures[arch_name] = {
+                'latent_dim': config['latent_dim'],
+                'hidden_dims': config['hidden_dims'],
+                'dropout_rate': config['dropout_rate']
+            }
         
-        if not broad_results:
-            raise ValueError("Broad sweep failed to produce results")
+        narrow_config['model']['architectures'] = architectures
         
-        # Stage 2: Narrow sweep
-        narrow_results = self.run_narrow_sweep(data_path, broad_results)
+        # Save updated config
+        with open(narrow_config_path, 'w') as f:
+            yaml.dump(narrow_config, f, default_flow_style=False, indent=2)
         
-        if not narrow_results:
-            raise ValueError("Narrow sweep failed to produce results")
-        
-        # Stage 3: Final tuning
-        final_result = self.run_final_tuning(data_path, narrow_results[0])
-        
-        if not final_result:
-            raise ValueError("Final tuning failed to produce results")
-        
-        logger.info("=" * 80)
-        logger.info("SWEEP PROCESS COMPLETED")
-        logger.info("=" * 80)
-        logger.info(f"Best AUC achieved: {final_result['test_auc']:.4f}")
-        
-        return final_result
+        logger.info(f"Narrow config created: {narrow_config_path}")
     
-    def _save_results(self, results: List[Dict[str, Any]], filename: str):
-        """Save sweep results to file."""
-        os.makedirs('results', exist_ok=True)
-        filepath = os.path.join('results', filename)
+    def _create_final_config(self, best_result: Dict[str, Any]):
+        """Create final sweep config with best configuration."""
+        final_config_path = self.config.get('sweep.output_config', 'configs/sweep_final.yaml')
         
-        with open(filepath, 'w') as f:
-            json.dump(results, f, indent=2)
+        # Load base final config
+        with open(final_config_path, 'r') as f:
+            final_config = yaml.safe_load(f)
         
-        logger.info(f"Results saved to: {filepath}")
+        # Update with best configuration
+        config = best_result['config']
+        final_config['model']['latent_dim'] = config['latent_dim']
+        final_config['model']['hidden_dims'] = config['hidden_dims']
+        final_config['model']['dropout_rate'] = config['dropout_rate']
+        final_config['training']['batch_size'] = config['batch_size']
+        final_config['training']['learning_rate'] = config['learning_rate']
+        
+        # Save updated config
+        with open(final_config_path, 'w') as f:
+            yaml.dump(final_config, f, default_flow_style=False, indent=2)
+        
+        logger.info(f"Final config created: {final_config_path}")
     
-    def _save_best_config(self, best_result: Dict[str, Any]):
-        """Save best configuration to file."""
-        os.makedirs('configs', exist_ok=True)
-        filepath = os.path.join('configs', 'best_config.yaml')
+    def _promote_final_config(self, best_result: Dict[str, Any]):
+        """Promote best configuration to final optimized config."""
+        final_optimized_path = "configs/final_optimized_config.yaml"
         
-        config_data = {
-            'name': best_result['name'],
-            'description': 'Best configuration from three-stage sweep',
-            'model': best_result['config'],
-            'performance': {
-                'test_auc': best_result['test_auc'],
-                'threshold': best_result['threshold']
+        # Create final optimized config
+        final_config = {
+            'seed': 42,
+            'model': {
+                'latent_dim': best_result['config']['latent_dim'],
+                'hidden_dims': best_result['config']['hidden_dims'],
+                'dropout_rate': best_result['config']['dropout_rate']
+            },
+            'training': {
+                'batch_size': best_result['config']['batch_size'],
+                'learning_rate': best_result['config']['learning_rate'],
+                'epochs': best_result['config']['epochs'],
+                'early_stopping': best_result['config']['early_stopping'],
+                'patience': best_result['config']['patience'],
+                'reduce_lr': best_result['config']['reduce_lr'],
+                'validation_split': 0.2
+            },
+            'features': {
+                'threshold_percentile': best_result['config']['threshold_percentile'],
+                'use_amount_features': True,
+                'use_temporal_features': True,
+                'use_customer_features': True,
+                'use_risk_flags': True
             }
         }
         
-        with open(filepath, 'w') as f:
-            yaml.dump(config_data, f, default_flow_style=False)
+        # Save final optimized config
+        with open(final_optimized_path, 'w') as f:
+            yaml.dump(final_config, f, default_flow_style=False, indent=2)
         
-        logger.info(f"Best configuration saved to: {filepath}") 
+        logger.info(f"Final optimized config promoted: {final_optimized_path}")
+        logger.info(f"Best AUC: {best_result['auc']:.4f}") 

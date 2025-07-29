@@ -1,0 +1,28 @@
+seed: 42
+
+model:
+  # Will be auto-filled by broad sweep with top 3 architectures
+  architectures: {}
+
+training:
+  # Hyperparameter variations to test
+  batch_sizes: [32, 64, 128]
+  learning_rates: [0.0001, 0.0003, 0.001]
+  dropout_rates: [0.1, 0.2, 0.3]
+  epochs: 100
+  early_stopping: true
+  patience: 15
+  reduce_lr: true
+  validation_split: 0.2
+
+features:
+  threshold_percentile: 95
+  use_amount_features: true
+  use_temporal_features: true
+  use_customer_features: true
+  use_risk_flags: true
+
+sweep:
+  stage: "narrow"
+  top_k: 1
+  output_config: "configs/sweep_final.yaml" 

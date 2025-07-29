@@ -1,7 +1,9 @@
 """
-Sweeps package for fraud detection.
+Sweeps package for hyperparameter optimization.
 """
 
-from .sweep_manager import SweepManager
+from src.sweeps.sweep_manager import SweepManager
 
-__all__ = ['SweepManager'] 
+__all__ = [
+    'SweepManager'
+] 
