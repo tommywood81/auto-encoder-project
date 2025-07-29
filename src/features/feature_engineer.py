@@ -450,6 +450,10 @@ class FeatureEngineer:
             'amount_scaler': self.amount_scaler,
             'label_encoders': self.label_encoders,
             'percentile_thresholds': self.percentile_thresholds,
+            'amount_mean': self.amount_mean,
+            'amount_std': self.amount_std,
+            'quantity_mean': self.quantity_mean,
+            'quantity_std': self.quantity_std,
             'config': self.config,
             'is_fitted': self.is_fitted
         }
@@ -470,6 +474,10 @@ class FeatureEngineer:
         self.amount_scaler = fitted_objects['amount_scaler']
         self.label_encoders = fitted_objects['label_encoders']
         self.percentile_thresholds = fitted_objects['percentile_thresholds']
+        self.amount_mean = fitted_objects.get('amount_mean')
+        self.amount_std = fitted_objects.get('amount_std')
+        self.quantity_mean = fitted_objects.get('quantity_mean')
+        self.quantity_std = fitted_objects.get('quantity_std')
         self.config = fitted_objects['config']
         self.is_fitted = fitted_objects['is_fitted']
         

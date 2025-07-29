@@ -337,6 +337,9 @@ class FraudAutoencoder:
         with open(threshold_path, 'rb') as f:
             self.threshold = pickle.load(f)
         
+        # Set fitted flag to True after successful loading
+        self.is_fitted = True
+        
         logger.info(f"Model loaded from {filepath}")
         logger.info(f"Scaler loaded from {scaler_path}")
         logger.info(f"Threshold loaded from {threshold_path}")

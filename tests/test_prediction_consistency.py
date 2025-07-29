@@ -35,7 +35,8 @@ def test_model_save_load_consistency():
     combined_config = {
         **model_config,
         **training_config,
-        'threshold_percentile': feature_config.get('threshold_percentile', 95)
+        'threshold_percentile': feature_config.get('threshold_percentile', 95),
+        'epochs': 3  # Override epochs for faster test execution
     }
     
     # Feature engineering
@@ -153,7 +154,8 @@ def test_prediction_stability():
     combined_config = {
         **model_config,
         **training_config,
-        'threshold_percentile': feature_config.get('threshold_percentile', 95)
+        'threshold_percentile': feature_config.get('threshold_percentile', 95),
+        'epochs': 3  # Override epochs for faster test execution
     }
     
     # Feature engineering
@@ -209,7 +211,8 @@ def test_model_persistence_integrity():
     combined_config = {
         **model_config,
         **training_config,
-        'threshold_percentile': feature_config.get('threshold_percentile', 95)
+        'threshold_percentile': feature_config.get('threshold_percentile', 95),
+        'epochs': 3  # Override epochs for faster test execution
     }
     
     # Feature engineering
@@ -233,7 +236,7 @@ def test_model_persistence_integrity():
         feature_engineer.save_fitted_objects(f"{model_path}_features.pkl")
         
         # Check that files exist
-        model_file = f"{model_path}_model.h5"
+        model_file = f"{model_path}.keras"
         scaler_file = f"{model_path}_scaler.pkl"
         threshold_file = f"{model_path}_threshold.pkl"
         features_file = f"{model_path}_features.pkl"
