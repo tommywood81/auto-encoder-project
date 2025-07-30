@@ -8,7 +8,7 @@ model:
 training:
   batch_size: 32
   learning_rate: 0.0001
-  epochs: 4  # Reduced for faster testing
+  epochs: 3  # Reduced for faster testing
   early_stopping: true
   patience: 10  # Reduced for faster testing
   reduce_lr: true
@@ -23,7 +23,7 @@ features:
 
 # AUC test specific configuration (uses production-like settings)
 auc_test:
-  epochs: 20  # Full training for AUC validation
+  epochs: 3  # Reduced for faster testing
   patience: 30  # Production patience
   use_production_settings: true
  

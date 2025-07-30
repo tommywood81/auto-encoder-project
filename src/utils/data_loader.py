@@ -82,14 +82,15 @@ def clean_data(df: pd.DataFrame) -> pd.DataFrame:
         # Add transaction_date based on Time column for time-aware split
         if 'time' in df.columns:
             # Convert time to datetime (assuming time is in seconds from start)
-            # Use a base date that spreads transactions across multiple days
-            # Scale time to spread across 30 days to avoid constant day features
+            # Use a base date that spreads transactions across multiple months
+            # Scale time to spread across 6 months to avoid constant month features
             max_time = df['time'].max()
-            scaled_time = (df['time'] / max_time) * (30 * 24 * 3600)  # 30 days in seconds
+            scaled_time = (df['time'] / max_time) * (6 * 30 * 24 * 3600)  # 6 months in seconds
             df['transaction_date'] = pd.to_datetime('2023-01-01') + pd.to_timedelta(scaled_time, unit='s')
             df['transaction_hour'] = df['transaction_date'].dt.hour
-            df['transaction_day'] = df['transaction_date'].dt.day
-            df['transaction_month'] = df['transaction_date'].dt.month
+            # Skip day and month to avoid constant features in test set
+            # df['transaction_day'] = df['transaction_date'].dt.day
+            # df['transaction_month'] = df['transaction_date'].dt.month
         
         # Ensure V1-V28 columns are properly named
         v_columns = [f'v{i}' for i in range(1, 29)]

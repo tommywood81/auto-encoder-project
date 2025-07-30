@@ -301,31 +301,48 @@ class FeatureEngineer:
                 # Create transaction_date from time column if not already done
                 df['transaction_date'] = pd.to_datetime('2023-01-01') + pd.to_timedelta(df['time'], unit='s')
             
-            # Basic temporal features
-            df['hour'] = df['transaction_date'].dt.hour
-            df['day_of_week'] = df['transaction_date'].dt.dayofweek
-            df['day_of_month'] = df['transaction_date'].dt.day
-            df['month'] = df['transaction_date'].dt.month
-            df['quarter'] = df['transaction_date'].dt.quarter
-            df['is_weekend'] = (df['day_of_week'] >= 5).astype(int)
+            # Basic temporal features (skip if already created by data loader)
+            if 'hour' not in df.columns:
+                df['hour'] = df['transaction_date'].dt.hour
+            if 'day_of_week' not in df.columns:
+                df['day_of_week'] = df['transaction_date'].dt.dayofweek
+            if 'day_of_month' not in df.columns:
+                df['day_of_month'] = df['transaction_date'].dt.day
+            if 'month' not in df.columns:
+                df['month'] = df['transaction_date'].dt.month
+            if 'quarter' not in df.columns:
+                df['quarter'] = df['transaction_date'].dt.quarter
+            if 'is_weekend' not in df.columns:
+                df['is_weekend'] = (df['day_of_week'] >= 5).astype(int)
             
             # Time-based flags
-            df['is_late_night'] = ((df['hour'] >= 23) | (df['hour'] <= 6)).astype(int)
-            df['is_business_hours'] = ((df['hour'] >= 9) & (df['hour'] <= 17)).astype(int)
-            df['is_rush_hour'] = ((df['hour'] >= 7) & (df['hour'] <= 9)) | ((df['hour'] >= 17) & (df['hour'] <= 19))
-            df['is_rush_hour'] = df['is_rush_hour'].astype(int)
+            if 'is_late_night' not in df.columns:
+                df['is_late_night'] = ((df['hour'] >= 23) | (df['hour'] <= 6)).astype(int)
+            if 'is_business_hours' not in df.columns:
+                df['is_business_hours'] = ((df['hour'] >= 9) & (df['hour'] <= 17)).astype(int)
+            if 'is_rush_hour' not in df.columns:
+                df['is_rush_hour'] = ((df['hour'] >= 7) & (df['hour'] <= 9)) | ((df['hour'] >= 17) & (df['hour'] <= 19))
+                df['is_rush_hour'] = df['is_rush_hour'].astype(int)
             
-            # Cyclical encoding for hour and day
-            df['hour_sin'] = np.sin(2 * np.pi * df['hour'] / 24)
-            df['hour_cos'] = np.cos(2 * np.pi * df['hour'] / 24)
-            df['day_sin'] = np.sin(2 * np.pi * df['day_of_week'] / 7)
-            df['day_cos'] = np.cos(2 * np.pi * df['day_of_week'] / 7)
-            df['month_sin'] = np.sin(2 * np.pi * df['month'] / 12)
-            df['month_cos'] = np.cos(2 * np.pi * df['month'] / 12)
+            # Cyclical encoding for hour and day (skip if already created)
+            if 'hour_sin' not in df.columns:
+                df['hour_sin'] = np.sin(2 * np.pi * df['hour'] / 24)
+            if 'hour_cos' not in df.columns:
+                df['hour_cos'] = np.cos(2 * np.pi * df['hour'] / 24)
+            if 'day_sin' not in df.columns:
+                df['day_sin'] = np.sin(2 * np.pi * df['day_of_week'] / 7)
+            if 'day_cos' not in df.columns:
+                df['day_cos'] = np.cos(2 * np.pi * df['day_of_week'] / 7)
+            if 'month_sin' not in df.columns and 'month' in df.columns:
+                df['month_sin'] = np.sin(2 * np.pi * df['month'] / 12)
+            if 'month_cos' not in df.columns and 'month' in df.columns:
+                df['month_cos'] = np.cos(2 * np.pi * df['month'] / 12)
             
-            # Time-based risk periods
-            df['is_high_risk_hour'] = ((df['hour'] >= 0) & (df['hour'] <= 4)).astype(int)
-            df['is_holiday_period'] = ((df['month'] == 12) | (df['month'] == 1)).astype(int)
+            # Time-based risk periods (skip if already created)
+            if 'is_high_risk_hour' not in df.columns:
+                df['is_high_risk_hour'] = ((df['hour'] >= 0) & (df['hour'] <= 4)).astype(int)
+            if 'is_holiday_period' not in df.columns and 'month' in df.columns:
+                df['is_holiday_period'] = ((df['month'] == 12) | (df['month'] == 1)).astype(int)
             
             # Temporal statistics (fit on training data only)
             if is_training:
@@ -334,8 +351,9 @@ class FeatureEngineer:
                 self.temporal_stats['day_weekend_ratio'] = df['is_weekend'].mean()
             
             # Temporal deviation features
-            df['hour_deviation'] = np.abs(df['hour'] - self.temporal_stats['hour_mean']) / (self.temporal_stats['hour_std'] + 1e-8)
-            
+            if 'hour_deviation' not in df.columns:
+                df['hour_deviation'] = np.abs(df['hour'] - self.temporal_stats['hour_mean']) / (self.temporal_stats['hour_std'] + 1e-8)
+        
         else:
             # E-commerce dataset - original logic
             # Convert timestamp to datetime
@@ -901,8 +919,8 @@ class FeatureEngineer:
             df['weekend_high_value'] = ((df['is_weekend'] == 1) & 
                                        (df[amount_col] > self.percentile_thresholds['amount_90'])).astype(int)
             
-            df['holiday_period_high_value'] = ((df['is_holiday_period'] == 1) & 
-                                              (df[amount_col] > self.percentile_thresholds['amount_75'])).astype(int)
+            # df['holiday_period_high_value'] = ((df['is_holiday_period'] == 1) & 
+            #                                   (df[amount_col] > self.percentile_thresholds['amount_75'])).astype(int)
             
             # Statistical outlier features
             df['amount_z_score'] = (df[amount_col] - self.percentile_thresholds['amount_50']) / (self.percentile_thresholds['amount_75'] - self.percentile_thresholds['amount_50'] + 1e-8)
@@ -932,7 +950,7 @@ class FeatureEngineer:
             risk_score += df['high_risk_combination'] * 4
             risk_score += df['suspicious_time_pattern'] * 3
             risk_score += df['weekend_high_value'] * 2.5
-            risk_score += df['holiday_period_high_value'] * 2.5
+            # risk_score += df['holiday_period_high_value'] * 2.5  # Skip holiday period risk
             risk_score += df['rush_hour_high_value'] * 2.5
             
             if 'v_features_outlier' in df.columns:
@@ -978,8 +996,8 @@ class FeatureEngineer:
         df['weekend_high_value'] = ((df['is_weekend'] == 1) & 
                                    (df['transaction_amount'] > self.percentile_thresholds['amount_90'])).astype(int)
         
-        df['holiday_period_high_value'] = ((df['is_holiday_period'] == 1) & 
-                                          (df['transaction_amount'] > self.percentile_thresholds['amount_75'])).astype(int)
+        # df['holiday_period_high_value'] = ((df['is_holiday_period'] == 1) & 
+        #                                   (df['transaction_amount'] > self.percentile_thresholds['amount_75'])).astype(int)
         
         # Device and payment method risk patterns
         df['high_risk_device'] = ((df['device_used_fraud_rate'] > 0.1) & 
@@ -1048,7 +1066,7 @@ class FeatureEngineer:
         # New advanced patterns
         risk_score += df['suspicious_time_pattern'] * 3
         risk_score += df['weekend_high_value'] * 2.5
-        risk_score += df['holiday_period_high_value'] * 2.5
+        # risk_score += df['holiday_period_high_value'] * 2.5  # Skip holiday period risk
         risk_score += df['high_risk_device'] * 3
         risk_score += df['high_risk_payment'] * 3
         risk_score += df['high_risk_product'] * 3
@@ -1099,8 +1117,8 @@ class FeatureEngineer:
             df['weekend_high_value'] = ((df['is_weekend'] == 1) & 
                                        (df[amount_col] > self.percentile_thresholds['amount_90'])).astype(int)
             
-            df['holiday_period_high_value'] = ((df['is_holiday_period'] == 1) & 
-                                              (df[amount_col] > self.percentile_thresholds['amount_75'])).astype(int)
+            # df['holiday_period_high_value'] = ((df['is_holiday_period'] == 1) & 
+            #                                   (df[amount_col] > self.percentile_thresholds['amount_75'])).astype(int)
             
             # Statistical outlier features
             df['amount_z_score'] = (df[amount_col] - self.percentile_thresholds['amount_50']) / (self.percentile_thresholds['amount_75'] - self.percentile_thresholds['amount_50'] + 1e-8)
@@ -1130,7 +1148,7 @@ class FeatureEngineer:
             risk_score += df['high_risk_combination'] * 4
             risk_score += df['suspicious_time_pattern'] * 3
             risk_score += df['weekend_high_value'] * 2.5
-            risk_score += df['holiday_period_high_value'] * 2.5
+            # risk_score += df['holiday_period_high_value'] * 2.5  # Skip holiday period risk
             risk_score += df['rush_hour_high_value'] * 2.5
             
             if 'v_features_outlier' in df.columns:
@@ -1176,8 +1194,8 @@ class FeatureEngineer:
         df['weekend_high_value'] = ((df['is_weekend'] == 1) & 
                                    (df['transaction_amount'] > self.percentile_thresholds['amount_90'])).astype(int)
         
-        df['holiday_period_high_value'] = ((df['is_holiday_period'] == 1) & 
-                                          (df['transaction_amount'] > self.percentile_thresholds['amount_75'])).astype(int)
+        # df['holiday_period_high_value'] = ((df['is_holiday_period'] == 1) & 
+        #                                   (df['transaction_amount'] > self.percentile_thresholds['amount_75'])).astype(int)
         
         # Device and payment method risk patterns
         df['high_risk_device'] = ((df['device_used_fraud_rate'] > 0.1) & 
@@ -1246,7 +1264,7 @@ class FeatureEngineer:
         # New advanced patterns
         risk_score += df['suspicious_time_pattern'] * 3
         risk_score += df['weekend_high_value'] * 2.5
-        risk_score += df['holiday_period_high_value'] * 2.5
+        # risk_score += df['holiday_period_high_value'] * 2.5  # Skip holiday period risk
         risk_score += df['high_risk_device'] * 3
         risk_score += df['high_risk_payment'] * 3
         risk_score += df['high_risk_product'] * 3
