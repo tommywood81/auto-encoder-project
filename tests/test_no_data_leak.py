@@ -19,8 +19,13 @@ from src.config_loader import ConfigLoader
 def test_no_data_leakage():
     """Test that no test data information leaks into training."""
     
+    # Load configuration
+    config_loader = ConfigLoader("tests/config/tests_config.yaml")
+    test_settings = config_loader.config.get('test_settings', {})
+    data_path = test_settings.get('data_path', "data/cleaned/creditcard_cleaned.csv")
+    
     # Load data
-    df_train, df_test = load_and_split_data("data/cleaned/ecommerce_cleaned.csv")
+    df_train, df_test = load_and_split_data(data_path)
     
     # Verify temporal split
     assert len(df_train) > 0, "Training set is empty"
@@ -35,7 +40,6 @@ def test_no_data_leakage():
         assert len(overlap) == 0, f"Found {len(overlap)} overlapping transaction IDs"
     
     # Test feature engineering leakage prevention
-    config_loader = ConfigLoader("tests/config/tests_config.yaml")
     feature_config = config_loader.get_feature_config()
     feature_engineer = FeatureEngineer(feature_config)
     
@@ -46,12 +50,12 @@ def test_no_data_leakage():
     # Check that scalers were fitted on training data only
     if hasattr(feature_engineer, 'amount_scaler') and feature_engineer.amount_scaler is not None:
         # Verify scaler was fitted on training data
-        train_amounts = df_train['transaction_amount'].values.reshape(-1, 1)
-        test_amounts = df_test['transaction_amount'].values.reshape(-1, 1)
+        train_amounts = df_train['amount'].values.reshape(-1, 1)  # Credit card dataset uses 'amount'
+        test_amounts = df_test['amount'].values.reshape(-1, 1)
         
         # Check for data leakage in feature distributions
-        train_high_amount_ratio = (df_train['transaction_amount'] > df_train['transaction_amount'].quantile(0.95)).mean()
-        test_high_amount_ratio = (df_test['transaction_amount'] > df_train['transaction_amount'].quantile(0.95)).mean()
+        train_high_amount_ratio = (df_train['amount'] > df_train['amount'].quantile(0.95)).mean()
+        test_high_amount_ratio = (df_test['amount'] > df_train['amount'].quantile(0.95)).mean()
         
         # Since we're using the same dataset, ratios should be similar (not a sign of leakage)
         # The test passes if the feature engineering doesn't introduce leakage

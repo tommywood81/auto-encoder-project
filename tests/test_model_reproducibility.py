@@ -26,21 +26,28 @@ def test_model_reproducibility():
     print("TESTING MODEL REPRODUCIBILITY")
     print("=" * 60)
     
-    # Load data
-    df_train = pd.read_csv('data/cleaned/ecommerce_cleaned.csv')
-    df_test = pd.read_csv('data/cleaned/ecommerce_cleaned.csv')  # Using same data for testing
-    
     # Load configuration
     config_loader = ConfigLoader("tests/config/tests_config.yaml")
+    test_settings = config_loader.config.get('test_settings', {})
+    data_path = test_settings.get('data_path', "data/cleaned/creditcard_cleaned.csv")
+    
+    # Load data
+    df_train, df_test = load_and_split_data(data_path)
+    
+    # Get configurations
     feature_config = config_loader.get_feature_config()
     model_config = config_loader.get_model_config()
     training_config = config_loader.get_training_config()
     
-    # Combine configurations
+    # Combine configurations with test overrides
+    # Use reproducibility test settings for faster execution
+    repro_test_settings = config_loader.config.get('reproducibility_test', {})
     combined_config = {
         **model_config,
         **training_config,
-        'threshold_percentile': feature_config.get('threshold_percentile', 95)
+        'threshold_percentile': feature_config.get('threshold_percentile', 95),
+        'epochs': repro_test_settings.get('epochs', 2),  # Use fewer epochs for reproducibility test
+        'patience': repro_test_settings.get('patience', 5)  # Use shorter patience
     }
     
     # Feature engineering

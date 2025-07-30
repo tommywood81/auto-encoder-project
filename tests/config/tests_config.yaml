@@ -8,7 +8,7 @@ model:
 training:
   batch_size: 32
   learning_rate: 0.0001
-  epochs: 3  # Reduced for faster testing
+  epochs: 3  # Fast testing
   early_stopping: true
   patience: 10  # Reduced for faster testing
   reduce_lr: true
@@ -21,9 +21,14 @@ features:
   use_customer_features: true
   use_risk_flags: true
 
-# AUC test specific configuration (uses production-like settings)
-auc_test:
-  epochs: 3  # Reduced for faster testing
-  patience: 30  # Production patience
-  use_production_settings: true
- 
+# Test-specific configurations
+test_settings:
+  epochs: 3  # All tests use 3 epochs
+  patience: 10
+  data_path: "data/cleaned/creditcard_cleaned.csv"
+  use_credit_card_dataset: true
+
+# Reproducibility test settings (faster)
+reproducibility_test:
+  epochs: 2  # Faster for reproducibility testing
+  patience: 5 

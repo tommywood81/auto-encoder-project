@@ -156,11 +156,11 @@ class FeatureEngineer:
             
             # Amount percentiles and thresholds (fit on training data only)
             if is_training:
-                for percentile in [50, 75, 90, 95, 99]:
+                for percentile in [50, 75, 90, 95]:  # Removed 99 to prevent constant features
                     self.percentile_thresholds[f'amount_{percentile}'] = np.percentile(df[amount_col], percentile)
             
             # Amount threshold flags
-            for percentile in [50, 75, 90, 95, 99]:
+            for percentile in [50, 75, 90, 95]:  # Removed 99 to prevent constant features
                 df[f'amount_above_{percentile}'] = (df[amount_col] > self.percentile_thresholds[f'amount_{percentile}']).astype(int)
             
             # Amount distribution features
@@ -204,11 +204,11 @@ class FeatureEngineer:
             
             # Amount percentiles and thresholds (fit on training data only)
             if is_training:
-                for percentile in [50, 75, 90, 95, 99]:
+                for percentile in [50, 75, 90, 95]:  # Removed 99 to prevent constant features
                     self.percentile_thresholds[f'amount_{percentile}'] = np.percentile(df['transaction_amount'], percentile)
             
             # Amount threshold flags
-            for percentile in [50, 75, 90, 95, 99]:
+            for percentile in [50, 75, 90, 95]:  # Removed 99 to prevent constant features
                 df[f'amount_above_{percentile}'] = (df['transaction_amount'] > self.percentile_thresholds[f'amount_{percentile}']).astype(int)
             
             # Amount distribution features
@@ -239,7 +239,7 @@ class FeatureEngineer:
             df['amount_scaled'] = self.amount_scaler.transform(df[[amount_col]]).flatten()
             
             # Amount threshold flags (using fitted thresholds)
-            for percentile in [50, 75, 90, 95, 99]:
+            for percentile in [50, 75, 90, 95]:  # Removed 99 to prevent constant features
                 df[f'amount_above_{percentile}'] = (df[amount_col] > self.percentile_thresholds[f'amount_{percentile}']).astype(int)
             
             # Amount distribution features
@@ -276,7 +276,7 @@ class FeatureEngineer:
             df['amount_scaled'] = self.amount_scaler.transform(df[['transaction_amount']]).flatten()
             
             # Amount threshold flags (using fitted thresholds)
-            for percentile in [50, 75, 90, 95, 99]:
+            for percentile in [50, 75, 90, 95]:  # Removed 99 to prevent constant features
                 df[f'amount_above_{percentile}'] = (df['transaction_amount'] > self.percentile_thresholds[f'amount_{percentile}']).astype(int)
             
             # Amount distribution features
@@ -634,10 +634,10 @@ class FeatureEngineer:
             
             # Quantity thresholds
             if is_training:
-                for percentile in [50, 75, 90, 95, 99]:
+                for percentile in [50, 75, 90, 95]:
                     self.percentile_thresholds[f'quantity_{percentile}'] = np.percentile(df['quantity'], percentile)
             
-            for percentile in [75, 90, 95, 99]:
+            for percentile in [75, 90, 95]:
                 df[f'quantity_above_{percentile}'] = (df['quantity'] > self.percentile_thresholds[f'quantity_{percentile}']).astype(int)
             
             # Behavioral patterns
@@ -679,7 +679,7 @@ class FeatureEngineer:
             df['quantity_scaled'] = self.quantity_scaler.transform(df[['quantity']]).flatten()
             
             # Quantity thresholds
-            for percentile in [75, 90, 95, 99]:
+            for percentile in [75, 90, 95]:
                 df[f'quantity_above_{percentile}'] = (df['quantity'] > self.percentile_thresholds[f'quantity_{percentile}']).astype(int)
             
             # Behavioral patterns
@@ -1330,7 +1330,7 @@ class FeatureEngineer:
         feature_names = [
             # Amount features
             'amount_log', 'amount_sqrt', 'amount_per_item', 'amount_per_day', 'amount_scaled',
-            'amount_above_50', 'amount_above_75', 'amount_above_90', 'amount_above_95', 'amount_above_99',
+            'amount_above_50', 'amount_above_75', 'amount_above_90', 'amount_above_95',  # Removed amount_above_99
             'amount_ratio_to_median', 'amount_ratio_to_95th', 'amount_volatility',
             
             # Temporal features

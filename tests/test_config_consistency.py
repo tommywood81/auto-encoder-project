@@ -18,9 +18,6 @@ def test_config_structure():
     """Test that all config files have the required structure."""
     
     config_files = [
-        "configs/sweep_broad.yaml",
-        "configs/sweep_narrow.yaml", 
-        "configs/sweep_final.yaml",
         "configs/final_optimized_config.yaml",
         "tests/config/tests_config.yaml"
     ]

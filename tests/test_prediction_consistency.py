@@ -22,20 +22,26 @@ from src.utils.data_loader import load_and_split_data
 def test_model_save_load_consistency():
     """Test that saved and loaded models produce identical predictions."""
     
-    # Load data
-    df_train, df_test = load_and_split_data("data/cleaned/ecommerce_cleaned.csv")
-    
-    # Load config
+    # Load configuration
     config_loader = ConfigLoader("tests/config/tests_config.yaml")
+    test_settings = config_loader.config.get('test_settings', {})
+    data_path = test_settings.get('data_path', "data/cleaned/creditcard_cleaned.csv")
+    
+    # Load data
+    df_train, df_test = load_and_split_data(data_path)
+    
+    # Get configurations
     feature_config = config_loader.get_feature_config()
     model_config = config_loader.get_model_config()
     training_config = config_loader.get_training_config()
     
-    # Combine configurations
+    # Combine configurations with test overrides
     combined_config = {
         **model_config,
         **training_config,
-        'threshold_percentile': feature_config.get('threshold_percentile', 95)
+        'threshold_percentile': feature_config.get('threshold_percentile', 95),
+        'epochs': test_settings.get('epochs', 3),  # Use test epochs
+        'patience': test_settings.get('patience', 10)  # Use test patience
     }
     
     # Feature engineering
