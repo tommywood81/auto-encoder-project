@@ -1,31 +1,35 @@
-seed: 42
-
-model:
-  # Will be auto-filled by narrow sweep with best architecture
-  latent_dim: 16
-  hidden_dims: [128, 64, 32]
-  dropout_rate: 0.2
-
-training:
-  # Fine-tuning parameters
-  batch_size: 64
-  learning_rate: 0.001
-  epochs: 150
-  early_stopping: true
-  patience: 20
-  reduce_lr: true
-  validation_split: 0.2
-
 features:
   threshold_percentile: 95
   use_amount_features: true
-  use_temporal_features: true
   use_customer_features: true
   use_risk_flags: true
-
+  use_temporal_features: true
+model:
+  dropout_rate: 0.1
+  hidden_dims:
+  - 512
+  - 256
+  - 128
+  latent_dim: 32
+seed: 42
 sweep:
-  stage: "final"
-  threshold_percentiles: [90, 92, 95, 98]
-  learning_rates: [0.0001, 0.0003, 0.001]
-  epochs: [100, 150, 200]
-  output_config: "configs/final_optimized_config.yaml" 
+  epochs:
+  - 12
+  - 18
+  learning_rates:
+  - 0.001
+  - 0.002
+  output_config: configs/final_optimized_config.yaml
+  stage: final
+  threshold_percentiles:
+  - 92
+  - 95
+  - 98
+training:
+  batch_size: 64
+  early_stopping: true
+  epochs: 10
+  learning_rate: 0.002
+  patience: 15
+  reduce_lr: true
+  validation_split: 0.2

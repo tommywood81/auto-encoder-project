@@ -9,7 +9,7 @@ import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import layers
 from sklearn.preprocessing import StandardScaler
-from sklearn.metrics import roc_auc_score
+from sklearn.metrics import roc_auc_score, f1_score, precision_score, recall_score
 import pickle
 import os
 import logging
@@ -210,26 +210,32 @@ class FraudAutoencoder:
         self._calculate_threshold(X_train)
         
         # Evaluate on test set
-        test_auc = self._evaluate_test_set(X_test, y_test)
+        test_metrics = self._evaluate_test_set(X_test, y_test)
         
         # Log final metrics
         if wandb.run is not None:
             wandb.log({
-                'final_test_auc': test_auc,
+                'final_test_auc': test_metrics['auc'],
                 'final_threshold': self.threshold,
                 'final_train_loss': history.history['loss'][-1],
-                'final_val_loss': history.history['val_loss'][-1]
+                'final_val_loss': history.history['val_loss'][-1],
+                'final_f1_score': test_metrics['f1_score'],
+                'final_precision': test_metrics['precision'],
+                'final_recall': test_metrics['recall']
             })
         
         results = {
-            'test_auc': test_auc,
+            'test_auc': test_metrics['auc'],
+            'f1_score': test_metrics['f1_score'],
+            'precision': test_metrics['precision'],
+            'recall': test_metrics['recall'],
             'threshold': self.threshold,
             'train_loss': history.history['loss'][-1],
             'val_loss': history.history['val_loss'][-1],
             'best_val_auc': auc_callback.best_auc
         }
         
-        logger.info(f"Training completed. Test AUC: {test_auc:.4f}, Threshold: {self.threshold:.6f}")
+        logger.info(f"Training completed. Test AUC: {test_metrics['auc']:.4f}, F1: {test_metrics['f1_score']:.4f}, Threshold: {self.threshold:.6f}")
         
         return results
     
@@ -248,7 +254,7 @@ class FraudAutoencoder:
         # Set fitted state
         self.is_fitted = True
     
-    def _evaluate_test_set(self, X_test: np.ndarray, y_test: np.ndarray) -> float:
+    def _evaluate_test_set(self, X_test: np.ndarray, y_test: np.ndarray) -> Dict[str, float]:
         """Evaluate model on test set."""
         
         # Get reconstruction errors
@@ -258,7 +264,20 @@ class FraudAutoencoder:
         # Calculate AUC
         test_auc = roc_auc_score(y_test, test_errors)
         
-        return test_auc
+        # Calculate predictions using threshold
+        predictions = (test_errors > self.threshold).astype(int)
+        
+        # Calculate additional metrics
+        f1 = f1_score(y_test, predictions, zero_division=0)
+        precision = precision_score(y_test, predictions, zero_division=0)
+        recall = recall_score(y_test, predictions, zero_division=0)
+        
+        return {
+            'auc': test_auc,
+            'f1_score': f1,
+            'precision': precision,
+            'recall': recall
+        }
     
     def predict_anomaly_scores(self, X: np.ndarray) -> np.ndarray:
         """Predict anomaly scores for input data."""

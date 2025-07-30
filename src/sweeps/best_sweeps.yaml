@@ -1,0 +1,90 @@
+broad_sweep:
+  architecture: xlarge
+  auc_roc: 0.6972931291371954
+  config:
+    batch_size: 64
+    dropout_rate: 0.3
+    epochs: 10
+    hidden_dims:
+    - 512
+    - 256
+    - 128
+    latent_dim: 32
+    learning_rate: 0.001
+    threshold_percentile: 95
+  f1_score: 0.2094017094017094
+  precision: 0.21212121212121213
+  recall: 0.20675105485232068
+  run_id: v7rgg7al
+  threshold: !!python/object/apply:numpy._core.multiarray.scalar
+  - &id001 !!python/object/apply:numpy.dtype
+    args:
+    - f8
+    - false
+    - true
+    state: !!python/tuple
+    - 3
+    - <
+    - null
+    - null
+    - null
+    - -1
+    - -1
+    - 0
+  - !!binary |
+    yMSAKK+C0z8=
+  train_loss: 0.24204105138778687
+  val_loss: 0.5011918544769287
+final_sweep:
+  architecture: final_optimized
+  auc_roc: 0.7277075857662236
+  config:
+    batch_size: 64
+    dropout_rate: 0.1
+    epochs: 18
+    hidden_dims:
+    - 512
+    - 256
+    - 128
+    latent_dim: 32
+    learning_rate: 0.002
+    threshold_percentile: 95
+  f1_score: 0.20901639344262296
+  precision: 0.20318725099601595
+  recall: 0.21518987341772153
+  run_id: ewi0rwu3
+  threshold: !!python/object/apply:numpy._core.multiarray.scalar
+  - *id001
+  - !!binary |
+    oCu3zE8ytz8=
+  train_loss: 0.10985732078552246
+  val_loss: 0.8448742032051086
+narrow_sweep:
+  architecture: xlarge
+  auc_roc: 0.7128573161243755
+  config:
+    batch_size: 64
+    dropout_rate: 0.1
+    epochs: 12
+    hidden_dims:
+    - 512
+    - 256
+    - 128
+    latent_dim: 32
+    learning_rate: 0.002
+    threshold_percentile: 95
+  f1_score: 0.21748400852878466
+  precision: 0.21982758620689655
+  recall: 0.21518987341772153
+  run_id: 9ml6evvg
+  threshold: !!python/object/apply:numpy._core.multiarray.scalar
+  - *id001
+  - !!binary |
+    sm4+gTu03z8=
+  train_loss: 0.1045791432261467
+  val_loss: 0.5447983741760254
+summary:
+  best_overall_auc: 0.7277075857662236
+  best_overall_run_id: ewi0rwu3
+  best_overall_stage: final_sweep
+  sweep_completion_date: '2025-07-30T15:33:13.296152'
