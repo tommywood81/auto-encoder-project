@@ -1,13 +1,13 @@
 seed: 42
 
 model:
-  latent_dim: 16
-  hidden_dims: [1024, 512, 256, 128, 64]
-  dropout_rate: 0.2
+  latent_dim: 32
+  hidden_dims: [512, 256, 128, 64, 32]
+  dropout_rate: 0.3
 
 training:
-  batch_size: 16
-  learning_rate: 0.00005
+  batch_size: 32
+  learning_rate: 0.0001
   epochs: 4  # Reduced for faster testing
   early_stopping: true
   patience: 10  # Reduced for faster testing
@@ -23,7 +23,7 @@ features:
 
 # AUC test specific configuration (uses production-like settings)
 auc_test:
-  epochs: 15  # Full training for AUC validation
-  patience: 25  # Production patience
+  epochs: 20  # Full training for AUC validation
+  patience: 30  # Production patience
   use_production_settings: true
  

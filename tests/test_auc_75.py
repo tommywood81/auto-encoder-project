@@ -24,7 +24,7 @@ def run_auc_test():
     """Run the AUC 0.75 test with config-driven approach."""
     
     print("=" * 60)
-    print("AUC 0.75 TEST")
+    print("AUC 0.80 TEST")
     print("=" * 60)
     
     try:
@@ -33,7 +33,7 @@ def run_auc_test():
         print(f"[PASS] Configuration loaded from: tests/config/tests_config.yaml")
         
         # Load and split data
-        df_train, df_test = load_and_split_data("data/cleaned/ecommerce_cleaned.csv")
+        df_train, df_test = load_and_split_data("data/cleaned/creditcard_cleaned.csv")
         print(f"[PASS] Data loaded: {len(df_train)} train, {len(df_test)} test samples")
         
         # Feature engineering
@@ -81,12 +81,12 @@ def run_auc_test():
         print(f"[PASS] Training completed")
         print(f"   Test AUC: {test_auc:.4f}")
         print(f"   Threshold: {threshold:.6f}")
-        print(f"   Target AUC: 0.7500")
+        print(f"   Target AUC: 0.8000")
         
         # Assert AUC requirement
-        assert test_auc >= 0.75, f"AUC test FAILED: {test_auc:.4f} < 0.75"
+        assert test_auc >= 0.80, f"AUC test FAILED: {test_auc:.4f} < 0.80"
         
-        print(f"[PASS] AUC test PASSED: {test_auc:.4f} >= 0.75")
+        print(f"[PASS] AUC test PASSED: {test_auc:.4f} >= 0.80")
         
         # Additional quality checks
         test_feature_engineering_quality(df_train_features, df_test_features)

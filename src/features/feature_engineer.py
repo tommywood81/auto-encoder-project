@@ -135,185 +135,383 @@ class FeatureEngineer:
     def _engineer_amount_features(self, df: pd.DataFrame, is_training: bool) -> pd.DataFrame:
         """Engineer comprehensive amount-related features."""
         
-        # Basic amount features
-        df['amount_log'] = np.log1p(df['transaction_amount'])
-        df['amount_sqrt'] = np.sqrt(df['transaction_amount'])
-        df['amount_per_item'] = df['transaction_amount'] / (df['quantity'] + 1)
-        df['amount_per_day'] = df['transaction_amount'] / (df['account_age_days'] + 1)
+        # Check if this is credit card dataset (has V1-V28 features)
+        v_columns = [f'v{i}' for i in range(1, 29)]
+        is_credit_card_dataset = any(col in df.columns for col in v_columns)
         
-        # Robust scaling (fit on training data only)
-        if is_training:
-            self.amount_scaler = RobustScaler()
-            df['amount_scaled'] = self.amount_scaler.fit_transform(df[['transaction_amount']]).flatten()
-        else:
-            df['amount_scaled'] = self.amount_scaler.transform(df[['transaction_amount']]).flatten()
-        
-        # Amount percentiles and thresholds (fit on training data only)
-        if is_training:
+        if is_credit_card_dataset:
+            # Credit card dataset - use 'amount' column
+            amount_col = 'amount'
+            
+            # Basic amount features
+            df['amount_log'] = np.log1p(df[amount_col])
+            df['amount_sqrt'] = np.sqrt(df[amount_col])
+            
+            # Robust scaling (fit on training data only)
+            if is_training:
+                self.amount_scaler = RobustScaler()
+                df['amount_scaled'] = self.amount_scaler.fit_transform(df[[amount_col]]).flatten()
+            else:
+                df['amount_scaled'] = self.amount_scaler.transform(df[[amount_col]]).flatten()
+            
+            # Amount percentiles and thresholds (fit on training data only)
+            if is_training:
+                for percentile in [50, 75, 90, 95, 99]:
+                    self.percentile_thresholds[f'amount_{percentile}'] = np.percentile(df[amount_col], percentile)
+            
+            # Amount threshold flags
             for percentile in [50, 75, 90, 95, 99]:
-                self.percentile_thresholds[f'amount_{percentile}'] = np.percentile(df['transaction_amount'], percentile)
-        
-        # Amount threshold flags
-        for percentile in [50, 75, 90, 95, 99]:
-            df[f'amount_above_{percentile}'] = (df['transaction_amount'] > self.percentile_thresholds[f'amount_{percentile}']).astype(int)
-        
-        # Amount distribution features
-        df['amount_ratio_to_median'] = df['transaction_amount'] / (self.percentile_thresholds['amount_50'] + 1e-8)
-        df['amount_ratio_to_95th'] = df['transaction_amount'] / (self.percentile_thresholds['amount_95'] + 1e-8)
-        
-        # Amount volatility features
-        df['amount_volatility'] = np.abs(df['transaction_amount'] - self.percentile_thresholds['amount_50']) / (self.percentile_thresholds['amount_50'] + 1e-8)
+                df[f'amount_above_{percentile}'] = (df[amount_col] > self.percentile_thresholds[f'amount_{percentile}']).astype(int)
+            
+            # Amount distribution features
+            df['amount_ratio_to_median'] = df[amount_col] / (self.percentile_thresholds['amount_50'] + 1e-8)
+            df['amount_ratio_to_95th'] = df[amount_col] / (self.percentile_thresholds['amount_95'] + 1e-8)
+            
+            # Amount volatility features
+            df['amount_volatility'] = np.abs(df[amount_col] - self.percentile_thresholds['amount_50']) / (self.percentile_thresholds['amount_50'] + 1e-8)
+            
+            # Add V-features statistics
+            existing_v_columns = [col for col in v_columns if col in df.columns]
+            if existing_v_columns:
+                logger.info(f"Found {len(existing_v_columns)} V-features from credit card dataset")
+                
+                # Add aggregate features for V-features
+                df['v_features_mean'] = df[existing_v_columns].mean(axis=1)
+                df['v_features_std'] = df[existing_v_columns].std(axis=1)
+                df['v_features_max'] = df[existing_v_columns].max(axis=1)
+                df['v_features_min'] = df[existing_v_columns].min(axis=1)
+                df['v_features_range'] = df['v_features_max'] - df['v_features_min']
+                df['v_features_abs_mean'] = df[existing_v_columns].abs().mean(axis=1)
+                
+                # Add interaction features between amount and V-features
+                df['amount_v_mean_interaction'] = df[amount_col] * df['v_features_mean']
+                df['amount_v_std_interaction'] = df[amount_col] * df['v_features_std']
+                
+        else:
+            # E-commerce dataset - original logic
+            # Basic amount features
+            df['amount_log'] = np.log1p(df['transaction_amount'])
+            df['amount_sqrt'] = np.sqrt(df['transaction_amount'])
+            df['amount_per_item'] = df['transaction_amount'] / (df['quantity'] + 1)
+            df['amount_per_day'] = df['transaction_amount'] / (df['account_age_days'] + 1)
+            
+            # Robust scaling (fit on training data only)
+            if is_training:
+                self.amount_scaler = RobustScaler()
+                df['amount_scaled'] = self.amount_scaler.fit_transform(df[['transaction_amount']]).flatten()
+            else:
+                df['amount_scaled'] = self.amount_scaler.transform(df[['transaction_amount']]).flatten()
+            
+            # Amount percentiles and thresholds (fit on training data only)
+            if is_training:
+                for percentile in [50, 75, 90, 95, 99]:
+                    self.percentile_thresholds[f'amount_{percentile}'] = np.percentile(df['transaction_amount'], percentile)
+            
+            # Amount threshold flags
+            for percentile in [50, 75, 90, 95, 99]:
+                df[f'amount_above_{percentile}'] = (df['transaction_amount'] > self.percentile_thresholds[f'amount_{percentile}']).astype(int)
+            
+            # Amount distribution features
+            df['amount_ratio_to_median'] = df['transaction_amount'] / (self.percentile_thresholds['amount_50'] + 1e-8)
+            df['amount_ratio_to_95th'] = df['transaction_amount'] / (self.percentile_thresholds['amount_95'] + 1e-8)
+            
+            # Amount volatility features
+            df['amount_volatility'] = np.abs(df['transaction_amount'] - self.percentile_thresholds['amount_50']) / (self.percentile_thresholds['amount_50'] + 1e-8)
         
         return df
     
     def _apply_amount_features(self, df: pd.DataFrame) -> pd.DataFrame:
         """Apply fitted amount features to test data."""
         
-        # Basic amount features
-        df['amount_log'] = np.log1p(df['transaction_amount'])
-        df['amount_sqrt'] = np.sqrt(df['transaction_amount'])
-        df['amount_per_item'] = df['transaction_amount'] / (df['quantity'] + 1)
-        df['amount_per_day'] = df['transaction_amount'] / (df['account_age_days'] + 1)
+        # Check if this is credit card dataset (has V1-V28 features)
+        v_columns = [f'v{i}' for i in range(1, 29)]
+        is_credit_card_dataset = any(col in df.columns for col in v_columns)
         
-        # Robust scaling (using fitted scaler)
-        df['amount_scaled'] = self.amount_scaler.transform(df[['transaction_amount']]).flatten()
-        
-        # Amount threshold flags (using fitted thresholds)
-        for percentile in [50, 75, 90, 95, 99]:
-            df[f'amount_above_{percentile}'] = (df['transaction_amount'] > self.percentile_thresholds[f'amount_{percentile}']).astype(int)
-        
-        # Amount distribution features
-        df['amount_ratio_to_median'] = df['transaction_amount'] / (self.percentile_thresholds['amount_50'] + 1e-8)
-        df['amount_ratio_to_95th'] = df['transaction_amount'] / (self.percentile_thresholds['amount_95'] + 1e-8)
-        
-        # Amount volatility features
-        df['amount_volatility'] = np.abs(df['transaction_amount'] - self.percentile_thresholds['amount_50']) / (self.percentile_thresholds['amount_50'] + 1e-8)
+        if is_credit_card_dataset:
+            # Credit card dataset - use 'amount' column
+            amount_col = 'amount'
+            
+            # Basic amount features
+            df['amount_log'] = np.log1p(df[amount_col])
+            df['amount_sqrt'] = np.sqrt(df[amount_col])
+            
+            # Robust scaling (using fitted scaler)
+            df['amount_scaled'] = self.amount_scaler.transform(df[[amount_col]]).flatten()
+            
+            # Amount threshold flags (using fitted thresholds)
+            for percentile in [50, 75, 90, 95, 99]:
+                df[f'amount_above_{percentile}'] = (df[amount_col] > self.percentile_thresholds[f'amount_{percentile}']).astype(int)
+            
+            # Amount distribution features
+            df['amount_ratio_to_median'] = df[amount_col] / (self.percentile_thresholds['amount_50'] + 1e-8)
+            df['amount_ratio_to_95th'] = df[amount_col] / (self.percentile_thresholds['amount_95'] + 1e-8)
+            
+            # Amount volatility features
+            df['amount_volatility'] = np.abs(df[amount_col] - self.percentile_thresholds['amount_50']) / (self.percentile_thresholds['amount_50'] + 1e-8)
+            
+            # Add V-features statistics
+            existing_v_columns = [col for col in v_columns if col in df.columns]
+            if existing_v_columns:
+                # Add aggregate features for V-features
+                df['v_features_mean'] = df[existing_v_columns].mean(axis=1)
+                df['v_features_std'] = df[existing_v_columns].std(axis=1)
+                df['v_features_max'] = df[existing_v_columns].max(axis=1)
+                df['v_features_min'] = df[existing_v_columns].min(axis=1)
+                df['v_features_range'] = df['v_features_max'] - df['v_features_min']
+                df['v_features_abs_mean'] = df[existing_v_columns].abs().mean(axis=1)
+                
+                # Add interaction features between amount and V-features
+                df['amount_v_mean_interaction'] = df[amount_col] * df['v_features_mean']
+                df['amount_v_std_interaction'] = df[amount_col] * df['v_features_std']
+                
+        else:
+            # E-commerce dataset - original logic
+            # Basic amount features
+            df['amount_log'] = np.log1p(df['transaction_amount'])
+            df['amount_sqrt'] = np.sqrt(df['transaction_amount'])
+            df['amount_per_item'] = df['transaction_amount'] / (df['quantity'] + 1)
+            df['amount_per_day'] = df['transaction_amount'] / (df['account_age_days'] + 1)
+            
+            # Robust scaling (using fitted scaler)
+            df['amount_scaled'] = self.amount_scaler.transform(df[['transaction_amount']]).flatten()
+            
+            # Amount threshold flags (using fitted thresholds)
+            for percentile in [50, 75, 90, 95, 99]:
+                df[f'amount_above_{percentile}'] = (df['transaction_amount'] > self.percentile_thresholds[f'amount_{percentile}']).astype(int)
+            
+            # Amount distribution features
+            df['amount_ratio_to_median'] = df['transaction_amount'] / (self.percentile_thresholds['amount_50'] + 1e-8)
+            df['amount_ratio_to_95th'] = df['transaction_amount'] / (self.percentile_thresholds['amount_95'] + 1e-8)
+            
+            # Amount volatility features
+            df['amount_volatility'] = np.abs(df['transaction_amount'] - self.percentile_thresholds['amount_50']) / (self.percentile_thresholds['amount_50'] + 1e-8)
         
         return df
     
     def _engineer_temporal_features(self, df: pd.DataFrame, is_training: bool) -> pd.DataFrame:
         """Engineer comprehensive temporal features."""
         
-        # Convert timestamp to datetime
-        df['transaction_date'] = pd.to_datetime(df['transaction_date'])
+        # Check if this is credit card dataset (has V1-V28 features)
+        v_columns = [f'v{i}' for i in range(1, 29)]
+        is_credit_card_dataset = any(col in df.columns for col in v_columns)
         
-        # Basic temporal features
-        df['hour'] = df['transaction_date'].dt.hour
-        df['day_of_week'] = df['transaction_date'].dt.dayofweek
-        df['day_of_month'] = df['transaction_date'].dt.day
-        df['month'] = df['transaction_date'].dt.month
-        df['quarter'] = df['transaction_date'].dt.quarter
-        df['is_weekend'] = (df['day_of_week'] >= 5).astype(int)
-        
-        # Time-based flags
-        df['is_late_night'] = ((df['hour'] >= 23) | (df['hour'] <= 6)).astype(int)
-        df['is_business_hours'] = ((df['hour'] >= 9) & (df['hour'] <= 17)).astype(int)
-        df['is_rush_hour'] = ((df['hour'] >= 7) & (df['hour'] <= 9)) | ((df['hour'] >= 17) & (df['hour'] <= 19))
-        df['is_rush_hour'] = df['is_rush_hour'].astype(int)
-        
-        # Cyclical encoding for hour and day
-        df['hour_sin'] = np.sin(2 * np.pi * df['hour'] / 24)
-        df['hour_cos'] = np.cos(2 * np.pi * df['hour'] / 24)
-        df['day_sin'] = np.sin(2 * np.pi * df['day_of_week'] / 7)
-        df['day_cos'] = np.cos(2 * np.pi * df['day_of_week'] / 7)
-        df['month_sin'] = np.sin(2 * np.pi * df['month'] / 12)
-        df['month_cos'] = np.cos(2 * np.pi * df['month'] / 12)
-        
-        # Time-based risk periods
-        df['is_high_risk_hour'] = ((df['hour'] >= 0) & (df['hour'] <= 4)).astype(int)
-        df['is_holiday_period'] = ((df['month'] == 12) | (df['month'] == 1)).astype(int)
-        
-        # Temporal statistics (fit on training data only)
-        if is_training:
-            self.temporal_stats['hour_mean'] = df['hour'].mean()
-            self.temporal_stats['hour_std'] = df['hour'].std()
-            self.temporal_stats['day_weekend_ratio'] = df['is_weekend'].mean()
-        
-        # Temporal deviation features
-        df['hour_deviation'] = np.abs(df['hour'] - self.temporal_stats['hour_mean']) / (self.temporal_stats['hour_std'] + 1e-8)
+        if is_credit_card_dataset:
+            # Credit card dataset - use 'time' column and derived transaction_date
+            if 'transaction_date' not in df.columns and 'time' in df.columns:
+                # Create transaction_date from time column if not already done
+                df['transaction_date'] = pd.to_datetime('2023-01-01') + pd.to_timedelta(df['time'], unit='s')
+            
+            # Basic temporal features
+            df['hour'] = df['transaction_date'].dt.hour
+            df['day_of_week'] = df['transaction_date'].dt.dayofweek
+            df['day_of_month'] = df['transaction_date'].dt.day
+            df['month'] = df['transaction_date'].dt.month
+            df['quarter'] = df['transaction_date'].dt.quarter
+            df['is_weekend'] = (df['day_of_week'] >= 5).astype(int)
+            
+            # Time-based flags
+            df['is_late_night'] = ((df['hour'] >= 23) | (df['hour'] <= 6)).astype(int)
+            df['is_business_hours'] = ((df['hour'] >= 9) & (df['hour'] <= 17)).astype(int)
+            df['is_rush_hour'] = ((df['hour'] >= 7) & (df['hour'] <= 9)) | ((df['hour'] >= 17) & (df['hour'] <= 19))
+            df['is_rush_hour'] = df['is_rush_hour'].astype(int)
+            
+            # Cyclical encoding for hour and day
+            df['hour_sin'] = np.sin(2 * np.pi * df['hour'] / 24)
+            df['hour_cos'] = np.cos(2 * np.pi * df['hour'] / 24)
+            df['day_sin'] = np.sin(2 * np.pi * df['day_of_week'] / 7)
+            df['day_cos'] = np.cos(2 * np.pi * df['day_of_week'] / 7)
+            df['month_sin'] = np.sin(2 * np.pi * df['month'] / 12)
+            df['month_cos'] = np.cos(2 * np.pi * df['month'] / 12)
+            
+            # Time-based risk periods
+            df['is_high_risk_hour'] = ((df['hour'] >= 0) & (df['hour'] <= 4)).astype(int)
+            df['is_holiday_period'] = ((df['month'] == 12) | (df['month'] == 1)).astype(int)
+            
+            # Temporal statistics (fit on training data only)
+            if is_training:
+                self.temporal_stats['hour_mean'] = df['hour'].mean()
+                self.temporal_stats['hour_std'] = df['hour'].std()
+                self.temporal_stats['day_weekend_ratio'] = df['is_weekend'].mean()
+            
+            # Temporal deviation features
+            df['hour_deviation'] = np.abs(df['hour'] - self.temporal_stats['hour_mean']) / (self.temporal_stats['hour_std'] + 1e-8)
+            
+        else:
+            # E-commerce dataset - original logic
+            # Convert timestamp to datetime
+            df['transaction_date'] = pd.to_datetime(df['transaction_date'])
+            
+            # Basic temporal features
+            df['hour'] = df['transaction_date'].dt.hour
+            df['day_of_week'] = df['transaction_date'].dt.dayofweek
+            df['day_of_month'] = df['transaction_date'].dt.day
+            df['month'] = df['transaction_date'].dt.month
+            df['quarter'] = df['transaction_date'].dt.quarter
+            df['is_weekend'] = (df['day_of_week'] >= 5).astype(int)
+            
+            # Time-based flags
+            df['is_late_night'] = ((df['hour'] >= 23) | (df['hour'] <= 6)).astype(int)
+            df['is_business_hours'] = ((df['hour'] >= 9) & (df['hour'] <= 17)).astype(int)
+            df['is_rush_hour'] = ((df['hour'] >= 7) & (df['hour'] <= 9)) | ((df['hour'] >= 17) & (df['hour'] <= 19))
+            df['is_rush_hour'] = df['is_rush_hour'].astype(int)
+            
+            # Cyclical encoding for hour and day
+            df['hour_sin'] = np.sin(2 * np.pi * df['hour'] / 24)
+            df['hour_cos'] = np.cos(2 * np.pi * df['hour'] / 24)
+            df['day_sin'] = np.sin(2 * np.pi * df['day_of_week'] / 7)
+            df['day_cos'] = np.cos(2 * np.pi * df['day_of_week'] / 7)
+            df['month_sin'] = np.sin(2 * np.pi * df['month'] / 12)
+            df['month_cos'] = np.cos(2 * np.pi * df['month'] / 12)
+            
+            # Time-based risk periods
+            df['is_high_risk_hour'] = ((df['hour'] >= 0) & (df['hour'] <= 4)).astype(int)
+            df['is_holiday_period'] = ((df['month'] == 12) | (df['month'] == 1)).astype(int)
+            
+            # Temporal statistics (fit on training data only)
+            if is_training:
+                self.temporal_stats['hour_mean'] = df['hour'].mean()
+                self.temporal_stats['hour_std'] = df['hour'].std()
+                self.temporal_stats['day_weekend_ratio'] = df['is_weekend'].mean()
+            
+            # Temporal deviation features
+            df['hour_deviation'] = np.abs(df['hour'] - self.temporal_stats['hour_mean']) / (self.temporal_stats['hour_std'] + 1e-8)
         
         return df
     
     def _apply_temporal_features(self, df: pd.DataFrame) -> pd.DataFrame:
         """Apply fitted temporal features to test data."""
         
-        # Convert timestamp to datetime
-        df['transaction_date'] = pd.to_datetime(df['transaction_date'])
+        # Check if this is credit card dataset (has V1-V28 features)
+        v_columns = [f'v{i}' for i in range(1, 29)]
+        is_credit_card_dataset = any(col in df.columns for col in v_columns)
         
-        # Basic temporal features
-        df['hour'] = df['transaction_date'].dt.hour
-        df['day_of_week'] = df['transaction_date'].dt.dayofweek
-        df['day_of_month'] = df['transaction_date'].dt.day
-        df['month'] = df['transaction_date'].dt.month
-        df['quarter'] = df['transaction_date'].dt.quarter
-        df['is_weekend'] = (df['day_of_week'] >= 5).astype(int)
-        
-        # Time-based flags
-        df['is_late_night'] = ((df['hour'] >= 23) | (df['hour'] <= 6)).astype(int)
-        df['is_business_hours'] = ((df['hour'] >= 9) & (df['hour'] <= 17)).astype(int)
-        df['is_rush_hour'] = ((df['hour'] >= 7) & (df['hour'] <= 9)) | ((df['hour'] >= 17) & (df['hour'] <= 19))
-        df['is_rush_hour'] = df['is_rush_hour'].astype(int)
-        
-        # Cyclical encoding for hour and day
-        df['hour_sin'] = np.sin(2 * np.pi * df['hour'] / 24)
-        df['hour_cos'] = np.cos(2 * np.pi * df['hour'] / 24)
-        df['day_sin'] = np.sin(2 * np.pi * df['day_of_week'] / 7)
-        df['day_cos'] = np.cos(2 * np.pi * df['day_of_week'] / 7)
-        df['month_sin'] = np.sin(2 * np.pi * df['month'] / 12)
-        df['month_cos'] = np.cos(2 * np.pi * df['month'] / 12)
-        
-        # Time-based risk periods
-        df['is_high_risk_hour'] = ((df['hour'] >= 0) & (df['hour'] <= 4)).astype(int)
-        df['is_holiday_period'] = ((df['month'] == 12) | (df['month'] == 1)).astype(int)
-        
-        # Temporal deviation features (using fitted statistics)
-        df['hour_deviation'] = np.abs(df['hour'] - self.temporal_stats['hour_mean']) / (self.temporal_stats['hour_std'] + 1e-8)
+        if is_credit_card_dataset:
+            # Credit card dataset - use 'time' column and derived transaction_date
+            if 'transaction_date' not in df.columns and 'time' in df.columns:
+                # Create transaction_date from time column if not already done
+                df['transaction_date'] = pd.to_datetime('2023-01-01') + pd.to_timedelta(df['time'], unit='s')
+            
+            # Basic temporal features
+            df['hour'] = df['transaction_date'].dt.hour
+            df['day_of_week'] = df['transaction_date'].dt.dayofweek
+            df['day_of_month'] = df['transaction_date'].dt.day
+            df['month'] = df['transaction_date'].dt.month
+            df['quarter'] = df['transaction_date'].dt.quarter
+            df['is_weekend'] = (df['day_of_week'] >= 5).astype(int)
+            
+            # Time-based flags
+            df['is_late_night'] = ((df['hour'] >= 23) | (df['hour'] <= 6)).astype(int)
+            df['is_business_hours'] = ((df['hour'] >= 9) & (df['hour'] <= 17)).astype(int)
+            df['is_rush_hour'] = ((df['hour'] >= 7) & (df['hour'] <= 9)) | ((df['hour'] >= 17) & (df['hour'] <= 19))
+            df['is_rush_hour'] = df['is_rush_hour'].astype(int)
+            
+            # Cyclical encoding for hour and day
+            df['hour_sin'] = np.sin(2 * np.pi * df['hour'] / 24)
+            df['hour_cos'] = np.cos(2 * np.pi * df['hour'] / 24)
+            df['day_sin'] = np.sin(2 * np.pi * df['day_of_week'] / 7)
+            df['day_cos'] = np.cos(2 * np.pi * df['day_of_week'] / 7)
+            df['month_sin'] = np.sin(2 * np.pi * df['month'] / 12)
+            df['month_cos'] = np.cos(2 * np.pi * df['month'] / 12)
+            
+            # Time-based risk periods
+            df['is_high_risk_hour'] = ((df['hour'] >= 0) & (df['hour'] <= 4)).astype(int)
+            df['is_holiday_period'] = ((df['month'] == 12) | (df['month'] == 1)).astype(int)
+            
+            # Temporal deviation features (using fitted statistics)
+            df['hour_deviation'] = np.abs(df['hour'] - self.temporal_stats['hour_mean']) / (self.temporal_stats['hour_std'] + 1e-8)
+            
+        else:
+            # E-commerce dataset - original logic
+            # Convert timestamp to datetime
+            df['transaction_date'] = pd.to_datetime(df['transaction_date'])
+            
+            # Basic temporal features
+            df['hour'] = df['transaction_date'].dt.hour
+            df['day_of_week'] = df['transaction_date'].dt.dayofweek
+            df['day_of_month'] = df['transaction_date'].dt.day
+            df['month'] = df['transaction_date'].dt.month
+            df['quarter'] = df['transaction_date'].dt.quarter
+            df['is_weekend'] = (df['day_of_week'] >= 5).astype(int)
+            
+            # Time-based flags
+            df['is_late_night'] = ((df['hour'] >= 23) | (df['hour'] <= 6)).astype(int)
+            df['is_business_hours'] = ((df['hour'] >= 9) & (df['hour'] <= 17)).astype(int)
+            df['is_rush_hour'] = ((df['hour'] >= 7) & (df['hour'] <= 9)) | ((df['hour'] >= 17) & (df['hour'] <= 19))
+            df['is_rush_hour'] = df['is_rush_hour'].astype(int)
+            
+            # Cyclical encoding for hour and day
+            df['hour_sin'] = np.sin(2 * np.pi * df['hour'] / 24)
+            df['hour_cos'] = np.cos(2 * np.pi * df['hour'] / 24)
+            df['day_sin'] = np.sin(2 * np.pi * df['day_of_week'] / 7)
+            df['day_cos'] = np.cos(2 * np.pi * df['day_of_week'] / 7)
+            df['month_sin'] = np.sin(2 * np.pi * df['month'] / 12)
+            df['month_cos'] = np.cos(2 * np.pi * df['month'] / 12)
+            
+            # Time-based risk periods
+            df['is_high_risk_hour'] = ((df['hour'] >= 0) & (df['hour'] <= 4)).astype(int)
+            df['is_holiday_period'] = ((df['month'] == 12) | (df['month'] == 1)).astype(int)
+            
+            # Temporal deviation features (using fitted statistics)
+            df['hour_deviation'] = np.abs(df['hour'] - self.temporal_stats['hour_mean']) / (self.temporal_stats['hour_std'] + 1e-8)
         
         return df
     
     def _engineer_customer_features(self, df: pd.DataFrame, is_training: bool) -> pd.DataFrame:
         """Engineer comprehensive customer-related features."""
         
+        # Check if this is credit card dataset (has V1-V28 features)
+        v_columns = [f'v{i}' for i in range(1, 29)]
+        is_credit_card_dataset = any(col in df.columns for col in v_columns)
+        
+        if is_credit_card_dataset:
+            # Credit card dataset doesn't have customer features, skip this section
+            logger.info("Credit card dataset detected - skipping customer features")
+            return df
+        
+        # E-commerce dataset - original logic
         # Age-based features
-        df['age_group'] = pd.cut(df['customer_age'], 
-                                bins=[0, 18, 25, 35, 50, 65, 100], 
-                                labels=['teen', 'young', 'adult', 'middle', 'senior', 'elderly'])
-        
-        if is_training:
-            self.label_encoders['age_group'] = LabelEncoder()
-            df['age_group_encoded'] = self.label_encoders['age_group'].fit_transform(df['age_group'])
-        else:
-            df['age_group_encoded'] = self.label_encoders['age_group'].transform(df['age_group'])
-        
-        # Age risk features
-        df['young_customer'] = (df['customer_age'] <= 18).astype(int)
-        df['senior_customer'] = (df['customer_age'] >= 65).astype(int)
-        df['age_risk'] = np.where(df['customer_age'] <= 18, 2, np.where(df['customer_age'] >= 65, 1, 0))
+        if 'customer_age' in df.columns:
+            df['age_group'] = pd.cut(df['customer_age'], 
+                                    bins=[0, 18, 25, 35, 50, 65, 100], 
+                                    labels=['teen', 'young', 'adult', 'middle', 'senior', 'elderly'])
+            
+            if is_training:
+                self.label_encoders['age_group'] = LabelEncoder()
+                df['age_group_encoded'] = self.label_encoders['age_group'].fit_transform(df['age_group'])
+            else:
+                df['age_group_encoded'] = self.label_encoders['age_group'].transform(df['age_group'])
+            
+            # Age risk features
+            df['young_customer'] = (df['customer_age'] <= 18).astype(int)
+            df['senior_customer'] = (df['customer_age'] >= 65).astype(int)
+            df['age_risk'] = np.where(df['customer_age'] <= 18, 2, np.where(df['customer_age'] >= 65, 1, 0))
         
         # Account age features
-        df['account_age_days_log'] = np.log1p(df['account_age_days'])
-        df['account_age_weeks'] = df['account_age_days'] / 7
-        df['account_age_months'] = df['account_age_days'] / 30
-        
-        df['new_account'] = (df['account_age_days'] <= 7).astype(int)
-        df['recent_account'] = (df['account_age_days'] <= 30).astype(int)
-        df['established_account'] = (df['account_age_days'] > 90).astype(int)
-        df['old_account'] = (df['account_age_days'] > 365).astype(int)
-        
-        # Account age risk
-        df['account_age_risk'] = np.where(df['account_age_days'] <= 7, 3, 
-                                         np.where(df['account_age_days'] <= 30, 2, 
-                                                 np.where(df['account_age_days'] <= 90, 1, 0)))
+        if 'account_age_days' in df.columns:
+            df['account_age_days_log'] = np.log1p(df['account_age_days'])
+            df['account_age_weeks'] = df['account_age_days'] / 7
+            df['account_age_months'] = df['account_age_days'] / 30
+            
+            df['new_account'] = (df['account_age_days'] <= 7).astype(int)
+            df['recent_account'] = (df['account_age_days'] <= 30).astype(int)
+            df['established_account'] = (df['account_age_days'] > 90).astype(int)
+            df['old_account'] = (df['account_age_days'] > 365).astype(int)
+            
+            # Account age risk
+            df['account_age_risk'] = np.where(df['account_age_days'] <= 7, 3, 
+                                             np.where(df['account_age_days'] <= 30, 2, 
+                                                     np.where(df['account_age_days'] <= 90, 1, 0)))
         
         # Location-based features (fit on training data only)
-        if is_training:
-            location_counts = df['customer_location'].value_counts()
-            self.location_stats['location_counts'] = location_counts.to_dict()
-            self.location_stats['location_risk'] = (location_counts / len(df)).to_dict()
-        
-        df['location_freq'] = df['customer_location'].map(self.location_stats['location_counts']).fillna(0)
-        df['location_risk_score'] = df['customer_location'].map(self.location_stats['location_risk']).fillna(0)
-        df['rare_location'] = (df['location_freq'] <= 5).astype(int)
+        if 'customer_location' in df.columns:
+            if is_training:
+                location_counts = df['customer_location'].value_counts()
+                self.location_stats['location_counts'] = location_counts.to_dict()
+                self.location_stats['location_risk'] = (location_counts / len(df)).to_dict()
+            
+            df['location_freq'] = df['customer_location'].map(self.location_stats['location_counts']).fillna(0)
+            df['location_risk_score'] = df['customer_location'].map(self.location_stats['location_risk']).fillna(0)
+            df['rare_location'] = (df['location_freq'] <= 5).astype(int)
         
         # Categorical encodings
         categorical_cols = ['payment_method', 'product_category', 'device_used']
@@ -338,36 +536,48 @@ class FeatureEngineer:
     def _apply_customer_features(self, df: pd.DataFrame) -> pd.DataFrame:
         """Apply fitted customer features to test data."""
         
-        # Age-based features
-        df['age_group'] = pd.cut(df['customer_age'], 
-                                bins=[0, 18, 25, 35, 50, 65, 100], 
-                                labels=['teen', 'young', 'adult', 'middle', 'senior', 'elderly'])
-        df['age_group_encoded'] = self.label_encoders['age_group'].transform(df['age_group'])
+        # Check if this is credit card dataset (has V1-V28 features)
+        v_columns = [f'v{i}' for i in range(1, 29)]
+        is_credit_card_dataset = any(col in df.columns for col in v_columns)
         
-        # Age risk features
-        df['young_customer'] = (df['customer_age'] <= 18).astype(int)
-        df['senior_customer'] = (df['customer_age'] >= 65).astype(int)
-        df['age_risk'] = np.where(df['customer_age'] <= 18, 2, np.where(df['customer_age'] >= 65, 1, 0))
+        if is_credit_card_dataset:
+            # Credit card dataset doesn't have customer features, skip this section
+            return df
+        
+        # E-commerce dataset - original logic
+        # Age-based features
+        if 'customer_age' in df.columns:
+            df['age_group'] = pd.cut(df['customer_age'], 
+                                    bins=[0, 18, 25, 35, 50, 65, 100], 
+                                    labels=['teen', 'young', 'adult', 'middle', 'senior', 'elderly'])
+            df['age_group_encoded'] = self.label_encoders['age_group'].transform(df['age_group'])
+            
+            # Age risk features
+            df['young_customer'] = (df['customer_age'] <= 18).astype(int)
+            df['senior_customer'] = (df['customer_age'] >= 65).astype(int)
+            df['age_risk'] = np.where(df['customer_age'] <= 18, 2, np.where(df['customer_age'] >= 65, 1, 0))
         
         # Account age features
-        df['account_age_days_log'] = np.log1p(df['account_age_days'])
-        df['account_age_weeks'] = df['account_age_days'] / 7
-        df['account_age_months'] = df['account_age_days'] / 30
-        
-        df['new_account'] = (df['account_age_days'] <= 7).astype(int)
-        df['recent_account'] = (df['account_age_days'] <= 30).astype(int)
-        df['established_account'] = (df['account_age_days'] > 90).astype(int)
-        df['old_account'] = (df['account_age_days'] > 365).astype(int)
-        
-        # Account age risk
-        df['account_age_risk'] = np.where(df['account_age_days'] <= 7, 3, 
-                                         np.where(df['account_age_days'] <= 30, 2, 
-                                                 np.where(df['account_age_days'] <= 90, 1, 0)))
+        if 'account_age_days' in df.columns:
+            df['account_age_days_log'] = np.log1p(df['account_age_days'])
+            df['account_age_weeks'] = df['account_age_days'] / 7
+            df['account_age_months'] = df['account_age_days'] / 30
+            
+            df['new_account'] = (df['account_age_days'] <= 7).astype(int)
+            df['recent_account'] = (df['account_age_days'] <= 30).astype(int)
+            df['established_account'] = (df['account_age_days'] > 90).astype(int)
+            df['old_account'] = (df['account_age_days'] > 365).astype(int)
+            
+            # Account age risk
+            df['account_age_risk'] = np.where(df['account_age_days'] <= 7, 3, 
+                                             np.where(df['account_age_days'] <= 30, 2, 
+                                                     np.where(df['account_age_days'] <= 90, 1, 0)))
         
         # Location-based features
-        df['location_freq'] = df['customer_location'].map(self.location_stats['location_counts']).fillna(0)
-        df['location_risk_score'] = df['customer_location'].map(self.location_stats['location_risk']).fillna(0)
-        df['rare_location'] = (df['location_freq'] <= 5).astype(int)
+        if 'customer_location' in df.columns:
+            df['location_freq'] = df['customer_location'].map(self.location_stats['location_counts']).fillna(0)
+            df['location_risk_score'] = df['customer_location'].map(self.location_stats['location_risk']).fillna(0)
+            df['rare_location'] = (df['location_freq'] <= 5).astype(int)
         
         # Categorical encodings
         categorical_cols = ['payment_method', 'product_category', 'device_used']
@@ -382,184 +592,372 @@ class FeatureEngineer:
     def _engineer_behavioral_features(self, df: pd.DataFrame, is_training: bool) -> pd.DataFrame:
         """Engineer behavioral pattern features."""
         
+        # Check if this is credit card dataset (has V1-V28 features)
+        v_columns = [f'v{i}' for i in range(1, 29)]
+        is_credit_card_dataset = any(col in df.columns for col in v_columns)
+        
+        if is_credit_card_dataset:
+            # Credit card dataset doesn't have quantity features, skip this section
+            logger.info("Credit card dataset detected - skipping behavioral features")
+            return df
+        
+        # E-commerce dataset - original logic
         # Quantity-based features
-        df['quantity_log'] = np.log1p(df['quantity'])
-        df['quantity_per_day'] = df['quantity'] / (df['account_age_days'] + 1)
-        
-        # Quantity scaling
-        if is_training:
-            self.quantity_scaler = RobustScaler()
-            df['quantity_scaled'] = self.quantity_scaler.fit_transform(df[['quantity']]).flatten()
-        else:
-            df['quantity_scaled'] = self.quantity_scaler.transform(df[['quantity']]).flatten()
-        
-        # Quantity thresholds
-        if is_training:
-            for percentile in [50, 75, 90, 95, 99]:
-                self.percentile_thresholds[f'quantity_{percentile}'] = np.percentile(df['quantity'], percentile)
-        
-        for percentile in [75, 90, 95, 99]:
-            df[f'quantity_above_{percentile}'] = (df['quantity'] > self.percentile_thresholds[f'quantity_{percentile}']).astype(int)
-        
-        # Behavioral patterns
-        df['high_value_low_quantity'] = ((df['transaction_amount'] > self.percentile_thresholds['amount_90']) & 
-                                        (df['quantity'] <= 1)).astype(int)
-        
-        df['low_value_high_quantity'] = ((df['transaction_amount'] < self.percentile_thresholds['amount_50']) & 
-                                        (df['quantity'] > self.percentile_thresholds['quantity_90'])).astype(int)
-        
-        # Purchase behavior features
-        df['avg_amount_per_item'] = df['transaction_amount'] / (df['quantity'] + 1)
-        df['purchase_efficiency'] = df['transaction_amount'] / (df['quantity'] * df['account_age_days'] + 1)
-        
-        # Behavioral risk indicators
-        df['unusual_purchase_pattern'] = ((df['high_value_low_quantity'] == 1) | 
-                                         (df['low_value_high_quantity'] == 1)).astype(int)
+        if 'quantity' in df.columns and 'account_age_days' in df.columns:
+            df['quantity_log'] = np.log1p(df['quantity'])
+            df['quantity_per_day'] = df['quantity'] / (df['account_age_days'] + 1)
+            
+            # Quantity scaling
+            if is_training:
+                self.quantity_scaler = RobustScaler()
+                df['quantity_scaled'] = self.quantity_scaler.fit_transform(df[['quantity']]).flatten()
+            else:
+                df['quantity_scaled'] = self.quantity_scaler.transform(df[['quantity']]).flatten()
+            
+            # Quantity thresholds
+            if is_training:
+                for percentile in [50, 75, 90, 95, 99]:
+                    self.percentile_thresholds[f'quantity_{percentile}'] = np.percentile(df['quantity'], percentile)
+            
+            for percentile in [75, 90, 95, 99]:
+                df[f'quantity_above_{percentile}'] = (df['quantity'] > self.percentile_thresholds[f'quantity_{percentile}']).astype(int)
+            
+            # Behavioral patterns
+            if 'transaction_amount' in df.columns:
+                df['high_value_low_quantity'] = ((df['transaction_amount'] > self.percentile_thresholds['amount_90']) & 
+                                                (df['quantity'] <= 1)).astype(int)
+                
+                df['low_value_high_quantity'] = ((df['transaction_amount'] < self.percentile_thresholds['amount_50']) & 
+                                                (df['quantity'] > self.percentile_thresholds['quantity_90'])).astype(int)
+                
+                # Purchase behavior features
+                df['avg_amount_per_item'] = df['transaction_amount'] / (df['quantity'] + 1)
+                df['purchase_efficiency'] = df['transaction_amount'] / (df['quantity'] * df['account_age_days'] + 1)
+                
+                # Behavioral risk indicators
+                df['unusual_purchase_pattern'] = ((df['high_value_low_quantity'] == 1) | 
+                                                 (df['low_value_high_quantity'] == 1)).astype(int)
         
         return df
     
     def _apply_behavioral_features(self, df: pd.DataFrame) -> pd.DataFrame:
         """Apply fitted behavioral features to test data."""
         
+        # Check if this is credit card dataset (has V1-V28 features)
+        v_columns = [f'v{i}' for i in range(1, 29)]
+        is_credit_card_dataset = any(col in df.columns for col in v_columns)
+        
+        if is_credit_card_dataset:
+            # Credit card dataset doesn't have quantity features, skip this section
+            return df
+        
+        # E-commerce dataset - original logic
         # Quantity-based features
-        df['quantity_log'] = np.log1p(df['quantity'])
-        df['quantity_per_day'] = df['quantity'] / (df['account_age_days'] + 1)
-        
-        # Quantity scaling
-        df['quantity_scaled'] = self.quantity_scaler.transform(df[['quantity']]).flatten()
-        
-        # Quantity thresholds
-        for percentile in [75, 90, 95, 99]:
-            df[f'quantity_above_{percentile}'] = (df['quantity'] > self.percentile_thresholds[f'quantity_{percentile}']).astype(int)
-        
-        # Behavioral patterns
-        df['high_value_low_quantity'] = ((df['transaction_amount'] > self.percentile_thresholds['amount_90']) & 
-                                        (df['quantity'] <= 1)).astype(int)
-        
-        df['low_value_high_quantity'] = ((df['transaction_amount'] < self.percentile_thresholds['amount_50']) & 
-                                        (df['quantity'] > self.percentile_thresholds['quantity_90'])).astype(int)
-        
-        # Purchase behavior features
-        df['avg_amount_per_item'] = df['transaction_amount'] / (df['quantity'] + 1)
-        df['purchase_efficiency'] = df['transaction_amount'] / (df['quantity'] * df['account_age_days'] + 1)
-        
-        # Behavioral risk indicators
-        df['unusual_purchase_pattern'] = ((df['high_value_low_quantity'] == 1) | 
-                                         (df['low_value_high_quantity'] == 1)).astype(int)
+        if 'quantity' in df.columns and 'account_age_days' in df.columns:
+            df['quantity_log'] = np.log1p(df['quantity'])
+            df['quantity_per_day'] = df['quantity'] / (df['account_age_days'] + 1)
+            
+            # Quantity scaling
+            df['quantity_scaled'] = self.quantity_scaler.transform(df[['quantity']]).flatten()
+            
+            # Quantity thresholds
+            for percentile in [75, 90, 95, 99]:
+                df[f'quantity_above_{percentile}'] = (df['quantity'] > self.percentile_thresholds[f'quantity_{percentile}']).astype(int)
+            
+            # Behavioral patterns
+            if 'transaction_amount' in df.columns:
+                df['high_value_low_quantity'] = ((df['transaction_amount'] > self.percentile_thresholds['amount_90']) & 
+                                                (df['quantity'] <= 1)).astype(int)
+                
+                df['low_value_high_quantity'] = ((df['transaction_amount'] < self.percentile_thresholds['amount_50']) & 
+                                                (df['quantity'] > self.percentile_thresholds['quantity_90'])).astype(int)
+                
+                # Purchase behavior features
+                df['avg_amount_per_item'] = df['transaction_amount'] / (df['quantity'] + 1)
+                df['purchase_efficiency'] = df['transaction_amount'] / (df['quantity'] * df['account_age_days'] + 1)
+                
+                # Behavioral risk indicators
+                df['unusual_purchase_pattern'] = ((df['high_value_low_quantity'] == 1) | 
+                                                 (df['low_value_high_quantity'] == 1)).astype(int)
         
         return df
     
     def _engineer_velocity_features(self, df: pd.DataFrame, is_training: bool) -> pd.DataFrame:
         """Engineer velocity-based features for fraud detection."""
         
-        # Transaction velocity
-        df['transaction_velocity'] = 1 / (df['account_age_days'] + 1)
-        df['amount_velocity'] = df['transaction_amount'] / (df['account_age_days'] + 1)
-        df['quantity_velocity'] = df['quantity'] / (df['account_age_days'] + 1)
+        # Check if this is credit card dataset (has V1-V28 features)
+        v_columns = [f'v{i}' for i in range(1, 29)]
+        is_credit_card_dataset = any(col in df.columns for col in v_columns)
         
-        # Velocity ratios
-        df['amount_per_transaction'] = df['transaction_amount']
-        df['quantity_per_transaction'] = df['quantity']
+        if is_credit_card_dataset:
+            # Credit card dataset doesn't have account age features, skip this section
+            logger.info("Credit card dataset detected - skipping velocity features")
+            return df
         
-        # High velocity indicators
-        df['high_amount_velocity'] = (df['amount_velocity'] > self.percentile_thresholds['amount_95']).astype(int)
-        df['high_quantity_velocity'] = (df['quantity_velocity'] > self.percentile_thresholds['quantity_95']).astype(int)
-        
-        # Velocity risk scoring
-        df['velocity_risk_score'] = (df['high_amount_velocity'] * 2 + 
-                                   df['high_quantity_velocity'] * 1.5 + 
-                                   df['new_account'] * 2)
+        # E-commerce dataset - original logic
+        if 'account_age_days' in df.columns and 'transaction_amount' in df.columns and 'quantity' in df.columns:
+            # Transaction velocity
+            df['transaction_velocity'] = 1 / (df['account_age_days'] + 1)
+            df['amount_velocity'] = df['transaction_amount'] / (df['account_age_days'] + 1)
+            df['quantity_velocity'] = df['quantity'] / (df['account_age_days'] + 1)
+            
+            # Velocity ratios
+            df['amount_per_transaction'] = df['transaction_amount']
+            df['quantity_per_transaction'] = df['quantity']
+            
+            # High velocity indicators
+            df['high_amount_velocity'] = (df['amount_velocity'] > self.percentile_thresholds['amount_95']).astype(int)
+            df['high_quantity_velocity'] = (df['quantity_velocity'] > self.percentile_thresholds['quantity_95']).astype(int)
+            
+            # Velocity risk scoring
+            df['velocity_risk_score'] = (df['high_amount_velocity'] * 2 + 
+                                       df['high_quantity_velocity'] * 1.5 + 
+                                       df['new_account'] * 2)
         
         return df
     
     def _apply_velocity_features(self, df: pd.DataFrame) -> pd.DataFrame:
         """Apply fitted velocity features to test data."""
         
-        # Transaction velocity
-        df['transaction_velocity'] = 1 / (df['account_age_days'] + 1)
-        df['amount_velocity'] = df['transaction_amount'] / (df['account_age_days'] + 1)
-        df['quantity_velocity'] = df['quantity'] / (df['account_age_days'] + 1)
+        # Check if this is credit card dataset (has V1-V28 features)
+        v_columns = [f'v{i}' for i in range(1, 29)]
+        is_credit_card_dataset = any(col in df.columns for col in v_columns)
         
-        # Velocity ratios
-        df['amount_per_transaction'] = df['transaction_amount']
-        df['quantity_per_transaction'] = df['quantity']
+        if is_credit_card_dataset:
+            # Credit card dataset doesn't have account age features, skip this section
+            return df
         
-        # High velocity indicators
-        df['high_amount_velocity'] = (df['amount_velocity'] > self.percentile_thresholds['amount_95']).astype(int)
-        df['high_quantity_velocity'] = (df['quantity_velocity'] > self.percentile_thresholds['quantity_95']).astype(int)
-        
-        # Velocity risk scoring
-        df['velocity_risk_score'] = (df['high_amount_velocity'] * 2 + 
-                                   df['high_quantity_velocity'] * 1.5 + 
-                                   df['new_account'] * 2)
+        # E-commerce dataset - original logic
+        if 'account_age_days' in df.columns and 'transaction_amount' in df.columns and 'quantity' in df.columns:
+            # Transaction velocity
+            df['transaction_velocity'] = 1 / (df['account_age_days'] + 1)
+            df['amount_velocity'] = df['transaction_amount'] / (df['account_age_days'] + 1)
+            df['quantity_velocity'] = df['quantity'] / (df['account_age_days'] + 1)
+            
+            # Velocity ratios
+            df['amount_per_transaction'] = df['transaction_amount']
+            df['quantity_per_transaction'] = df['quantity']
+            
+            # High velocity indicators
+            df['high_amount_velocity'] = (df['amount_velocity'] > self.percentile_thresholds['amount_95']).astype(int)
+            df['high_quantity_velocity'] = (df['quantity_velocity'] > self.percentile_thresholds['quantity_95']).astype(int)
+            
+            # Velocity risk scoring
+            df['velocity_risk_score'] = (df['high_amount_velocity'] * 2 + 
+                                       df['high_quantity_velocity'] * 1.5 + 
+                                       df['new_account'] * 2)
         
         return df
     
     def _engineer_interaction_features(self, df: pd.DataFrame, is_training: bool) -> pd.DataFrame:
         """Engineer interaction features between different variables."""
         
+        # Check if this is credit card dataset (has V1-V28 features)
+        v_columns = [f'v{i}' for i in range(1, 29)]
+        is_credit_card_dataset = any(col in df.columns for col in v_columns)
+        
+        if is_credit_card_dataset:
+            # Credit card dataset - focus on V-features and amount interactions
+            # Amount-Time interactions
+            if 'amount' in df.columns and 'hour' in df.columns:
+                df['amount_hour_interaction'] = df['amount'] * df['hour']
+                df['amount_day_interaction'] = df['amount'] * df['day_of_week']
+            
+            # V-features interactions with amount
+            if 'amount' in df.columns:
+                existing_v_columns = [col for col in v_columns if col in df.columns]
+                for i, v_col in enumerate(existing_v_columns[:10]):  # Use first 10 V-features
+                    df[f'amount_v{i+1}_interaction'] = df['amount'] * df[v_col]
+            
+            # V-features interactions with time
+            if 'hour' in df.columns:
+                for i, v_col in enumerate(existing_v_columns[:5]):  # Use first 5 V-features
+                    df[f'hour_v{i+1}_interaction'] = df['hour'] * df[v_col]
+            
+            return df
+        
+        # E-commerce dataset - original logic
         # Amount-Quantity interactions
-        df['amount_quantity_interaction'] = df['transaction_amount'] * df['quantity']
-        df['amount_quantity_ratio'] = df['transaction_amount'] / (df['quantity'] + 1)
+        if 'transaction_amount' in df.columns and 'quantity' in df.columns:
+            df['amount_quantity_interaction'] = df['transaction_amount'] * df['quantity']
+            df['amount_quantity_ratio'] = df['transaction_amount'] / (df['quantity'] + 1)
         
         # Age-Account interactions
-        df['age_account_interaction'] = df['customer_age'] * df['account_age_days']
-        df['age_account_ratio'] = df['customer_age'] / (df['account_age_days'] + 1)
+        if 'customer_age' in df.columns and 'account_age_days' in df.columns:
+            df['age_account_interaction'] = df['customer_age'] * df['account_age_days']
+            df['age_account_ratio'] = df['customer_age'] / (df['account_age_days'] + 1)
         
         # Amount-Time interactions
-        df['amount_hour_interaction'] = df['transaction_amount'] * df['hour']
-        df['amount_day_interaction'] = df['transaction_amount'] * df['day_of_week']
+        if 'transaction_amount' in df.columns and 'hour' in df.columns:
+            df['amount_hour_interaction'] = df['transaction_amount'] * df['hour']
+            df['amount_day_interaction'] = df['transaction_amount'] * df['day_of_week']
         
         # Risk-Interaction features
-        df['amount_risk_interaction'] = df['transaction_amount'] * df['age_risk']
-        df['quantity_risk_interaction'] = df['quantity'] * df['account_age_risk']
+        if 'transaction_amount' in df.columns and 'age_risk' in df.columns:
+            df['amount_risk_interaction'] = df['transaction_amount'] * df['age_risk']
+        if 'quantity' in df.columns and 'account_age_risk' in df.columns:
+            df['quantity_risk_interaction'] = df['quantity'] * df['account_age_risk']
         
         # Location-Device interactions
-        df['location_device_interaction'] = df['location_freq'] * df['device_used_encoded']
+        if 'location_freq' in df.columns and 'device_used_encoded' in df.columns:
+            df['location_device_interaction'] = df['location_freq'] * df['device_used_encoded']
         
         # Payment-Product interactions
-        df['payment_product_interaction'] = df['payment_method_encoded'] * df['product_category_encoded']
+        if 'payment_method_encoded' in df.columns and 'product_category_encoded' in df.columns:
+            df['payment_product_interaction'] = df['payment_method_encoded'] * df['product_category_encoded']
         
         # Complex interactions
-        df['age_amount_time_interaction'] = df['customer_age'] * df['transaction_amount'] * df['hour']
-        df['account_quantity_location_interaction'] = df['account_age_days'] * df['quantity'] * df['location_freq']
+        if all(col in df.columns for col in ['customer_age', 'transaction_amount', 'hour']):
+            df['age_amount_time_interaction'] = df['customer_age'] * df['transaction_amount'] * df['hour']
+        if all(col in df.columns for col in ['account_age_days', 'quantity', 'location_freq']):
+            df['account_quantity_location_interaction'] = df['account_age_days'] * df['quantity'] * df['location_freq']
         
         return df
     
     def _apply_interaction_features(self, df: pd.DataFrame) -> pd.DataFrame:
         """Apply fitted interaction features to test data."""
         
+        # Check if this is credit card dataset (has V1-V28 features)
+        v_columns = [f'v{i}' for i in range(1, 29)]
+        is_credit_card_dataset = any(col in df.columns for col in v_columns)
+        
+        if is_credit_card_dataset:
+            # Credit card dataset - focus on V-features and amount interactions
+            # Amount-Time interactions
+            if 'amount' in df.columns and 'hour' in df.columns:
+                df['amount_hour_interaction'] = df['amount'] * df['hour']
+                df['amount_day_interaction'] = df['amount'] * df['day_of_week']
+            
+            # V-features interactions with amount
+            if 'amount' in df.columns:
+                existing_v_columns = [col for col in v_columns if col in df.columns]
+                for i, v_col in enumerate(existing_v_columns[:10]):  # Use first 10 V-features
+                    df[f'amount_v{i+1}_interaction'] = df['amount'] * df[v_col]
+            
+            # V-features interactions with time
+            if 'hour' in df.columns:
+                for i, v_col in enumerate(existing_v_columns[:5]):  # Use first 5 V-features
+                    df[f'hour_v{i+1}_interaction'] = df['hour'] * df[v_col]
+            
+            return df
+        
+        # E-commerce dataset - original logic
         # Amount-Quantity interactions
-        df['amount_quantity_interaction'] = df['transaction_amount'] * df['quantity']
-        df['amount_quantity_ratio'] = df['transaction_amount'] / (df['quantity'] + 1)
+        if 'transaction_amount' in df.columns and 'quantity' in df.columns:
+            df['amount_quantity_interaction'] = df['transaction_amount'] * df['quantity']
+            df['amount_quantity_ratio'] = df['transaction_amount'] / (df['quantity'] + 1)
         
         # Age-Account interactions
-        df['age_account_interaction'] = df['customer_age'] * df['account_age_days']
-        df['age_account_ratio'] = df['customer_age'] / (df['account_age_days'] + 1)
+        if 'customer_age' in df.columns and 'account_age_days' in df.columns:
+            df['age_account_interaction'] = df['customer_age'] * df['account_age_days']
+            df['age_account_ratio'] = df['customer_age'] / (df['account_age_days'] + 1)
         
         # Amount-Time interactions
-        df['amount_hour_interaction'] = df['transaction_amount'] * df['hour']
-        df['amount_day_interaction'] = df['transaction_amount'] * df['day_of_week']
+        if 'transaction_amount' in df.columns and 'hour' in df.columns:
+            df['amount_hour_interaction'] = df['transaction_amount'] * df['hour']
+            df['amount_day_interaction'] = df['transaction_amount'] * df['day_of_week']
         
         # Risk-Interaction features
-        df['amount_risk_interaction'] = df['transaction_amount'] * df['age_risk']
-        df['quantity_risk_interaction'] = df['quantity'] * df['account_age_risk']
+        if 'transaction_amount' in df.columns and 'age_risk' in df.columns:
+            df['amount_risk_interaction'] = df['transaction_amount'] * df['age_risk']
+        if 'quantity' in df.columns and 'account_age_risk' in df.columns:
+            df['quantity_risk_interaction'] = df['quantity'] * df['account_age_risk']
         
         # Location-Device interactions
-        df['location_device_interaction'] = df['location_freq'] * df['device_used_encoded']
+        if 'location_freq' in df.columns and 'device_used_encoded' in df.columns:
+            df['location_device_interaction'] = df['location_freq'] * df['device_used_encoded']
         
         # Payment-Product interactions
-        df['payment_product_interaction'] = df['payment_method_encoded'] * df['product_category_encoded']
+        if 'payment_method_encoded' in df.columns and 'product_category_encoded' in df.columns:
+            df['payment_product_interaction'] = df['payment_method_encoded'] * df['product_category_encoded']
         
         # Complex interactions
-        df['age_amount_time_interaction'] = df['customer_age'] * df['transaction_amount'] * df['hour']
-        df['account_quantity_location_interaction'] = df['account_age_days'] * df['quantity'] * df['location_freq']
+        if all(col in df.columns for col in ['customer_age', 'transaction_amount', 'hour']):
+            df['age_amount_time_interaction'] = df['customer_age'] * df['transaction_amount'] * df['hour']
+        if all(col in df.columns for col in ['account_age_days', 'quantity', 'location_freq']):
+            df['account_quantity_location_interaction'] = df['account_age_days'] * df['quantity'] * df['location_freq']
         
         return df
     
     def _engineer_risk_flags(self, df: pd.DataFrame, is_training: bool) -> pd.DataFrame:
         """Engineer comprehensive risk flag features."""
         
+        # Check if this is credit card dataset (has V1-V28 features)
+        v_columns = [f'v{i}' for i in range(1, 29)]
+        is_credit_card_dataset = any(col in df.columns for col in v_columns)
+        
+        if is_credit_card_dataset:
+            # Credit card dataset - focus on amount and V-features risk patterns
+            amount_col = 'amount'
+            
+            # High risk combinations
+            df['high_risk_combination'] = ((df[amount_col] > self.percentile_thresholds['amount_95']) & 
+                                          (df['is_late_night'] == 1)).astype(int)
+            
+            # Advanced fraud patterns
+            df['suspicious_time_pattern'] = ((df['is_high_risk_hour'] == 1) & 
+                                            (df[amount_col] > self.percentile_thresholds['amount_75'])).astype(int)
+            
+            df['weekend_high_value'] = ((df['is_weekend'] == 1) & 
+                                       (df[amount_col] > self.percentile_thresholds['amount_90'])).astype(int)
+            
+            df['holiday_period_high_value'] = ((df['is_holiday_period'] == 1) & 
+                                              (df[amount_col] > self.percentile_thresholds['amount_75'])).astype(int)
+            
+            # Statistical outlier features
+            df['amount_z_score'] = (df[amount_col] - self.percentile_thresholds['amount_50']) / (self.percentile_thresholds['amount_75'] - self.percentile_thresholds['amount_50'] + 1e-8)
+            
+            # Outlier flags
+            df['amount_outlier'] = (np.abs(df['amount_z_score']) > 2).astype(int)
+            
+            # V-features outlier detection
+            existing_v_columns = [col for col in v_columns if col in df.columns]
+            if existing_v_columns:
+                v_data = df[existing_v_columns]
+                df['v_features_outlier'] = (np.abs(v_data - v_data.mean()) > 2 * v_data.std()).any(axis=1).astype(int)
+                
+                # V-features risk patterns
+                df['high_v_features_risk'] = ((df['v_features_outlier'] == 1) & 
+                                             (df[amount_col] > self.percentile_thresholds['amount_75'])).astype(int)
+            
+            # Time-based velocity patterns
+            df['rush_hour_high_value'] = ((df['is_rush_hour'] == 1) & 
+                                         (df[amount_col] > self.percentile_thresholds['amount_90'])).astype(int)
+            
+            # Advanced risk scoring for credit card dataset
+            risk_score = 0
+            risk_score += df['amount_above_95'] * 3
+            risk_score += df['is_late_night'] * 2
+            risk_score += df['amount_outlier'] * 3
+            risk_score += df['high_risk_combination'] * 4
+            risk_score += df['suspicious_time_pattern'] * 3
+            risk_score += df['weekend_high_value'] * 2.5
+            risk_score += df['holiday_period_high_value'] * 2.5
+            risk_score += df['rush_hour_high_value'] * 2.5
+            
+            if 'v_features_outlier' in df.columns:
+                risk_score += df['v_features_outlier'] * 3
+                risk_score += df['high_v_features_risk'] * 4
+            
+            # Add V-features statistics to risk score
+            if 'v_features_mean' in df.columns:
+                v_mean_threshold = df['v_features_mean'].quantile(0.95)
+                risk_score += (df['v_features_mean'] > v_mean_threshold).astype(int) * 2
+            
+            if 'v_features_std' in df.columns:
+                v_std_threshold = df['v_features_std'].quantile(0.95)
+                risk_score += (df['v_features_std'] > v_std_threshold).astype(int) * 2
+            
+            df['comprehensive_risk_score'] = risk_score
+            
+            # Risk categories
+            df['low_risk'] = (df['comprehensive_risk_score'] <= 2).astype(int)
+            df['medium_risk'] = ((df['comprehensive_risk_score'] > 2) & (df['comprehensive_risk_score'] <= 6)).astype(int)
+            df['high_risk'] = (df['comprehensive_risk_score'] > 6).astype(int)
+            
+            return df
+        
+        # E-commerce dataset - original logic
         # High risk combinations
         df['high_risk_combination'] = ((df['transaction_amount'] > self.percentile_thresholds['amount_95']) & 
                                       (df['is_late_night'] == 1)).astype(int)
@@ -682,6 +1080,82 @@ class FeatureEngineer:
     def _apply_risk_flags(self, df: pd.DataFrame) -> pd.DataFrame:
         """Apply fitted risk flags to test data."""
         
+        # Check if this is credit card dataset (has V1-V28 features)
+        v_columns = [f'v{i}' for i in range(1, 29)]
+        is_credit_card_dataset = any(col in df.columns for col in v_columns)
+        
+        if is_credit_card_dataset:
+            # Credit card dataset - focus on amount and V-features risk patterns
+            amount_col = 'amount'
+            
+            # High risk combinations
+            df['high_risk_combination'] = ((df[amount_col] > self.percentile_thresholds['amount_95']) & 
+                                          (df['is_late_night'] == 1)).astype(int)
+            
+            # Advanced fraud patterns
+            df['suspicious_time_pattern'] = ((df['is_high_risk_hour'] == 1) & 
+                                            (df[amount_col] > self.percentile_thresholds['amount_75'])).astype(int)
+            
+            df['weekend_high_value'] = ((df['is_weekend'] == 1) & 
+                                       (df[amount_col] > self.percentile_thresholds['amount_90'])).astype(int)
+            
+            df['holiday_period_high_value'] = ((df['is_holiday_period'] == 1) & 
+                                              (df[amount_col] > self.percentile_thresholds['amount_75'])).astype(int)
+            
+            # Statistical outlier features
+            df['amount_z_score'] = (df[amount_col] - self.percentile_thresholds['amount_50']) / (self.percentile_thresholds['amount_75'] - self.percentile_thresholds['amount_50'] + 1e-8)
+            
+            # Outlier flags
+            df['amount_outlier'] = (np.abs(df['amount_z_score']) > 2).astype(int)
+            
+            # V-features outlier detection
+            existing_v_columns = [col for col in v_columns if col in df.columns]
+            if existing_v_columns:
+                v_data = df[existing_v_columns]
+                df['v_features_outlier'] = (np.abs(v_data - v_data.mean()) > 2 * v_data.std()).any(axis=1).astype(int)
+                
+                # V-features risk patterns
+                df['high_v_features_risk'] = ((df['v_features_outlier'] == 1) & 
+                                             (df[amount_col] > self.percentile_thresholds['amount_75'])).astype(int)
+            
+            # Time-based velocity patterns
+            df['rush_hour_high_value'] = ((df['is_rush_hour'] == 1) & 
+                                         (df[amount_col] > self.percentile_thresholds['amount_90'])).astype(int)
+            
+            # Advanced risk scoring for credit card dataset
+            risk_score = 0
+            risk_score += df['amount_above_95'] * 3
+            risk_score += df['is_late_night'] * 2
+            risk_score += df['amount_outlier'] * 3
+            risk_score += df['high_risk_combination'] * 4
+            risk_score += df['suspicious_time_pattern'] * 3
+            risk_score += df['weekend_high_value'] * 2.5
+            risk_score += df['holiday_period_high_value'] * 2.5
+            risk_score += df['rush_hour_high_value'] * 2.5
+            
+            if 'v_features_outlier' in df.columns:
+                risk_score += df['v_features_outlier'] * 3
+                risk_score += df['high_v_features_risk'] * 4
+            
+            # Add V-features statistics to risk score
+            if 'v_features_mean' in df.columns:
+                v_mean_threshold = df['v_features_mean'].quantile(0.95)
+                risk_score += (df['v_features_mean'] > v_mean_threshold).astype(int) * 2
+            
+            if 'v_features_std' in df.columns:
+                v_std_threshold = df['v_features_std'].quantile(0.95)
+                risk_score += (df['v_features_std'] > v_std_threshold).astype(int) * 2
+            
+            df['comprehensive_risk_score'] = risk_score
+            
+            # Risk categories
+            df['low_risk'] = (df['comprehensive_risk_score'] <= 2).astype(int)
+            df['medium_risk'] = ((df['comprehensive_risk_score'] > 2) & (df['comprehensive_risk_score'] <= 6)).astype(int)
+            df['high_risk'] = (df['comprehensive_risk_score'] > 6).astype(int)
+            
+            return df
+        
+        # E-commerce dataset - original logic
         # High risk combinations
         df['high_risk_combination'] = ((df['transaction_amount'] > self.percentile_thresholds['amount_95']) & 
                                       (df['is_late_night'] == 1)).astype(int)

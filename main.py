@@ -39,13 +39,13 @@ def main():
     parser.add_argument(
         "--data_path",
         type=str,
-        default="data/cleaned/ecommerce_cleaned.csv",
+        default="data/cleaned/creditcard_cleaned.csv",
         help="Path to the cleaned data file"
     )
     parser.add_argument(
         "--raw_data_path",
         type=str,
-        default="data/raw/Fraudulent_E-Commerce_Transaction_Data_2.csv",
+        default="data/raw/creditcard.csv",
         help="Path to the raw data file (if cleaned data doesn't exist)"
     )
     parser.add_argument(
@@ -189,12 +189,12 @@ def main():
         if result['success']:
             print("\n" + "=" * 60)
             print("✅ AUC TEST PASSED!")
-            print("✅ Model achieves AUC ROC >= 0.75")
+            print("✅ Model achieves AUC ROC >= 0.80")
             print("=" * 60)
         else:
             print("\n" + "=" * 60)
             print("❌ AUC TEST FAILED!")
-            print("❌ Model does not achieve AUC ROC >= 0.75")
+            print("❌ Model does not achieve AUC ROC >= 0.80")
             print("=" * 60)
             sys.exit(1)
 

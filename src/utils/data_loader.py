@@ -66,7 +66,41 @@ def clean_data(df: pd.DataFrame) -> pd.DataFrame:
     # Clean column names
     df.columns = df.columns.str.lower().str.replace(' ', '_')
     
-    # Handle datetime
+    # Handle credit card dataset specifically
+    if 'class' in df.columns:
+        # Rename target variable for consistency
+        df = df.rename(columns={'class': 'is_fraudulent'})
+        
+        # Clean amount column
+        if 'amount' in df.columns:
+            # Remove negative amounts
+            df['amount'] = df['amount'].abs()
+            # Cap at 99th percentile
+            q99 = df['amount'].quantile(0.99)
+            df['amount'] = df['amount'].clip(upper=q99)
+        
+        # Add transaction_date based on Time column for time-aware split
+        if 'time' in df.columns:
+            # Convert time to datetime (assuming time is in seconds from start)
+            # Use a base date that spreads transactions across multiple days
+            # Scale time to spread across 30 days to avoid constant day features
+            max_time = df['time'].max()
+            scaled_time = (df['time'] / max_time) * (30 * 24 * 3600)  # 30 days in seconds
+            df['transaction_date'] = pd.to_datetime('2023-01-01') + pd.to_timedelta(scaled_time, unit='s')
+            df['transaction_hour'] = df['transaction_date'].dt.hour
+            df['transaction_day'] = df['transaction_date'].dt.day
+            df['transaction_month'] = df['transaction_date'].dt.month
+        
+        # Ensure V1-V28 columns are properly named
+        v_columns = [f'v{i}' for i in range(1, 29)]
+        for col in v_columns:
+            if col not in df.columns:
+                logger.warning(f"Expected column {col} not found in dataset")
+        
+        logger.info(f"Credit card dataset cleaned. Shape: {df.shape}")
+        return df
+    
+    # Handle e-commerce dataset (original logic)
     if 'transaction_date' in df.columns:
         df['transaction_date'] = pd.to_datetime(df['transaction_date'])
         df['transaction_hour'] = df['transaction_date'].dt.hour

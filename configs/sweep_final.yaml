@@ -5,12 +5,15 @@ features:
   use_risk_flags: true
   use_temporal_features: true
 model:
-  dropout_rate: 0.1
+  dropout_rate: 0.2
   hidden_dims:
-  - 512
-  - 256
   - 128
-  latent_dim: 32
+  - 128
+  - 64
+  - 64
+  - 32
+  - 32
+  latent_dim: 16
 seed: 42
 sweep:
   epochs:
@@ -29,7 +32,7 @@ training:
   batch_size: 64
   early_stopping: true
   epochs: 10
-  learning_rate: 0.002
+  learning_rate: 0.001
   patience: 15
   reduce_lr: true
   validation_split: 0.2
