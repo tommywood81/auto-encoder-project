@@ -184,9 +184,9 @@ def main():
 
         from tests.test_auc_75 import run_auc_test
 
-        success = run_auc_test()
+        result = run_auc_test()
 
-        if success:
+        if result['success']:
             print("\n" + "=" * 60)
             print("✅ AUC TEST PASSED!")
             print("✅ Model achieves AUC ROC >= 0.75")
