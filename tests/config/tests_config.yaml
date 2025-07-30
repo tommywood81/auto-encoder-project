@@ -8,9 +8,9 @@ model:
 training:
   batch_size: 16
   learning_rate: 0.00005
-  epochs: 15
+  epochs: 4  # Reduced for faster testing
   early_stopping: true
-  patience: 25
+  patience: 10  # Reduced for faster testing
   reduce_lr: true
   validation_split: 0.2
 
@@ -21,4 +21,9 @@ features:
   use_customer_features: true
   use_risk_flags: true
 
-# Production-optimized configuration for fraud detection
+# AUC test specific configuration (uses production-like settings)
+auc_test:
+  epochs: 15  # Full training for AUC validation
+  patience: 25  # Production patience
+  use_production_settings: true
+ 

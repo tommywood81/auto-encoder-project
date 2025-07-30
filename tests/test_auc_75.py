@@ -29,8 +29,8 @@ def run_auc_test():
     
     try:
         # Load configuration
-        config_loader = ConfigLoader("configs/final_optimized_config.yaml")
-        print(f"[PASS] Configuration loaded from: configs/final_optimized_config.yaml")
+        config_loader = ConfigLoader("tests/config/tests_config.yaml")
+        print(f"[PASS] Configuration loaded from: tests/config/tests_config.yaml")
         
         # Load and split data
         df_train, df_test = load_and_split_data("data/cleaned/ecommerce_cleaned.csv")
@@ -46,11 +46,14 @@ def run_auc_test():
         model_config = config_loader.get_model_config()
         training_config = config_loader.get_training_config()
         
-        # Combine configurations
+        # Combine configurations with AUC test overrides
+        auc_test_config = config_loader.config.get('auc_test', {})
         combined_config = {
             **model_config,
             **training_config,
-            'threshold_percentile': feature_config.get('threshold_percentile', 95)
+            'threshold_percentile': feature_config.get('threshold_percentile', 95),
+            'epochs': auc_test_config.get('epochs', 15),  # Use AUC test epochs
+            'patience': auc_test_config.get('patience', 25)  # Use AUC test patience
         }
         
         print(f"[PASS] Model config: latent_dim={model_config['latent_dim']}, "
@@ -89,11 +92,19 @@ def run_auc_test():
         test_feature_engineering_quality(df_train_features, df_test_features)
         test_model_quality(autoencoder, X_test, y_test)
         
-        return True
+        return {
+            'test_auc': test_auc,
+            'threshold': threshold,
+            'success': True
+        }
         
     except Exception as e:
         print(f"[FAIL] AUC test FAILED with error: {e}")
-        return False
+        return {
+            'test_auc': 0.0,
+            'threshold': 0.0,
+            'success': False
+        }
 
 
 def test_feature_engineering_quality(df_train_features, df_test_features):
@@ -161,7 +172,7 @@ def test_config_driven_approach():
     """Test that the system works with config-driven approach."""
     
     # Test config loading
-    config_loader = ConfigLoader("configs/final_optimized_config.yaml")
+    config_loader = ConfigLoader("tests/config/tests_config.yaml")
     
     # Test config sections
     model_config = config_loader.get_model_config()
@@ -212,9 +223,9 @@ if __name__ == "__main__":
     
     test_config_driven_approach()
     test_reproducibility()
-    success = run_auc_test()
+    results = run_auc_test()
     
-    if success:
+    if results['success']:
         print("\n" + "=" * 60)
         print("[PASS] ALL TESTS PASSED!")
         print("[PASS] Model achieves AUC ROC >= 0.75")
@@ -223,7 +234,7 @@ if __name__ == "__main__":
         print("=" * 60)
     else:
         print("\n" + "=" * 60)
-        print("❌ TESTS FAILED!")
-        print("❌ Model does not achieve AUC ROC >= 0.75")
+        print("[FAIL] TESTS FAILED!")
+        print("[FAIL] Model does not achieve AUC ROC >= 0.75")
         print("=" * 60)
         exit(1) 

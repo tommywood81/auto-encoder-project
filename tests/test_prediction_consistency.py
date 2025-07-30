@@ -26,7 +26,7 @@ def test_model_save_load_consistency():
     df_train, df_test = load_and_split_data("data/cleaned/ecommerce_cleaned.csv")
     
     # Load config
-    config_loader = ConfigLoader("configs/final_optimized_config.yaml")
+    config_loader = ConfigLoader("tests/config/tests_config.yaml")
     feature_config = config_loader.get_feature_config()
     model_config = config_loader.get_model_config()
     training_config = config_loader.get_training_config()
@@ -35,8 +35,7 @@ def test_model_save_load_consistency():
     combined_config = {
         **model_config,
         **training_config,
-        'threshold_percentile': feature_config.get('threshold_percentile', 95),
-        'epochs': 3  # Override epochs for faster test execution
+        'threshold_percentile': feature_config.get('threshold_percentile', 95)
     }
     
     # Feature engineering
@@ -103,7 +102,7 @@ def test_feature_engineer_save_load_consistency():
     df_train, df_test = load_and_split_data("data/cleaned/ecommerce_cleaned.csv")
     
     # Load config
-    config_loader = ConfigLoader("configs/final_optimized_config.yaml")
+    config_loader = ConfigLoader("tests/config/tests_config.yaml")
     feature_config = config_loader.get_feature_config()
     
     # Create and fit feature engineer
@@ -145,7 +144,7 @@ def test_prediction_stability():
     df_train, df_test = load_and_split_data("data/cleaned/ecommerce_cleaned.csv")
     
     # Load config
-    config_loader = ConfigLoader("configs/final_optimized_config.yaml")
+    config_loader = ConfigLoader("tests/config/tests_config.yaml")
     feature_config = config_loader.get_feature_config()
     model_config = config_loader.get_model_config()
     training_config = config_loader.get_training_config()
@@ -154,8 +153,7 @@ def test_prediction_stability():
     combined_config = {
         **model_config,
         **training_config,
-        'threshold_percentile': feature_config.get('threshold_percentile', 95),
-        'epochs': 3  # Override epochs for faster test execution
+        'threshold_percentile': feature_config.get('threshold_percentile', 95)
     }
     
     # Feature engineering
@@ -202,7 +200,7 @@ def test_model_persistence_integrity():
     df_train, df_test = load_and_split_data("data/cleaned/ecommerce_cleaned.csv")
     
     # Load config
-    config_loader = ConfigLoader("configs/final_optimized_config.yaml")
+    config_loader = ConfigLoader("tests/config/tests_config.yaml")
     feature_config = config_loader.get_feature_config()
     model_config = config_loader.get_model_config()
     training_config = config_loader.get_training_config()
@@ -211,8 +209,7 @@ def test_model_persistence_integrity():
     combined_config = {
         **model_config,
         **training_config,
-        'threshold_percentile': feature_config.get('threshold_percentile', 95),
-        'epochs': 3  # Override epochs for faster test execution
+        'threshold_percentile': feature_config.get('threshold_percentile', 95)
     }
     
     # Feature engineering

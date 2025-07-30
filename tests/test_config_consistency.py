@@ -21,7 +21,8 @@ def test_config_structure():
         "configs/sweep_broad.yaml",
         "configs/sweep_narrow.yaml", 
         "configs/sweep_final.yaml",
-        "configs/final_optimized_config.yaml"
+        "configs/final_optimized_config.yaml",
+        "tests/config/tests_config.yaml"
     ]
     
     for config_path in config_files:
@@ -56,7 +57,7 @@ def test_config_structure():
 def test_config_values():
     """Test that config values are within reasonable ranges."""
     
-    config_loader = ConfigLoader("configs/final_optimized_config.yaml")
+    config_loader = ConfigLoader("tests/config/tests_config.yaml")
     
     # Test model config values
     model_config = config_loader.get_model_config()
@@ -83,7 +84,7 @@ def test_config_values():
 def test_config_get_method():
     """Test config get method functionality."""
     
-    config_loader = ConfigLoader("configs/final_optimized_config.yaml")
+    config_loader = ConfigLoader("tests/config/tests_config.yaml")
     
     # Test get method with default values
     value = config_loader.get('nonexistent.key', 'default_value')
