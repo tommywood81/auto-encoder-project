@@ -350,11 +350,23 @@ class FraudAutoencoder:
         precision = precision_score(y_test, predictions, zero_division=0)
         recall = recall_score(y_test, predictions, zero_division=0)
         
+        # Get model complexity info
+        total_params = self.model.count_params()
+        trainable_params = sum([tf.keras.backend.count_params(w) for w in self.model.trainable_weights])
+        
         return {
             'roc_auc': test_auc,
             'f1_score': f1,
             'precision': precision,
-            'recall': recall
+            'recall': recall,
+            'threshold': self.threshold,
+            'predictions': predictions,
+            'y_true': y_test,
+            'total_params': total_params,
+            'trainable_params': trainable_params,
+            'final_loss': float(self.model.history.history['loss'][-1]) if hasattr(self.model, 'history') and self.model.history.history else 0.0,
+            'final_mae': float(self.model.history.history['mae'][-1]) if hasattr(self.model, 'history') and 'mae' in self.model.history.history else 0.0,
+            'best_epoch': len(self.model.history.history['loss']) if hasattr(self.model, 'history') and self.model.history.history else 5
         }
     
     def predict_anomaly_scores(self, X: np.ndarray) -> np.ndarray:

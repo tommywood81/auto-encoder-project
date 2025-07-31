@@ -1,0 +1,8 @@
+config_path: configs/final_optimized_config.yaml
+model_path: models/fraud_autoencoder
+performance:
+  f1_score: 0.03425414364640884
+  precision: 0.017489421720733426
+  recall: 0.8266666666666667
+  roc_auc: 0.9411790625860624
+timestamp: '2025-07-31 23:37:15.196033'
