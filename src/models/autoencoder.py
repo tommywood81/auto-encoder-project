@@ -67,14 +67,15 @@ class FraudAutoencoder:
         self.hidden_dims = self.config.get('hidden_dims', [128, 64, 32])
         self.dropout_rate = self.config.get('dropout_rate', 0.2)
         
-        # Training parameters
-        self.learning_rate = self.config.get('learning_rate', 0.001)
-        self.batch_size = self.config.get('batch_size', 64)
-        self.epochs = self.config.get('epochs', 100)
-        self.early_stopping = self.config.get('early_stopping', True)
-        self.patience = self.config.get('patience', 15)
-        self.reduce_lr = self.config.get('reduce_lr', True)
-        self.validation_split = self.config.get('validation_split', 0.2)
+        # Training parameters - handle nested config structure
+        training_config = self.config.get('training', {})
+        self.learning_rate = training_config.get('learning_rate', self.config.get('learning_rate', 0.001))
+        self.batch_size = training_config.get('batch_size', self.config.get('batch_size', 64))
+        self.epochs = training_config.get('epochs', self.config.get('epochs', 100))
+        self.early_stopping = training_config.get('early_stopping', self.config.get('early_stopping', True))
+        self.patience = training_config.get('patience', self.config.get('patience', 15))
+        self.reduce_lr = training_config.get('reduce_lr', self.config.get('reduce_lr', True))
+        self.validation_split = training_config.get('validation_split', self.config.get('validation_split', 0.2))
         
         # Threshold parameters
         self.threshold_percentile = self.config.get('threshold_percentile', 95)
@@ -138,8 +139,33 @@ class FraudAutoencoder:
         
         return model
     
-    def prepare_data(self, df_train_features: pd.DataFrame, df_test_features: pd.DataFrame) -> Tuple[np.ndarray, np.ndarray]:
-        """Prepare data for training and testing."""
+    def prepare_data(self, df_train_features: pd.DataFrame, df_val_features: pd.DataFrame, df_test_features: pd.DataFrame) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """Prepare data for training, validation, and testing."""
+        
+        # Get numeric features (excluding target)
+        train_numeric = df_train_features.select_dtypes(include=[np.number])
+        val_numeric = df_val_features.select_dtypes(include=[np.number])
+        test_numeric = df_test_features.select_dtypes(include=[np.number])
+        
+        if 'is_fraudulent' in train_numeric.columns:
+            train_numeric = train_numeric.drop(columns=['is_fraudulent'])
+        if 'is_fraudulent' in val_numeric.columns:
+            val_numeric = val_numeric.drop(columns=['is_fraudulent'])
+        if 'is_fraudulent' in test_numeric.columns:
+            test_numeric = test_numeric.drop(columns=['is_fraudulent'])
+        
+        # Scale features using training data only
+        self.scaler = StandardScaler()
+        X_train_scaled = self.scaler.fit_transform(train_numeric.values)
+        X_val_scaled = self.scaler.transform(val_numeric.values)
+        X_test_scaled = self.scaler.transform(test_numeric.values)
+        
+        logger.info(f"Data prepared: train={X_train_scaled.shape}, val={X_val_scaled.shape}, test={X_test_scaled.shape}")
+        
+        return X_train_scaled, X_val_scaled, X_test_scaled
+    
+    def prepare_data_80_20(self, df_train_features: pd.DataFrame, df_test_features: pd.DataFrame) -> Tuple[np.ndarray, np.ndarray]:
+        """Prepare data for training and testing (80/20 split)."""
         
         # Get numeric features (excluding target)
         train_numeric = df_train_features.select_dtypes(include=[np.number])
@@ -150,17 +176,17 @@ class FraudAutoencoder:
         if 'is_fraudulent' in test_numeric.columns:
             test_numeric = test_numeric.drop(columns=['is_fraudulent'])
         
-        # Scale features
+        # Scale features using training data only
         self.scaler = StandardScaler()
         X_train_scaled = self.scaler.fit_transform(train_numeric.values)
         X_test_scaled = self.scaler.transform(test_numeric.values)
         
-        logger.info(f"Data prepared: train={X_train_scaled.shape}, test={X_test_scaled.shape}")
+        logger.info(f"Data prepared (80/20): train={X_train_scaled.shape}, test={X_test_scaled.shape}")
         
         return X_train_scaled, X_test_scaled
     
-    def train(self, X_train: np.ndarray, X_test: np.ndarray, 
-              y_train: np.ndarray, y_test: np.ndarray) -> Dict[str, float]:
+    def train(self, X_train: np.ndarray, X_val: np.ndarray, X_test: np.ndarray,
+              y_train: np.ndarray, y_val: np.ndarray, y_test: np.ndarray) -> Dict[str, float]:
         """Train the autoencoder model."""
         
         logger.info("Starting model training...")
@@ -192,52 +218,96 @@ class FraudAutoencoder:
             )
             callbacks.append(reduce_lr)
         
-        # AUC callback
-        auc_callback = AUCCallback(X_test, y_test)
+        # AUC callback using validation set (not test set)
+        auc_callback = AUCCallback(X_val, y_val)
         callbacks.append(auc_callback)
         
-        # Training
+        # Training with validation split
         history = self.model.fit(
             X_train, X_train,  # Autoencoder: input = target
-            validation_data=(X_test, X_test),
+            validation_data=(X_val, X_val),
             epochs=self.epochs,
             batch_size=self.batch_size,
             callbacks=callbacks,
             verbose=1
         )
         
-        # Calculate threshold
-        self._calculate_threshold(X_train)
+        # Calculate threshold on training data
+        self.threshold = self._calculate_threshold(X_train)
         
-        # Evaluate on test set
+        # Evaluate on test set (unseen data)
         test_metrics = self._evaluate_test_set(X_test, y_test)
         
-        # Log final metrics
-        if wandb.run is not None:
-            wandb.log({
-                'final_test_auc': test_metrics['auc'],
-                'final_threshold': self.threshold,
-                'final_train_loss': history.history['loss'][-1],
-                'final_val_loss': history.history['val_loss'][-1],
-                'final_f1_score': test_metrics['f1_score'],
-                'final_precision': test_metrics['precision'],
-                'final_recall': test_metrics['recall']
-            })
+        logger.info(f"Training completed. Test AUC: {test_metrics['roc_auc']:.4f}, F1: {test_metrics['f1_score']:.4f}, Threshold: {self.threshold:.6f}")
         
-        results = {
-            'test_auc': test_metrics['auc'],
-            'f1_score': test_metrics['f1_score'],
-            'precision': test_metrics['precision'],
-            'recall': test_metrics['recall'],
-            'threshold': self.threshold,
-            'train_loss': history.history['loss'][-1],
-            'val_loss': history.history['val_loss'][-1],
-            'best_val_auc': auc_callback.best_auc
-        }
+        return test_metrics
+    
+    def train_80_20(self, X_train: np.ndarray, X_test: np.ndarray,
+                    y_train: np.ndarray, y_test: np.ndarray) -> Dict[str, float]:
+        """Train the autoencoder model with clean 80/20 split."""
         
-        logger.info(f"Training completed. Test AUC: {test_metrics['auc']:.4f}, F1: {test_metrics['f1_score']:.4f}, Threshold: {self.threshold:.6f}")
+        logger.info("Starting model training (80/20 split)...")
         
-        return results
+        # Build model
+        self.model = self.build_model(X_train.shape[1])
+        
+        # Create internal validation split from training data (20% of training)
+        val_split = 0.2
+        val_size = int(len(X_train) * val_split)
+        X_train_internal = X_train[:-val_size]
+        X_val_internal = X_train[-val_size:]
+        y_train_internal = y_train[:-val_size]
+        y_val_internal = y_train[-val_size:]
+        
+        logger.info(f"Internal validation split: train={len(X_train_internal)}, val={len(X_val_internal)}")
+        
+        # Callbacks
+        callbacks = []
+        
+        # Early stopping
+        if self.early_stopping:
+            early_stopping = keras.callbacks.EarlyStopping(
+                monitor='val_loss',
+                patience=self.patience,
+                restore_best_weights=True,
+                verbose=1
+            )
+            callbacks.append(early_stopping)
+        
+        # Learning rate reduction
+        if self.reduce_lr:
+            reduce_lr = keras.callbacks.ReduceLROnPlateau(
+                monitor='val_loss',
+                factor=0.5,
+                patience=self.patience // 2,
+                min_lr=1e-7,
+                verbose=1
+            )
+            callbacks.append(reduce_lr)
+        
+        # AUC callback using internal validation set
+        auc_callback = AUCCallback(X_val_internal, y_val_internal)
+        callbacks.append(auc_callback)
+        
+        # Training with internal validation split
+        history = self.model.fit(
+            X_train_internal, X_train_internal,  # Autoencoder: input = target
+            validation_data=(X_val_internal, X_val_internal),
+            epochs=self.epochs,
+            batch_size=self.batch_size,
+            callbacks=callbacks,
+            verbose=1
+        )
+        
+        # Calculate threshold on full training data
+        self.threshold = self._calculate_threshold(X_train)
+        
+        # Evaluate on test set (completely unseen data)
+        test_metrics = self._evaluate_test_set(X_test, y_test)
+        
+        logger.info(f"Training completed (80/20). Test AUC: {test_metrics['roc_auc']:.4f}, F1: {test_metrics['f1_score']:.4f}, Threshold: {self.threshold:.6f}")
+        
+        return test_metrics
     
     def _calculate_threshold(self, X_train: np.ndarray):
         """Calculate anomaly threshold from training data."""
@@ -253,6 +323,7 @@ class FraudAutoencoder:
         
         # Set fitted state
         self.is_fitted = True
+        return self.threshold
     
     def _evaluate_test_set(self, X_test: np.ndarray, y_test: np.ndarray) -> Dict[str, float]:
         """Evaluate model on test set."""
@@ -273,7 +344,7 @@ class FraudAutoencoder:
         recall = recall_score(y_test, predictions, zero_division=0)
         
         return {
-            'auc': test_auc,
+            'roc_auc': test_auc,
             'f1_score': f1,
             'precision': precision,
             'recall': recall

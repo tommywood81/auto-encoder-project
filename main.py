@@ -16,7 +16,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
 from src.config_loader import ConfigLoader
 from src.features.feature_engineer import FeatureEngineer
 from src.models.autoencoder import FraudAutoencoder
-from src.utils.data_loader import load_and_split_data, clean_data, save_cleaned_data
+from src.utils.data_loader import load_and_split_data, load_and_split_data_80_20, clean_data, save_cleaned_data
 
 # Configure logging
 logging.basicConfig(
@@ -56,37 +56,58 @@ def validate_data_paths(data_path, raw_data_path):
     return data_path
 
 
-def train_model(config_loader, df_train_features, df_test_features, model_path):
-    """Train the fraud detection model."""
-    logger.info("Training fraud detection model...")
+def train_model(config_loader, df_train_features, df_val_features, df_test_features, model_path):
+    """Train the autoencoder model."""
+    logger.info("Training autoencoder model...")
     
-    # Get configurations
-    model_config = config_loader.get_model_config()
-    training_config = config_loader.get_training_config()
-    feature_config = config_loader.get_feature_config()
+    # Initialize autoencoder
+    autoencoder = FraudAutoencoder(config_loader.config)
     
-    # Combine configurations
-    combined_config = {
-        **model_config,
-        **training_config,
-        'threshold_percentile': feature_config.get('threshold_percentile', 95)
-    }
+    # Prepare data
+    X_train, X_val, X_test = autoencoder.prepare_data(
+        df_train_features, df_val_features, df_test_features
+    )
     
-    # Initialize and train model
-    autoencoder = FraudAutoencoder(combined_config)
-    X_train, X_test = autoencoder.prepare_data(df_train_features, df_test_features)
+    # Get target variables
+    y_train = df_train_features['is_fraudulent'].values
+    y_val = df_val_features['is_fraudulent'].values
+    y_test = df_test_features['is_fraudulent'].values
+    
+    # Train model
+    results = autoencoder.train(X_train, X_val, X_test, y_train, y_val, y_test)
+    
+    # Save model and feature engineer
+    autoencoder.save_model(model_path)
+    feature_engineer = FeatureEngineer(config_loader.config.get('features', {}))
+    feature_engineer.save_fitted_objects(f"{model_path}_features.pkl")
+    
+    logger.info(f"Model training completed - Test AUC: {results['roc_auc']:.4f}")
+    return results, autoencoder
+
+
+def train_model_80_20(config_loader, df_train_features, df_test_features, model_path):
+    """Train the autoencoder model with clean 80/20 split."""
+    logger.info("Training autoencoder model (80/20 split)...")
+    
+    # Initialize autoencoder
+    autoencoder = FraudAutoencoder(config_loader.config)
+    
+    # Prepare data
+    X_train, X_test = autoencoder.prepare_data_80_20(df_train_features, df_test_features)
+    
+    # Get target variables
     y_train = df_train_features['is_fraudulent'].values
     y_test = df_test_features['is_fraudulent'].values
     
     # Train model
-    results = autoencoder.train(X_train, X_test, y_train, y_test)
+    results = autoencoder.train_80_20(X_train, X_test, y_train, y_test)
     
     # Save model and feature engineer
     autoencoder.save_model(model_path)
-    feature_engineer = FeatureEngineer(feature_config)
+    feature_engineer = FeatureEngineer(config_loader.config.get('features', {}))
     feature_engineer.save_fitted_objects(f"{model_path}_features.pkl")
     
-    logger.info(f"Model training completed - Test AUC: {results['test_auc']:.4f}")
+    logger.info(f"Model training completed (80/20) - Test AUC: {results['roc_auc']:.4f}")
     return results, autoencoder
 
 
@@ -195,19 +216,19 @@ def main():
         # Validate and prepare data
         data_path = validate_data_paths(args.data_path, args.raw_data_path)
         
-        # Load and split data
-        df_train, df_test = load_and_split_data(data_path)
+        # Load and split data (clean 80/20 split)
+        df_train, df_test = load_and_split_data_80_20(data_path)
         logger.info(f"Data loaded: {len(df_train)} train, {len(df_test)} test samples")
         
         # Feature engineering
         feature_config = config_loader.get_feature_config()
         feature_engineer = FeatureEngineer(feature_config)
-        df_train_features, df_test_features = feature_engineer.fit_transform(df_train, df_test)
+        df_train_features, df_test_features = feature_engineer.fit_transform_80_20(df_train, df_test)
         logger.info(f"Feature engineering completed: {len(df_train_features.columns)} features")
         
         # Execute mode-specific operations
         if args.mode == "train":
-            results, _ = train_model(config_loader, df_train_features, df_test_features, args.model_path)
+            results, _ = train_model_80_20(config_loader, df_train_features, df_test_features, args.model_path)
             logger.info("Training completed successfully")
             
         elif args.mode == "predict":

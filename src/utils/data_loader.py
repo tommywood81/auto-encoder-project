@@ -12,13 +12,54 @@ import os
 logger = logging.getLogger(__name__)
 
 
-def load_and_split_data(data_path: str, train_ratio: float = 0.8) -> Tuple[pd.DataFrame, pd.DataFrame]:
+def load_and_split_data(data_path: str, train_ratio: float = 0.8, val_ratio: float = 0.1) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """
-    Load data and perform time-aware split.
+    Load data and perform time-aware split into train/validation/test sets.
     
     Args:
         data_path: Path to the cleaned data file
-        train_ratio: Ratio of data to use for training
+        train_ratio: Ratio of data to use for training (default: 0.8)
+        val_ratio: Ratio of data to use for validation (default: 0.1)
+    
+    Returns:
+        Tuple of (train_df, val_df, test_df)
+    """
+    logger.info(f"Loading data from: {data_path}")
+    
+    # Load data
+    df = pd.read_csv(data_path)
+    logger.info(f"Loaded data shape: {df.shape}")
+    
+    # Ensure data is sorted by transaction date for time-aware split
+    if 'transaction_date' in df.columns:
+        df['transaction_date'] = pd.to_datetime(df['transaction_date'])
+        df = df.sort_values('transaction_date').reset_index(drop=True)
+        logger.info("Data sorted by transaction date for time-aware split")
+    
+    # Time-aware split: train (80%) / validation (10%) / test (10%)
+    total_samples = len(df)
+    train_size = int(train_ratio * total_samples)
+    val_size = int(val_ratio * total_samples)
+    
+    df_train = df.iloc[:train_size].copy()
+    df_val = df.iloc[train_size:train_size + val_size].copy()
+    df_test = df.iloc[train_size + val_size:].copy()
+    
+    logger.info(f"Time-aware split: train={len(df_train)}, val={len(df_val)}, test={len(df_test)}")
+    logger.info(f"Train period: transactions 0 to {train_size-1}")
+    logger.info(f"Validation period: transactions {train_size} to {train_size + val_size-1}")
+    logger.info(f"Test period: transactions {train_size + val_size} to {total_samples-1}")
+    
+    return df_train, df_val, df_test
+
+
+def load_and_split_data_80_20(data_path: str, train_ratio: float = 0.8) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    """
+    Load data and perform clean 80/20 time-aware split.
+    
+    Args:
+        data_path: Path to the cleaned data file
+        train_ratio: Ratio of data to use for training (default: 0.8)
     
     Returns:
         Tuple of (train_df, test_df)
@@ -35,14 +76,14 @@ def load_and_split_data(data_path: str, train_ratio: float = 0.8) -> Tuple[pd.Da
         df = df.sort_values('transaction_date').reset_index(drop=True)
         logger.info("Data sorted by transaction date for time-aware split")
     
-    # Time-aware split
+    # Clean 80/20 time-aware split
     total_samples = len(df)
     train_size = int(train_ratio * total_samples)
     
     df_train = df.iloc[:train_size].copy()
     df_test = df.iloc[train_size:].copy()
     
-    logger.info(f"Time-aware split: train={len(df_train)}, test={len(df_test)}")
+    logger.info(f"80/20 time-aware split: train={len(df_train)}, test={len(df_test)}")
     logger.info(f"Train period: transactions 0 to {train_size-1}")
     logger.info(f"Test period: transactions {train_size} to {total_samples-1}")
     

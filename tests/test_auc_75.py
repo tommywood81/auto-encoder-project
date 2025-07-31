@@ -41,13 +41,13 @@ def run_auc_test():
         data_path = test_settings.get('data_path', "data/cleaned/creditcard_cleaned.csv")
         
         # Load and split data
-        df_train, df_test = load_and_split_data(data_path)
-        print(f"[PASS] Data loaded: {len(df_train)} train, {len(df_test)} test samples")
+        df_train, df_val, df_test = load_and_split_data(data_path)
+        print(f"[PASS] Data loaded: {len(df_train)} train, {len(df_val)} validation, {len(df_test)} test samples")
         
         # Feature engineering
         feature_config = config_loader.get_feature_config()
         feature_engineer = FeatureEngineer(feature_config)
-        df_train_features, df_test_features = feature_engineer.fit_transform(df_train, df_test)
+        df_train_features, df_val_features, df_test_features = feature_engineer.fit_transform(df_train, df_val, df_test)
         print(f"[PASS] Feature engineering completed: {len(df_train_features.columns)} features")
         
         # Get model and training configuration
@@ -72,18 +72,19 @@ def run_auc_test():
         
         # Initialize and train model
         autoencoder = FraudAutoencoder(combined_config)
-        X_train, X_test = autoencoder.prepare_data(df_train_features, df_test_features)
+        X_train, X_val, X_test = autoencoder.prepare_data(df_train_features, df_val_features, df_test_features)
         y_train = df_train_features['is_fraudulent'].values
+        y_val = df_val_features['is_fraudulent'].values
         y_test = df_test_features['is_fraudulent'].values
         
-        print(f"[PASS] Data prepared: {X_train.shape[0]} train, {X_test.shape[0]} test samples")
+        print(f"[PASS] Data prepared: {X_train.shape[0]} train, {X_val.shape[0]} validation, {X_test.shape[0]} test samples")
         
         # Train model
-        results = autoencoder.train(X_train, X_test, y_train, y_test)
+        results = autoencoder.train(X_train, X_val, X_test, y_train, y_val, y_test)
         
         # Test AUC requirement
-        test_auc = results['test_auc']
-        threshold = results['threshold']
+        test_auc = results['roc_auc']
+        threshold = autoencoder.threshold
         
         print(f"[PASS] Training completed")
         print(f"   Test AUC: {test_auc:.4f}")

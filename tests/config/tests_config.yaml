@@ -8,7 +8,7 @@ model:
 training:
   batch_size: 32
   learning_rate: 0.0001
-  epochs: 3  # Fast testing
+  epochs: 5  # Fast testing
   early_stopping: true
   patience: 10  # Reduced for faster testing
   reduce_lr: true
@@ -23,10 +23,31 @@ features:
 
 # Test-specific configurations
 test_settings:
-  epochs: 3  # All tests use 3 epochs
+  epochs: 5  # All tests use 5 epochs
   patience: 10
   data_path: "data/cleaned/creditcard_cleaned.csv"
   use_credit_card_dataset: true
+
+# Autoencoder test settings (dedicated section for model training)
+autoencoder_test:
+  model:
+    latent_dim: 32
+    hidden_dims: [512, 256, 128, 64, 32]
+    dropout_rate: 0.3
+  training:
+    batch_size: 32
+    learning_rate: 0.0001
+    epochs: 5  # Fast testing with 5 epochs
+    early_stopping: true
+    patience: 10
+    reduce_lr: true
+    validation_split: 0.2
+  features:
+    threshold_percentile: 85
+    use_amount_features: true
+    use_temporal_features: true
+    use_customer_features: true
+    use_risk_flags: true
 
 # Reproducibility test settings (faster)
 reproducibility_test:

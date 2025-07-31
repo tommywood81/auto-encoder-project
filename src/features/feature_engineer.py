@@ -43,22 +43,30 @@ class FeatureEngineer:
         self.use_velocity_features = self.config.get('use_velocity_features', True)
         self.use_interaction_features = self.config.get('use_interaction_features', True)
     
-    def fit_transform(self, df_train: pd.DataFrame, df_test: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame]:
-        """Fit on training data and transform both train and test data."""
+    def fit_transform(self, df_train: pd.DataFrame, df_val: pd.DataFrame, df_test: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+        """
+        Fit feature engineering on training data and transform all datasets.
         
+        Args:
+            df_train: Training dataframe
+            df_val: Validation dataframe  
+            df_test: Test dataframe
+            
+        Returns:
+            Tuple of (train_features, val_features, test_features)
+        """
         logger.info("Starting enhanced feature engineering fit_transform...")
         
-        # Fit on training data only
+        # Fit on training data and transform training data
         df_train_features = self._fit_and_transform(df_train, is_training=True)
         
-        # Transform test data using fitted parameters
+        # Transform validation and test data (no fitting)
+        df_val_features = self._transform(df_val, is_training=False)
         df_test_features = self._transform(df_test, is_training=False)
         
-        self.is_fitted = True
+        logger.info(f"Enhanced feature engineering completed. Train: {df_train_features.shape}, Val: {df_val_features.shape}, Test: {df_test_features.shape}")
         
-        logger.info(f"Enhanced feature engineering completed. Train: {df_train_features.shape}, Test: {df_test_features.shape}")
-        
-        return df_train_features, df_test_features
+        return df_train_features, df_val_features, df_test_features
     
     def transform(self, df: pd.DataFrame) -> pd.DataFrame:
         """Transform data using fitted parameters."""
@@ -1429,3 +1437,29 @@ class FeatureEngineer:
         self.use_interaction_features = self.config.get('use_interaction_features', True)
         
         logger.info(f"Fitted objects loaded from: {filepath}") 
+    
+    def fit_transform_80_20(self, df_train: pd.DataFrame, df_test: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame]:
+        """
+        Fit feature engineering on training data and transform both datasets (80/20 split).
+        
+        Args:
+            df_train: Training dataframe
+            df_test: Test dataframe
+            
+        Returns:
+            Tuple of (train_features, test_features)
+        """
+        logger.info("Starting enhanced feature engineering fit_transform (80/20)...")
+        
+        # Fit on training data and transform training data
+        df_train_features = self._fit_and_transform(df_train, is_training=True)
+        
+        # Transform test data (no fitting)
+        df_test_features = self._transform(df_test, is_training=False)
+        
+        # Set fitted state
+        self.is_fitted = True
+        
+        logger.info(f"Enhanced feature engineering completed (80/20). Train: {df_train_features.shape}, Test: {df_test_features.shape}")
+        
+        return df_train_features, df_test_features
