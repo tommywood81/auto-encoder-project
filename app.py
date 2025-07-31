@@ -111,7 +111,7 @@ def load_models():
         
         # Load feature engineer
         feature_engineer = FeatureEngineer(config.get('features', {}))
-        feature_engineer.load_fitted_objects(f"{model_path}_features.pkl")
+        feature_engineer.load_fitted_objects("models/fraud_autoencoder_features.pkl")
         
         # Load sample data for demonstration
         sample_data = load_sample_data()
