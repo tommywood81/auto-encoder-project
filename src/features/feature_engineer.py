@@ -1319,12 +1319,16 @@ class FeatureEngineer:
         # Handle any remaining non-numeric columns
         non_numeric_cols = df.select_dtypes(exclude=[np.number]).columns
         for col in non_numeric_cols:
-            if col != 'is_fraudulent':  # Keep target variable
+            if col != 'is_fraudulent':  # Keep target variable for now, will be removed later
                 if is_training:
                     self.label_encoders[col] = LabelEncoder()
                     df[col] = self.label_encoders[col].fit_transform(df[col])
                 else:
                     df[col] = self.label_encoders[col].transform(df[col])
+        
+        # Remove target variable from features (data leakage prevention)
+        if 'is_fraudulent' in df.columns:
+            df = df.drop(columns=['is_fraudulent'])
         
         # Fill any remaining NaN values
         df = df.fillna(0)

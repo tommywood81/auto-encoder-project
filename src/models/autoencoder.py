@@ -251,13 +251,20 @@ class FraudAutoencoder:
         # Build model
         self.model = self.build_model(X_train.shape[1])
         
-        # Create internal validation split from training data (20% of training)
+        # Filter to normal data only for training (autoencoder should learn normal patterns)
+        normal_mask = y_train == 0
+        X_train_normal = X_train[normal_mask]
+        y_train_normal = y_train[normal_mask]
+        
+        logger.info(f"Training on {len(X_train_normal)} normal samples out of {len(X_train)} total training samples")
+        
+        # Create internal validation split from normal training data (20% of normal training)
         val_split = 0.2
-        val_size = int(len(X_train) * val_split)
-        X_train_internal = X_train[:-val_size]
-        X_val_internal = X_train[-val_size:]
-        y_train_internal = y_train[:-val_size]
-        y_val_internal = y_train[-val_size:]
+        val_size = int(len(X_train_normal) * val_split)
+        X_train_internal = X_train_normal[:-val_size]
+        X_val_internal = X_train_normal[-val_size:]
+        y_train_internal = y_train_normal[:-val_size]
+        y_val_internal = y_train_normal[-val_size:]
         
         logger.info(f"Internal validation split: train={len(X_train_internal)}, val={len(X_val_internal)}")
         
@@ -299,8 +306,8 @@ class FraudAutoencoder:
             verbose=1
         )
         
-        # Calculate threshold on full training data
-        self.threshold = self._calculate_threshold(X_train)
+        # Calculate threshold on normal training data only
+        self.threshold = self._calculate_threshold(X_train_normal)
         
         # Evaluate on test set (completely unseen data)
         test_metrics = self._evaluate_test_set(X_test, y_test)
