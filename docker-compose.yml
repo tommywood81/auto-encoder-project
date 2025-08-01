@@ -1,62 +1,22 @@
 version: '3.8'
 
 services:
-  fraudguard-pro:
+  fraud-dashboard:
     build: .
-    container_name: fraudguard-pro-dashboard
     ports:
       - "8000:8000"
+    volumes:
+      - ./data:/app/data
+      - ./models:/app/models
+      - ./configs:/app/configs
+      - ./logs:/app/logs
     environment:
       - PYTHONPATH=/app
-      - MODEL_PATH=/app/models/fraud_autoencoder.keras
-      - CONFIG_PATH=/app/configs/final_optimized_config.yaml
-    volumes:
-      - ./models:/app/models:ro
-      - ./data:/app/data:ro
-      - ./configs:/app/configs:ro
-      - ./logs:/app/logs
-      - ./predictions:/app/predictions
+      - PYTHONUNBUFFERED=1
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 40s
-    networks:
-      - fraudguard-network
-
-  # Optional: Add Redis for caching and session management
-  redis:
-    image: redis:7-alpine
-    container_name: fraudguard-redis
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
-    restart: unless-stopped
-    networks:
-      - fraudguard-network
-
-  # Optional: Add Nginx for load balancing and SSL termination
-  nginx:
-    image: nginx:alpine
-    container_name: fraudguard-nginx
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./ssl:/etc/nginx/ssl:ro
-    depends_on:
-      - fraudguard-pro
-    restart: unless-stopped
-    networks:
-      - fraudguard-network
-
-volumes:
-  redis_data:
-
-networks:
-  fraudguard-network:
-    driver: bridge 
+      start_period: 40s 
