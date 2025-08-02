@@ -112,260 +112,205 @@ class FeatureEngineer:
         """Transform data using fitted parameters (for test data)."""
         
         df_features = df.copy()
+        logger.info(f"Starting feature engineering transform with {len(df_features.columns)} columns")
         
         # Apply fitted transformations
         if self.use_amount_features:
+            logger.info("Applying amount features...")
             df_features = self._apply_amount_features(df_features)
+            logger.info(f"After amount features: {len(df_features.columns)} columns")
         
         if self.use_temporal_features:
+            logger.info("Applying temporal features...")
             df_features = self._apply_temporal_features(df_features)
+            logger.info(f"After temporal features: {len(df_features.columns)} columns")
         
         if self.use_customer_features:
+            logger.info("Applying customer features...")
             df_features = self._apply_customer_features(df_features)
+            logger.info(f"After customer features: {len(df_features.columns)} columns")
         
         if self.use_behavioral_features:
+            logger.info("Applying behavioral features...")
             df_features = self._apply_behavioral_features(df_features)
+            logger.info(f"After behavioral features: {len(df_features.columns)} columns")
         
         if self.use_velocity_features:
+            logger.info("Applying velocity features...")
             df_features = self._apply_velocity_features(df_features)
+            logger.info(f"After velocity features: {len(df_features.columns)} columns")
         
         if self.use_interaction_features:
+            logger.info("Applying interaction features...")
             df_features = self._apply_interaction_features(df_features)
+            logger.info(f"After interaction features: {len(df_features.columns)} columns")
         
         if self.use_risk_flags:
+            logger.info("Applying risk flags...")
             df_features = self._apply_risk_flags(df_features)
+            logger.info(f"After risk flags: {len(df_features.columns)} columns")
         
         # Ensure all features are numeric
         df_features = self._ensure_numeric_features(df_features, is_training)
+        logger.info(f"Final feature count: {len(df_features.columns)} columns")
         
         return df_features
     
     def _engineer_amount_features(self, df: pd.DataFrame, is_training: bool) -> pd.DataFrame:
-        """Engineer comprehensive amount-related features."""
+        """Engineer comprehensive amount-related features for credit card dataset."""
         
-        # Check if this is credit card dataset (has V1-V28 features)
-        v_columns = [f'v{i}' for i in range(1, 29)]
-        is_credit_card_dataset = any(col in df.columns for col in v_columns)
+        # Credit card dataset - use 'amount' column
+        amount_col = 'amount'
         
-        if is_credit_card_dataset:
-            # Credit card dataset - use 'amount' column
-            amount_col = 'amount'
-            
-            # Basic amount features
-            df['amount_log'] = np.log1p(df[amount_col])
-            df['amount_sqrt'] = np.sqrt(df[amount_col])
-            
-            # Robust scaling (fit on training data only)
-            if is_training:
-                self.amount_scaler = RobustScaler()
-                df['amount_scaled'] = self.amount_scaler.fit_transform(df[[amount_col]]).flatten()
-            else:
-                df['amount_scaled'] = self.amount_scaler.transform(df[[amount_col]]).flatten()
-            
-            # Amount percentiles and thresholds (fit on training data only)
-            if is_training:
-                for percentile in [50, 75, 90, 95]:  # Removed 99 to prevent constant features
-                    self.percentile_thresholds[f'amount_{percentile}'] = np.percentile(df[amount_col], percentile)
-            
-            # Amount threshold flags
-            for percentile in [50, 75, 90, 95]:  # Removed 99 to prevent constant features
-                df[f'amount_above_{percentile}'] = (df[amount_col] > self.percentile_thresholds[f'amount_{percentile}']).astype(int)
-            
-            # Amount distribution features
-            df['amount_ratio_to_median'] = df[amount_col] / (self.percentile_thresholds['amount_50'] + 1e-8)
-            df['amount_ratio_to_95th'] = df[amount_col] / (self.percentile_thresholds['amount_95'] + 1e-8)
-            
-            # Amount volatility features
-            df['amount_volatility'] = np.abs(df[amount_col] - self.percentile_thresholds['amount_50']) / (self.percentile_thresholds['amount_50'] + 1e-8)
-            
-            # Add V-features statistics
-            existing_v_columns = [col for col in v_columns if col in df.columns]
-            if existing_v_columns:
-                logger.info(f"Found {len(existing_v_columns)} V-features from credit card dataset")
-                
-                # Add aggregate features for V-features
-                df['v_features_mean'] = df[existing_v_columns].mean(axis=1)
-                df['v_features_std'] = df[existing_v_columns].std(axis=1)
-                df['v_features_max'] = df[existing_v_columns].max(axis=1)
-                df['v_features_min'] = df[existing_v_columns].min(axis=1)
-                df['v_features_range'] = df['v_features_max'] - df['v_features_min']
-                df['v_features_abs_mean'] = df[existing_v_columns].abs().mean(axis=1)
-                
-                # Add interaction features between amount and V-features
-                df['amount_v_mean_interaction'] = df[amount_col] * df['v_features_mean']
-                df['amount_v_std_interaction'] = df[amount_col] * df['v_features_std']
-                
+        # Basic amount features
+        df['amount_log'] = np.log1p(df[amount_col])
+        df['amount_sqrt'] = np.sqrt(df[amount_col])
+        
+        # Robust scaling (fit on training data only)
+        if is_training:
+            self.amount_scaler = RobustScaler()
+            df['amount_scaled'] = self.amount_scaler.fit_transform(df[[amount_col]]).flatten()
         else:
-            # E-commerce dataset - original logic
-            # Basic amount features
-            df['amount_log'] = np.log1p(df['transaction_amount'])
-            df['amount_sqrt'] = np.sqrt(df['transaction_amount'])
-            df['amount_per_item'] = df['transaction_amount'] / (df['quantity'] + 1)
-            df['amount_per_day'] = df['transaction_amount'] / (df['account_age_days'] + 1)
-            
-            # Robust scaling (fit on training data only)
-            if is_training:
-                self.amount_scaler = RobustScaler()
-                df['amount_scaled'] = self.amount_scaler.fit_transform(df[['transaction_amount']]).flatten()
-            else:
-                df['amount_scaled'] = self.amount_scaler.transform(df[['transaction_amount']]).flatten()
-            
-            # Amount percentiles and thresholds (fit on training data only)
-            if is_training:
-                for percentile in [50, 75, 90, 95]:  # Removed 99 to prevent constant features
-                    self.percentile_thresholds[f'amount_{percentile}'] = np.percentile(df['transaction_amount'], percentile)
-            
-            # Amount threshold flags
+            df['amount_scaled'] = self.amount_scaler.transform(df[[amount_col]]).flatten()
+        
+        # Amount percentiles and thresholds (fit on training data only)
+        if is_training:
             for percentile in [50, 75, 90, 95]:  # Removed 99 to prevent constant features
-                df[f'amount_above_{percentile}'] = (df['transaction_amount'] > self.percentile_thresholds[f'amount_{percentile}']).astype(int)
+                self.percentile_thresholds[f'amount_{percentile}'] = np.percentile(df[amount_col], percentile)
+        
+        # Amount threshold flags
+        for percentile in [50, 75, 90, 95]:  # Removed 99 to prevent constant features
+            df[f'amount_above_{percentile}'] = (df[amount_col] > self.percentile_thresholds[f'amount_{percentile}']).astype(int)
+        
+        # Amount distribution features
+        df['amount_ratio_to_median'] = df[amount_col] / (self.percentile_thresholds['amount_50'] + 1e-8)
+        df['amount_ratio_to_95th'] = df[amount_col] / (self.percentile_thresholds['amount_95'] + 1e-8)
+        
+        # Amount volatility features
+        df['amount_volatility'] = np.abs(df[amount_col] - self.percentile_thresholds['amount_50']) / (self.percentile_thresholds['amount_50'] + 1e-8)
+        
+        # Add V-features statistics
+        v_columns = [f'v{i}' for i in range(1, 29)]
+        existing_v_columns = [col for col in v_columns if col in df.columns]
+        if existing_v_columns:
+            logger.info(f"Found {len(existing_v_columns)} V-features from credit card dataset")
             
-            # Amount distribution features
-            df['amount_ratio_to_median'] = df['transaction_amount'] / (self.percentile_thresholds['amount_50'] + 1e-8)
-            df['amount_ratio_to_95th'] = df['transaction_amount'] / (self.percentile_thresholds['amount_95'] + 1e-8)
+            # Add aggregate features for V-features
+            df['v_features_mean'] = df[existing_v_columns].mean(axis=1)
+            df['v_features_std'] = df[existing_v_columns].std(axis=1)
+            df['v_features_max'] = df[existing_v_columns].max(axis=1)
+            df['v_features_min'] = df[existing_v_columns].min(axis=1)
+            df['v_features_range'] = df['v_features_max'] - df['v_features_min']
+            df['v_features_abs_mean'] = df[existing_v_columns].abs().mean(axis=1)
             
-            # Amount volatility features
-            df['amount_volatility'] = np.abs(df['transaction_amount'] - self.percentile_thresholds['amount_50']) / (self.percentile_thresholds['amount_50'] + 1e-8)
+            # Add interaction features between amount and V-features
+            df['amount_v_mean_interaction'] = df[amount_col] * df['v_features_mean']
+            df['amount_v_std_interaction'] = df[amount_col] * df['v_features_std']
         
         return df
     
     def _apply_amount_features(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Apply fitted amount features to test data."""
+        """Apply fitted amount features to test data for credit card dataset."""
         
-        # Check if this is credit card dataset (has V1-V28 features)
+        # Credit card dataset - use 'amount' column
+        amount_col = 'amount'
+        
+        # Basic amount features
+        df['amount_log'] = np.log1p(df[amount_col].values)
+        df['amount_sqrt'] = np.sqrt(df[amount_col].values)
+        
+        # Robust scaling (using fitted scaler)
+        df['amount_scaled'] = self.amount_scaler.transform(df[[amount_col]]).flatten()
+        
+        # Amount threshold flags (using fitted thresholds)
+        for percentile in [50, 75, 90, 95]:  # Removed 99 to prevent constant features
+            df[f'amount_above_{percentile}'] = (df[amount_col] > self.percentile_thresholds[f'amount_{percentile}']).astype(int)
+        
+        # Amount distribution features
+        df['amount_ratio_to_median'] = df[amount_col] / (self.percentile_thresholds['amount_50'] + 1e-8)
+        df['amount_ratio_to_95th'] = df[amount_col] / (self.percentile_thresholds['amount_95'] + 1e-8)
+        
+        # Amount volatility features
+        df['amount_volatility'] = np.abs(df[amount_col] - self.percentile_thresholds['amount_50']) / (self.percentile_thresholds['amount_50'] + 1e-8)
+        
+        # Add V-features statistics
         v_columns = [f'v{i}' for i in range(1, 29)]
-        is_credit_card_dataset = any(col in df.columns for col in v_columns)
-        
-        if is_credit_card_dataset:
-            # Credit card dataset - use 'amount' column
-            amount_col = 'amount'
+        existing_v_columns = [col for col in v_columns if col in df.columns]
+        if existing_v_columns:
+            # Add aggregate features for V-features
+            df['v_features_mean'] = df[existing_v_columns].mean(axis=1)
+            df['v_features_std'] = df[existing_v_columns].std(axis=1)
+            df['v_features_max'] = df[existing_v_columns].max(axis=1)
+            df['v_features_min'] = df[existing_v_columns].min(axis=1)
+            df['v_features_range'] = df['v_features_max'] - df['v_features_min']
+            df['v_features_abs_mean'] = df[existing_v_columns].abs().mean(axis=1)
             
-            # Basic amount features
-            df['amount_log'] = np.log1p(df[amount_col])
-            df['amount_sqrt'] = np.sqrt(df[amount_col])
-            
-            # Robust scaling (using fitted scaler)
-            df['amount_scaled'] = self.amount_scaler.transform(df[[amount_col]]).flatten()
-            
-            # Amount threshold flags (using fitted thresholds)
-            for percentile in [50, 75, 90, 95]:  # Removed 99 to prevent constant features
-                df[f'amount_above_{percentile}'] = (df[amount_col] > self.percentile_thresholds[f'amount_{percentile}']).astype(int)
-            
-            # Amount distribution features
-            df['amount_ratio_to_median'] = df[amount_col] / (self.percentile_thresholds['amount_50'] + 1e-8)
-            df['amount_ratio_to_95th'] = df[amount_col] / (self.percentile_thresholds['amount_95'] + 1e-8)
-            
-            # Amount volatility features
-            df['amount_volatility'] = np.abs(df[amount_col] - self.percentile_thresholds['amount_50']) / (self.percentile_thresholds['amount_50'] + 1e-8)
-            
-            # Add V-features statistics
-            existing_v_columns = [col for col in v_columns if col in df.columns]
-            if existing_v_columns:
-                # Add aggregate features for V-features
-                df['v_features_mean'] = df[existing_v_columns].mean(axis=1)
-                df['v_features_std'] = df[existing_v_columns].std(axis=1)
-                df['v_features_max'] = df[existing_v_columns].max(axis=1)
-                df['v_features_min'] = df[existing_v_columns].min(axis=1)
-                df['v_features_range'] = df['v_features_max'] - df['v_features_min']
-                df['v_features_abs_mean'] = df[existing_v_columns].abs().mean(axis=1)
-                
-                # Add interaction features between amount and V-features
-                df['amount_v_mean_interaction'] = df[amount_col] * df['v_features_mean']
-                df['amount_v_std_interaction'] = df[amount_col] * df['v_features_std']
-                
-        else:
-            # E-commerce dataset - original logic
-            # Basic amount features
-            df['amount_log'] = np.log1p(df['transaction_amount'])
-            df['amount_sqrt'] = np.sqrt(df['transaction_amount'])
-            df['amount_per_item'] = df['transaction_amount'] / (df['quantity'] + 1)
-            df['amount_per_day'] = df['transaction_amount'] / (df['account_age_days'] + 1)
-            
-            # Robust scaling (using fitted scaler)
-            df['amount_scaled'] = self.amount_scaler.transform(df[['transaction_amount']]).flatten()
-            
-            # Amount threshold flags (using fitted thresholds)
-            for percentile in [50, 75, 90, 95]:  # Removed 99 to prevent constant features
-                df[f'amount_above_{percentile}'] = (df['transaction_amount'] > self.percentile_thresholds[f'amount_{percentile}']).astype(int)
-            
-            # Amount distribution features
-            df['amount_ratio_to_median'] = df['transaction_amount'] / (self.percentile_thresholds['amount_50'] + 1e-8)
-            df['amount_ratio_to_95th'] = df['transaction_amount'] / (self.percentile_thresholds['amount_95'] + 1e-8)
-            
-            # Amount volatility features
-            df['amount_volatility'] = np.abs(df['transaction_amount'] - self.percentile_thresholds['amount_50']) / (self.percentile_thresholds['amount_50'] + 1e-8)
+            # Add interaction features between amount and V-features
+            df['amount_v_mean_interaction'] = df[amount_col] * df['v_features_mean']
+            df['amount_v_std_interaction'] = df[amount_col] * df['v_features_std']
         
         return df
     
     def _engineer_temporal_features(self, df: pd.DataFrame, is_training: bool) -> pd.DataFrame:
-        """Engineer comprehensive temporal features."""
+        """Engineer comprehensive temporal features for credit card dataset."""
         
-        # Check if this is credit card dataset (has V1-V28 features)
-        v_columns = [f'v{i}' for i in range(1, 29)]
-        is_credit_card_dataset = any(col in df.columns for col in v_columns)
+        # Credit card dataset - use 'time' column and derived transaction_date
+        if 'transaction_date' not in df.columns and 'time' in df.columns:
+            # Create transaction_date from time column if not already done
+            df['transaction_date'] = pd.to_datetime('2023-01-01') + pd.to_timedelta(df['time'], unit='s')
         
-        if is_credit_card_dataset:
-            # Credit card dataset - use 'time' column and derived transaction_date
-            if 'transaction_date' not in df.columns and 'time' in df.columns:
-                # Create transaction_date from time column if not already done
-                df['transaction_date'] = pd.to_datetime('2023-01-01') + pd.to_timedelta(df['time'], unit='s')
-            
-            # Basic temporal features (skip if already created by data loader)
-            if 'hour' not in df.columns:
-                df['hour'] = df['transaction_date'].dt.hour
-            if 'day_of_week' not in df.columns:
-                df['day_of_week'] = df['transaction_date'].dt.dayofweek
-            if 'day_of_month' not in df.columns:
-                df['day_of_month'] = df['transaction_date'].dt.day
-            if 'month' not in df.columns:
-                df['month'] = df['transaction_date'].dt.month
-            if 'quarter' not in df.columns:
-                df['quarter'] = df['transaction_date'].dt.quarter
-            if 'is_weekend' not in df.columns:
-                df['is_weekend'] = (df['day_of_week'] >= 5).astype(int)
-            
-            # Time-based flags
-            if 'is_late_night' not in df.columns:
-                df['is_late_night'] = ((df['hour'] >= 23) | (df['hour'] <= 6)).astype(int)
-            if 'is_business_hours' not in df.columns:
-                df['is_business_hours'] = ((df['hour'] >= 9) & (df['hour'] <= 17)).astype(int)
-            if 'is_rush_hour' not in df.columns:
-                df['is_rush_hour'] = ((df['hour'] >= 7) & (df['hour'] <= 9)) | ((df['hour'] >= 17) & (df['hour'] <= 19))
-                df['is_rush_hour'] = df['is_rush_hour'].astype(int)
-            
-            # Cyclical encoding for hour and day (skip if already created)
-            if 'hour_sin' not in df.columns:
-                df['hour_sin'] = np.sin(2 * np.pi * df['hour'] / 24)
-            if 'hour_cos' not in df.columns:
-                df['hour_cos'] = np.cos(2 * np.pi * df['hour'] / 24)
-            if 'day_sin' not in df.columns:
-                df['day_sin'] = np.sin(2 * np.pi * df['day_of_week'] / 7)
-            if 'day_cos' not in df.columns:
-                df['day_cos'] = np.cos(2 * np.pi * df['day_of_week'] / 7)
-            if 'month_sin' not in df.columns and 'month' in df.columns:
-                df['month_sin'] = np.sin(2 * np.pi * df['month'] / 12)
-            if 'month_cos' not in df.columns and 'month' in df.columns:
-                df['month_cos'] = np.cos(2 * np.pi * df['month'] / 12)
-            
-            # Time-based risk periods (skip if already created)
-            if 'is_high_risk_hour' not in df.columns:
-                df['is_high_risk_hour'] = ((df['hour'] >= 0) & (df['hour'] <= 4)).astype(int)
-            if 'is_holiday_period' not in df.columns and 'month' in df.columns:
-                df['is_holiday_period'] = ((df['month'] == 12) | (df['month'] == 1)).astype(int)
-            
-            # Temporal statistics (fit on training data only)
-            if is_training:
-                self.temporal_stats['hour_mean'] = df['hour'].mean()
-                self.temporal_stats['hour_std'] = df['hour'].std()
-                self.temporal_stats['day_weekend_ratio'] = df['is_weekend'].mean()
-            
-            # Temporal deviation features
-            if 'hour_deviation' not in df.columns:
-                df['hour_deviation'] = np.abs(df['hour'] - self.temporal_stats['hour_mean']) / (self.temporal_stats['hour_std'] + 1e-8)
+        # Basic temporal features (skip if already created by data loader)
+        if 'hour' not in df.columns:
+            df['hour'] = df['transaction_date'].dt.hour
+        if 'day_of_week' not in df.columns:
+            df['day_of_week'] = df['transaction_date'].dt.dayofweek
+        if 'day_of_month' not in df.columns:
+            df['day_of_month'] = df['transaction_date'].dt.day
+        if 'month' not in df.columns:
+            df['month'] = df['transaction_date'].dt.month
+        if 'quarter' not in df.columns:
+            df['quarter'] = df['transaction_date'].dt.quarter
+        if 'is_weekend' not in df.columns:
+            df['is_weekend'] = (df['day_of_week'] >= 5).astype(int)
         
-        else:
-            # E-commerce dataset - original logic
-            # Convert timestamp to datetime
-            df['transaction_date'] = pd.to_datetime(df['transaction_date'])
+        # Time-based flags
+        if 'is_late_night' not in df.columns:
+            df['is_late_night'] = ((df['hour'] >= 23) | (df['hour'] <= 6)).astype(int)
+        if 'is_business_hours' not in df.columns:
+            df['is_business_hours'] = ((df['hour'] >= 9) & (df['hour'] <= 17)).astype(int)
+        if 'is_rush_hour' not in df.columns:
+            df['is_rush_hour'] = ((df['hour'] >= 7) & (df['hour'] <= 9)) | ((df['hour'] >= 17) & (df['hour'] <= 19))
+            df['is_rush_hour'] = df['is_rush_hour'].astype(int)
+        
+        # Cyclical encoding for hour and day (skip if already created)
+        if 'hour_sin' not in df.columns:
+            df['hour_sin'] = np.sin(2 * np.pi * df['hour'] / 24)
+        if 'hour_cos' not in df.columns:
+            df['hour_cos'] = np.cos(2 * np.pi * df['hour'] / 24)
+        if 'day_sin' not in df.columns:
+            df['day_sin'] = np.sin(2 * np.pi * df['day_of_week'] / 7)
+        if 'day_cos' not in df.columns:
+            df['day_cos'] = np.cos(2 * np.pi * df['day_of_week'] / 7)
+        if 'month_sin' not in df.columns and 'month' in df.columns:
+            df['month_sin'] = np.sin(2 * np.pi * df['month'] / 12)
+        if 'month_cos' not in df.columns and 'month' in df.columns:
+            df['month_cos'] = np.cos(2 * np.pi * df['month'] / 12)
+        
+        # Time-based risk periods (skip if already created)
+        if 'is_high_risk_hour' not in df.columns:
+            df['is_high_risk_hour'] = ((df['hour'] >= 0) & (df['hour'] <= 4)).astype(int)
+        if 'is_holiday_period' not in df.columns and 'month' in df.columns:
+            df['is_holiday_period'] = ((df['month'] == 12) | (df['month'] == 1)).astype(int)
+        
+        # Temporal statistics (fit on training data only)
+        if is_training:
+            self.temporal_stats['hour_mean'] = df['hour'].mean()
+            self.temporal_stats['hour_std'] = df['hour'].std()
+            self.temporal_stats['day_weekend_ratio'] = df['is_weekend'].mean()
+        
+        # Temporal deviation features
+        if 'hour_deviation' not in df.columns:
+            df['hour_deviation'] = np.abs(df['hour'] - self.temporal_stats['hour_mean']) / (self.temporal_stats['hour_std'] + 1e-8)
             
             # Basic temporal features
             df['hour'] = df['transaction_date'].dt.hour
@@ -1304,22 +1249,28 @@ class FeatureEngineer:
     def _ensure_numeric_features(self, df: pd.DataFrame, is_training: bool) -> pd.DataFrame:
         """Ensure all features are numeric and handle any remaining categorical columns."""
         
+        logger.info(f"Starting _ensure_numeric_features with {len(df.columns)} columns")
+        
         # Drop original categorical columns that have been encoded
         categorical_cols = ['payment_method', 'product_category', 'device_used', 'age_group', 'customer_location']
         for col in categorical_cols:
             if col in df.columns:
+                logger.info(f"Dropping categorical column: {col}")
                 df = df.drop(columns=[col])
         
         # Drop timestamp/date columns (temporal features extracted)
         date_cols = ['timestamp', 'transaction_date']
         for col in date_cols:
             if col in df.columns:
+                logger.info(f"Dropping date column: {col}")
                 df = df.drop(columns=[col])
         
         # Handle any remaining non-numeric columns
         non_numeric_cols = df.select_dtypes(exclude=[np.number]).columns
+        logger.info(f"Non-numeric columns found: {list(non_numeric_cols)}")
         for col in non_numeric_cols:
             if col != 'is_fraudulent':  # Keep target variable for now, will be removed later
+                logger.info(f"Encoding non-numeric column: {col}")
                 if is_training:
                     self.label_encoders[col] = LabelEncoder()
                     df[col] = self.label_encoders[col].fit_transform(df[col])
@@ -1328,10 +1279,13 @@ class FeatureEngineer:
         
         # Remove target variable from features (data leakage prevention)
         if 'is_fraudulent' in df.columns:
+            logger.info("Dropping target variable: is_fraudulent")
             df = df.drop(columns=['is_fraudulent'])
         
         # Fill any remaining NaN values
         df = df.fillna(0)
+        
+        logger.info(f"Final _ensure_numeric_features result: {len(df.columns)} columns")
         
         return df
     

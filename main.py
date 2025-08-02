@@ -87,7 +87,7 @@ def load_best_config(config_path):
         },
         'training': {
             'batch_size': 16,
-            'learning_rate': 0.00005,
+            'learning_rate': 0.005,
             'epochs': 5,
             'early_stopping': True,
             'patience': 25,
@@ -342,6 +342,11 @@ def main():
         feature_engineer = FeatureEngineer(feature_config)
         df_train_features, df_test_features = feature_engineer.fit_transform_80_20(df_train, df_test)
         logger.info(f"Feature engineering completed: {len(df_train_features.columns)} features")
+        
+        # Save engineered test features for inference
+        os.makedirs('data/engineered', exist_ok=True)
+        df_test_features.to_csv('data/engineered/test_features.csv', index=False)
+        logger.info("Saved engineered test features to data/engineered/test_features.csv")
         
         # Execute mode-specific operations
         if args.mode == "train":

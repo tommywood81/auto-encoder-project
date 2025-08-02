@@ -1,0 +1,783 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fraud Detection Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body { 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+            min-height: 100vh; 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .card { 
+            border: none; 
+            border-radius: 15px; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1); 
+            background: rgba(255, 255, 255, 0.95);
+        }
+        .btn-primary { 
+            background: linear-gradient(45deg, #667eea, #764ba2); 
+            border: none; 
+            padding: 12px 30px;
+            font-weight: 600;
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        .fraud-row { 
+            background-color: rgba(255, 107, 107, 0.1); 
+            border-left: 4px solid #ff6b6b;
+        }
+        .normal-row { 
+            background-color: rgba(81, 207, 102, 0.1); 
+            border-left: 4px solid #51cf66;
+        }
+        .metrics-card {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+        }
+        .threshold-slider {
+            width: 100%;
+            height: 8px;
+            border-radius: 5px;
+            background: #ddd;
+            outline: none;
+            -webkit-appearance: none;
+        }
+        .threshold-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #667eea;
+            cursor: pointer;
+        }
+        .threshold-slider::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #667eea;
+            cursor: pointer;
+            border: none;
+        }
+        .table-container {
+            max-height: 600px;
+            overflow-y: auto;
+            overflow-x: auto;
+        }
+        .table {
+            min-width: 2000px;
+        }
+        .fraud-info-columns {
+            position: sticky;
+            left: 0;
+            background: white;
+            z-index: 10;
+        }
+        .fraud-info-columns th,
+        .fraud-info-columns td {
+            background: white;
+            border-right: 2px solid #dee2e6;
+        }
+        .feature-columns {
+            min-width: 1500px;
+        }
+        .v-feature {
+            font-size: 0.8em;
+            color: #666;
+        }
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+        .spinner-border {
+            width: 3rem;
+            height: 3rem;
+        }
+        .percentile-info {
+            background: rgba(102, 126, 234, 0.1);
+            border-radius: 8px;
+            padding: 10px;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid py-4">
+        <!-- Header -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-body text-center">
+                        <h1 class="mb-2"><i class="fas fa-shield-alt text-primary"></i> Fraud Detection Dashboard</h1>
+                        <p class="text-muted mb-0">Real Model Predictions with Percentile-Based Threshold Control</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Controls and Model Info -->
+        <div class="row mb-4">
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title"><i class="fas fa-sliders-h"></i> Percentile Threshold Control</h5>
+                        <div class="mb-3">
+                            <label for="percentileSlider" class="form-label">Percentile Threshold: <span id="percentileValue">50</span>%</label>
+                            <input type="range" class="threshold-slider" id="percentileSlider" min="0" max="100" step="1" value="50">
+                            <div class="d-flex justify-content-between mt-1">
+                                <small class="text-muted">0% (Most Sensitive)</small>
+                                <small class="text-muted">100% (Least Sensitive)</small>
+                            </div>
+                            <div class="percentile-info">
+                                <small><strong>Threshold Value:</strong> <span id="thresholdValue">Calculating...</span></small><br>
+                                <small><strong>Meaning:</strong> <span id="percentileMeaning">Detecting top 50% of anomalies</span></small>
+                            </div>
+                        </div>
+                        <button class="btn btn-primary" id="predictButton" onclick="predictAll()">
+                            <i class="fas fa-play"></i> Calculate Predictions
+                        </button>
+                        <button class="btn btn-outline-primary" id="adjustButton" onclick="adjustThreshold()" style="display: none;">
+                            <i class="fas fa-adjust"></i> Adjust Threshold Only
+                        </button>
+                        <div class="mt-2">
+                            <small class="text-muted">
+                                <i class="fas fa-info-circle"></i> 
+                                First run: ~10-15 seconds | Subsequent adjustments: ~1-2 seconds
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                <div class="card metrics-card">
+                    <div class="card-body">
+                        <h5 class="card-title"><i class="fas fa-chart-bar"></i> Metrics</h5>
+                        <div id="metricsContent">
+                            <p class="text-center text-muted">Click "Calculate Predictions" to see metrics</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title"><i class="fas fa-cogs"></i> Model Details</h5>
+                        <div id="modelInfoContent">
+                            <p class="text-center text-muted">Click "Calculate Predictions" to see model details</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Loading -->
+        <div id="loading" class="loading">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-3" id="loadingText">Processing complete test set with real model...</p>
+            <div class="progress mt-3" style="height: 10px;">
+                <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                     role="progressbar" style="width: 100%"></div>
+            </div>
+        </div>
+
+        <!-- Results -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0"><i class="fas fa-table"></i> Transaction Results (Sorted by Anomaly Score)</h5>
+                        <div class="pagination-info">
+                            <span id="paginationInfo">Showing 0 of 0 results</span>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div id="resultsContent">
+                            <p class="text-center text-muted">Click "Calculate Predictions" to see transaction results</p>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center mt-3">
+                            <div>
+                                <button class="btn btn-outline-primary btn-sm" id="prevPage" onclick="previousPage()" disabled>
+                                    <i class="fas fa-chevron-left"></i> Previous
+                                </button>
+                                <button class="btn btn-outline-primary btn-sm" id="nextPage" onclick="nextPage()" disabled>
+                                    Next <i class="fas fa-chevron-right"></i>
+                                </button>
+                            </div>
+                            <div>
+                                <label for="pageSize" class="form-label me-2">Rows per page:</label>
+                                <select id="pageSize" class="form-select form-select-sm d-inline-block w-auto" onchange="changePageSize()">
+                                    <option value="50">50</option>
+                                    <option value="100">100</option>
+                                    <option value="200">200</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Global variables for pagination and state
+        let allPredictions = [];
+        let currentPage = 0;
+        let pageSize = 50;
+        let anomalyScoresCalculated = false;
+        let percentileInfo = null;
+
+        // Update percentile display and meaning
+        document.getElementById('percentileSlider').addEventListener('input', function() {
+            const percentile = parseInt(this.value);
+            document.getElementById('percentileValue').textContent = percentile;
+            
+            // Update meaning
+            let meaning = '';
+            if (percentile === 0) {
+                meaning = 'Detecting all transactions as potential fraud';
+            } else if (percentile === 100) {
+                meaning = 'Detecting no transactions as fraud';
+            } else {
+                meaning = `Detecting top ${percentile}% of anomalies`;
+            }
+            document.getElementById('percentileMeaning').textContent = meaning;
+            
+            // Show adjust button if anomaly scores are already calculated
+            if (anomalyScoresCalculated) {
+                document.getElementById('adjustButton').style.display = 'inline-block';
+            }
+        });
+
+        // Load percentile information on page load
+        window.addEventListener('load', async function() {
+            try {
+                const response = await fetch('/api/percentiles');
+                if (response.ok) {
+                    percentileInfo = await response.json();
+                    updatePercentileInfo();
+                }
+            } catch (error) {
+                console.error('Error loading percentile info:', error);
+            }
+        });
+
+        function updatePercentileInfo() {
+            if (!percentileInfo) return;
+            
+            const percentile = parseInt(document.getElementById('percentileSlider').value);
+            const threshold = percentileInfo.percentile_thresholds[percentile] || 'Calculating...';
+            document.getElementById('thresholdValue').textContent = threshold;
+        }
+
+        async function predictAll() {
+            const percentile = parseInt(document.getElementById('percentileSlider').value);
+            const loading = document.getElementById('loading');
+            const resultsContent = document.getElementById('resultsContent');
+            const metricsContent = document.getElementById('metricsContent');
+            const modelInfoContent = document.getElementById('modelInfoContent');
+            const predictButton = document.getElementById('predictButton');
+            const adjustButton = document.getElementById('adjustButton');
+            
+            // Disable buttons and show loading
+            predictButton.disabled = true;
+            adjustButton.disabled = true;
+            predictButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+            loading.style.display = 'block';
+            resultsContent.innerHTML = '';
+            metricsContent.innerHTML = '';
+            modelInfoContent.innerHTML = '';
+            
+            // Update loading message
+            const loadingText = document.getElementById('loadingText');
+            loadingText.textContent = `Calculating anomaly scores for all transactions (this may take 10-15 seconds)...`;
+            
+            try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 90000); // 90 second timeout
+                
+                const response = await fetch(`/api/predict/percentile/${percentile}`, {
+                    method: 'GET',
+                    signal: controller.signal
+                });
+                
+                clearTimeout(timeoutId);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const result = await response.json();
+                displayResults(result);
+                anomalyScoresCalculated = true;
+                adjustButton.style.display = 'inline-block';
+                
+            } catch (error) {
+                console.error('Error:', error);
+                if (error.name === 'AbortError') {
+                    alert('Request timed out. The dataset is large and may take longer to process. Please try again.');
+                } else {
+                    alert('Error analyzing transactions: ' + error.message);
+                }
+            } finally {
+                // Re-enable buttons and hide loading
+                predictButton.disabled = false;
+                adjustButton.disabled = false;
+                predictButton.innerHTML = '<i class="fas fa-play"></i> Calculate Predictions';
+                loading.style.display = 'none';
+            }
+        }
+
+        async function adjustThreshold() {
+            if (!anomalyScoresCalculated) {
+                alert('Please calculate predictions first before adjusting threshold.');
+                return;
+            }
+            
+            const percentile = parseInt(document.getElementById('percentileSlider').value);
+            const loading = document.getElementById('loading');
+            const resultsContent = document.getElementById('resultsContent');
+            const metricsContent = document.getElementById('metricsContent');
+            const modelInfoContent = document.getElementById('modelInfoContent');
+            const adjustButton = document.getElementById('adjustButton');
+            
+            // Disable button and show loading
+            adjustButton.disabled = true;
+            adjustButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Adjusting...';
+            loading.style.display = 'block';
+            
+            // Update loading message
+            const loadingText = document.getElementById('loadingText');
+            loadingText.textContent = `Adjusting threshold to ${percentile}% percentile (using cached anomaly scores)...`;
+            
+            try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+                
+                const response = await fetch(`/api/predict/percentile/${percentile}`, {
+                    method: 'GET',
+                    signal: controller.signal
+                });
+                
+                clearTimeout(timeoutId);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const result = await response.json();
+                displayResults(result);
+                
+            } catch (error) {
+                console.error('Error:', error);
+                if (error.name === 'AbortError') {
+                    alert('Request timed out. Please try again.');
+                } else {
+                    alert('Error adjusting threshold: ' + error.message);
+                }
+            } finally {
+                // Re-enable button and hide loading
+                adjustButton.disabled = false;
+                adjustButton.innerHTML = '<i class="fas fa-adjust"></i> Adjust Threshold Only';
+                loading.style.display = 'none';
+            }
+        }
+
+        function displayResults(result) {
+            displayMetrics(result.summary, result.percentile, result.threshold);
+            displayModelInfo(result);
+            displayTransactions(result.predictions);
+        }
+
+        function displayMetrics(summary, percentile, threshold) {
+            const metricsContent = document.getElementById('metricsContent');
+            const normal_transactions = summary.total_transactions - summary.fraud_detected;
+            const fraud_rate = summary.fraud_detected / summary.total_transactions;
+            
+            metricsContent.innerHTML = `
+                <div class="row text-center">
+                    <div class="col-6">
+                        <h3>${summary.total_transactions}</h3>
+                        <small>Total Transactions</small>
+                    </div>
+                    <div class="col-6">
+                        <h3 class="text-danger">${summary.fraud_detected}</h3>
+                        <small>Fraud Detected</small>
+                    </div>
+                </div>
+                <div class="row text-center mt-3">
+                    <div class="col-6">
+                        <h3 class="text-success">${normal_transactions}</h3>
+                        <small>Normal Transactions</small>
+                    </div>
+                    <div class="col-6">
+                        <h3>${(fraud_rate * 100).toFixed(1)}%</h3>
+                        <small>Fraud Rate</small>
+                    </div>
+                </div>
+                <div class="row text-center mt-3">
+                    <div class="col-12">
+                        <small>Percentile: ${percentile}%</small><br>
+                        <small>Threshold: ${threshold.toFixed(6)}</small><br>
+                        <small>Accuracy: ${((summary.true_positives + summary.true_negatives) / summary.total_transactions * 100).toFixed(1)}%</small>
+                    </div>
+                </div>
+            `;
+        }
+
+        function displayModelInfo(result) {
+            const modelInfoContent = document.getElementById('modelInfoContent');
+            
+            modelInfoContent.innerHTML = `
+                <div class="row text-center">
+                    <div class="col-12">
+                        <h6 class="text-primary">Fraud Autoencoder</h6>
+                        <small class="text-muted">Trained Model</small>
+                    </div>
+                </div>
+                <div class="row text-center mt-2">
+                    <div class="col-6">
+                        <small><strong>Predictions:</strong> ${result.predictions.length}</small>
+                    </div>
+                    <div class="col-6">
+                        <small><strong>Threshold:</strong> ${result.threshold.toFixed(6)}</small>
+                    </div>
+                </div>
+                <div class="row text-center mt-2">
+                    <div class="col-12">
+                        <small><strong>Performance:</strong></small><br>
+                        <small>TP: ${result.summary.true_positives}</small><br>
+                        <small>FP: ${result.summary.false_positives}</small><br>
+                        <small>TN: ${result.summary.true_negatives}</small><br>
+                        <small>FN: ${result.summary.false_negatives}</small>
+                    </div>
+                </div>
+                <div class="row text-center mt-2">
+                    <div class="col-12">
+                        <small><strong>Current Percentile:</strong> ${result.percentile}%</small><br>
+                        <small><strong>Fraud Detected:</strong> ${result.summary.fraud_detected}</small><br>
+                        <small><strong>Actual Fraud:</strong> ${result.summary.actual_fraud}</small>
+                    </div>
+                </div>
+            `;
+        }
+
+        function displayTransactions(predictions) {
+            const resultsContent = document.getElementById('resultsContent');
+            
+            if (predictions.length === 0) {
+                resultsContent.innerHTML = '<p class="text-center text-muted">No transactions to display</p>';
+                return;
+            }
+            
+            // Store all predictions globally and reset pagination
+            allPredictions = predictions;
+            currentPage = 0;
+            
+            // Display first page
+            displayCurrentPage();
+        }
+
+        function displayCurrentPage() {
+            const resultsContent = document.getElementById('resultsContent');
+            const startIndex = currentPage * pageSize;
+            const endIndex = Math.min(startIndex + pageSize, allPredictions.length);
+            const currentPagePredictions = allPredictions.slice(startIndex, endIndex);
+            
+            const tableHtml = `
+                <div class="table-container">
+                    <table class="table table-hover">
+                        <thead class="table-dark">
+                            <tr>
+                                <!-- Fraud Info Columns (Sticky Left) -->
+                                <th class="fraud-info-columns">Rank</th>
+                                <th class="fraud-info-columns">Transaction ID</th>
+                                <th class="fraud-info-columns">Amount ($)</th>
+                                <th class="fraud-info-columns">Time (s)</th>
+                                <th class="fraud-info-columns">Anomaly Score</th>
+                                <th class="fraud-info-columns">Fraud Probability</th>
+                                <th class="fraud-info-columns">Predicted</th>
+                                <th class="fraud-info-columns">Actual</th>
+                                <!-- Feature Columns (Scrollable Right) -->
+                                <th class="feature-columns">v1</th>
+                                <th class="feature-columns">v2</th>
+                                <th class="feature-columns">v3</th>
+                                <th class="feature-columns">v4</th>
+                                <th class="feature-columns">v5</th>
+                                <th class="feature-columns">v6</th>
+                                <th class="feature-columns">v7</th>
+                                <th class="feature-columns">v8</th>
+                                <th class="feature-columns">v9</th>
+                                <th class="feature-columns">v10</th>
+                                <th class="feature-columns">v11</th>
+                                <th class="feature-columns">v12</th>
+                                <th class="feature-columns">v13</th>
+                                <th class="feature-columns">v14</th>
+                                <th class="feature-columns">v15</th>
+                                <th class="feature-columns">v16</th>
+                                <th class="feature-columns">v17</th>
+                                <th class="feature-columns">v18</th>
+                                <th class="feature-columns">v19</th>
+                                <th class="feature-columns">v20</th>
+                                <th class="feature-columns">v21</th>
+                                <th class="feature-columns">v22</th>
+                                <th class="feature-columns">v23</th>
+                                <th class="feature-columns">v24</th>
+                                <th class="feature-columns">v25</th>
+                                <th class="feature-columns">v26</th>
+                                <th class="feature-columns">v27</th>
+                                <th class="feature-columns">v28</th>
+                                <th class="feature-columns">amount_log</th>
+                                <th class="feature-columns">amount_sqrt</th>
+                                <th class="feature-columns">amount_scaled</th>
+                                <th class="feature-columns">amount_above_50</th>
+                                <th class="feature-columns">amount_above_75</th>
+                                <th class="feature-columns">amount_above_90</th>
+                                <th class="feature-columns">amount_above_95</th>
+                                <th class="feature-columns">amount_ratio_to_median</th>
+                                <th class="feature-columns">amount_ratio_to_95th</th>
+                                <th class="feature-columns">amount_volatility</th>
+                                <th class="feature-columns">v_features_mean</th>
+                                <th class="feature-columns">v_features_std</th>
+                                <th class="feature-columns">v_features_max</th>
+                                <th class="feature-columns">v_features_min</th>
+                                <th class="feature-columns">v_features_range</th>
+                                <th class="feature-columns">v_features_abs_mean</th>
+                                <th class="feature-columns">amount_v_mean_interaction</th>
+                                <th class="feature-columns">amount_v_std_interaction</th>
+                                <th class="feature-columns">hour</th>
+                                <th class="feature-columns">day_of_week</th>
+                                <th class="feature-columns">day_of_month</th>
+                                <th class="feature-columns">month</th>
+                                <th class="feature-columns">quarter</th>
+                                <th class="feature-columns">is_weekend</th>
+                                <th class="feature-columns">is_late_night</th>
+                                <th class="feature-columns">is_business_hours</th>
+                                <th class="feature-columns">is_rush_hour</th>
+                                <th class="feature-columns">hour_sin</th>
+                                <th class="feature-columns">hour_cos</th>
+                                <th class="feature-columns">day_sin</th>
+                                <th class="feature-columns">day_cos</th>
+                                <th class="feature-columns">month_sin</th>
+                                <th class="feature-columns">month_cos</th>
+                                <th class="feature-columns">is_high_risk_hour</th>
+                                <th class="feature-columns">is_holiday_period</th>
+                                <th class="feature-columns">hour_deviation</th>
+                                <th class="feature-columns">amount_hour_interaction</th>
+                                <th class="feature-columns">amount_day_interaction</th>
+                                <th class="feature-columns">amount_v1_interaction</th>
+                                <th class="feature-columns">amount_v2_interaction</th>
+                                <th class="feature-columns">amount_v3_interaction</th>
+                                <th class="feature-columns">amount_v4_interaction</th>
+                                <th class="feature-columns">amount_v5_interaction</th>
+                                <th class="feature-columns">amount_v6_interaction</th>
+                                <th class="feature-columns">amount_v7_interaction</th>
+                                <th class="feature-columns">amount_v8_interaction</th>
+                                <th class="feature-columns">amount_v9_interaction</th>
+                                <th class="feature-columns">amount_v10_interaction</th>
+                                <th class="feature-columns">hour_v1_interaction</th>
+                                <th class="feature-columns">hour_v2_interaction</th>
+                                <th class="feature-columns">hour_v3_interaction</th>
+                                <th class="feature-columns">hour_v4_interaction</th>
+                                <th class="feature-columns">hour_v5_interaction</th>
+                                <th class="feature-columns">high_risk_combination</th>
+                                <th class="feature-columns">suspicious_time_pattern</th>
+                                <th class="feature-columns">weekend_high_value</th>
+                                <th class="feature-columns">amount_z_score</th>
+                                <th class="feature-columns">amount_outlier</th>
+                                <th class="feature-columns">v_features_outlier</th>
+                                <th class="feature-columns">high_v_features_risk</th>
+                                <th class="feature-columns">rush_hour_high_value</th>
+                                <th class="feature-columns">comprehensive_risk_score</th>
+                                <th class="feature-columns">low_risk</th>
+                                <th class="feature-columns">medium_risk</th>
+                                <th class="feature-columns">high_risk</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${currentPagePredictions.map((pred, index) => {
+                                const rowClass = pred.actual_fraud ? 'fraud-row' : 'normal-row';
+                                const predictedBadgeClass = pred.predicted_fraud ? 'bg-danger' : 'bg-success';
+                                const predictedBadgeText = pred.predicted_fraud ? 'FRAUD' : 'NORMAL';
+                                const actualBadgeClass = pred.actual_fraud ? 'bg-danger' : 'bg-success';
+                                const actualBadgeText = pred.actual_fraud ? 'FRAUD' : 'NORMAL';
+                                const rank = startIndex + index + 1;
+                                
+                                // Get engineered features
+                                const features = pred.engineered_features || {};
+                                
+                                return `
+                                    <tr class="${rowClass}">
+                                        <!-- Fraud Info Columns (Sticky Left) -->
+                                        <td class="fraud-info-columns"><strong>#${rank}</strong></td>
+                                        <td class="fraud-info-columns"><strong>${pred.transaction_id}</strong></td>
+                                        <td class="fraud-info-columns">$${pred.amount.toFixed(2)}</td>
+                                        <td class="fraud-info-columns">${pred.time.toFixed(0)}</td>
+                                        <td class="fraud-info-columns"><strong class="text-primary">${pred.anomaly_score.toFixed(6)}</strong></td>
+                                        <td class="fraud-info-columns">
+                                            <div class="progress" style="height: 20px;">
+                                                <div class="progress-bar ${pred.predicted_fraud ? 'bg-danger' : 'bg-success'}" 
+                                                     style="width: ${pred.fraud_probability}%">
+                                                    ${pred.fraud_probability.toFixed(1)}%
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td class="fraud-info-columns"><span class="badge ${predictedBadgeClass}">${predictedBadgeText}</span></td>
+                                        <td class="fraud-info-columns"><span class="badge ${actualBadgeClass}">${actualBadgeText}</span></td>
+                                        <!-- Feature Columns (Scrollable Right) -->
+                                        <td class="feature-columns v-feature">${(features.v1 || 0).toFixed(3)}</td>
+                                        <td class="feature-columns v-feature">${(features.v2 || 0).toFixed(3)}</td>
+                                        <td class="feature-columns v-feature">${(features.v3 || 0).toFixed(3)}</td>
+                                        <td class="feature-columns v-feature">${(features.v4 || 0).toFixed(3)}</td>
+                                        <td class="feature-columns v-feature">${(features.v5 || 0).toFixed(3)}</td>
+                                        <td class="feature-columns v-feature">${(features.v6 || 0).toFixed(3)}</td>
+                                        <td class="feature-columns v-feature">${(features.v7 || 0).toFixed(3)}</td>
+                                        <td class="feature-columns v-feature">${(features.v8 || 0).toFixed(3)}</td>
+                                        <td class="feature-columns v-feature">${(features.v9 || 0).toFixed(3)}</td>
+                                        <td class="feature-columns v-feature">${(features.v10 || 0).toFixed(3)}</td>
+                                        <td class="feature-columns v-feature">${(features.v11 || 0).toFixed(3)}</td>
+                                        <td class="feature-columns v-feature">${(features.v12 || 0).toFixed(3)}</td>
+                                        <td class="feature-columns v-feature">${(features.v13 || 0).toFixed(3)}</td>
+                                        <td class="feature-columns v-feature">${(features.v14 || 0).toFixed(3)}</td>
+                                        <td class="feature-columns v-feature">${(features.v15 || 0).toFixed(3)}</td>
+                                        <td class="feature-columns v-feature">${(features.v16 || 0).toFixed(3)}</td>
+                                        <td class="feature-columns v-feature">${(features.v17 || 0).toFixed(3)}</td>
+                                        <td class="feature-columns v-feature">${(features.v18 || 0).toFixed(3)}</td>
+                                        <td class="feature-columns v-feature">${(features.v19 || 0).toFixed(3)}</td>
+                                        <td class="feature-columns v-feature">${(features.v20 || 0).toFixed(3)}</td>
+                                        <td class="feature-columns v-feature">${(features.v21 || 0).toFixed(3)}</td>
+                                        <td class="feature-columns v-feature">${(features.v22 || 0).toFixed(3)}</td>
+                                        <td class="feature-columns v-feature">${(features.v23 || 0).toFixed(3)}</td>
+                                        <td class="feature-columns v-feature">${(features.v24 || 0).toFixed(3)}</td>
+                                        <td class="feature-columns v-feature">${(features.v25 || 0).toFixed(3)}</td>
+                                        <td class="feature-columns v-feature">${(features.v26 || 0).toFixed(3)}</td>
+                                        <td class="feature-columns v-feature">${(features.v27 || 0).toFixed(3)}</td>
+                                        <td class="feature-columns v-feature">${(features.v28 || 0).toFixed(3)}</td>
+                                        <td class="feature-columns">${(features.amount_log || 0).toFixed(3)}</td>
+                                        <td class="feature-columns">${(features.amount_sqrt || 0).toFixed(3)}</td>
+                                        <td class="feature-columns">${(features.amount_scaled || 0).toFixed(3)}</td>
+                                        <td class="feature-columns">${(features.amount_above_50 || 0).toFixed(3)}</td>
+                                        <td class="feature-columns">${(features.amount_above_75 || 0).toFixed(3)}</td>
+                                        <td class="feature-columns">${(features.amount_above_90 || 0).toFixed(3)}</td>
+                                        <td class="feature-columns">${(features.amount_above_95 || 0).toFixed(3)}</td>
+                                        <td class="feature-columns">${(features.amount_ratio_to_median || 0).toFixed(3)}</td>
+                                        <td class="feature-columns">${(features.amount_ratio_to_95th || 0).toFixed(3)}</td>
+                                        <td class="feature-columns">${(features.amount_volatility || 0).toFixed(3)}</td>
+                                        <td class="feature-columns">${(features.v_features_mean || 0).toFixed(3)}</td>
+                                        <td class="feature-columns">${(features.v_features_std || 0).toFixed(3)}</td>
+                                        <td class="feature-columns">${(features.v_features_max || 0).toFixed(3)}</td>
+                                        <td class="feature-columns">${(features.v_features_min || 0).toFixed(3)}</td>
+                                        <td class="feature-columns">${(features.v_features_range || 0).toFixed(3)}</td>
+                                        <td class="feature-columns">${(features.v_features_abs_mean || 0).toFixed(3)}</td>
+                                        <td class="feature-columns">${(features.amount_v_mean_interaction || 0).toFixed(3)}</td>
+                                        <td class="feature-columns">${(features.amount_v_std_interaction || 0).toFixed(3)}</td>
+                                        <td class="feature-columns">${(features.hour || 0).toFixed(3)}</td>
+                                        <td class="feature-columns">${(features.day_of_week || 0).toFixed(3)}</td>
+                                        <td class="feature-columns">${(features.day_of_month || 0).toFixed(3)}</td>
+                                        <td class="feature-columns">${(features.month || 0).toFixed(3)}</td>
+                                        <td class="feature-columns">${(features.quarter || 0).toFixed(3)}</td>
+                                        <td class="feature-columns">${(features.is_weekend || 0).toFixed(3)}</td>
+                                        <td class="feature-columns">${(features.is_late_night || 0).toFixed(3)}</td>
+                                        <td class="feature-columns">${(features.is_business_hours || 0).toFixed(3)}</td>
+                                        <td class="feature-columns">${(features.is_rush_hour || 0).toFixed(3)}</td>
+                                        <td class="feature-columns">${(features.hour_sin || 0).toFixed(3)}</td>
+                                        <td class="feature-columns">${(features.hour_cos || 0).toFixed(3)}</td>
+                                        <td class="feature-columns">${(features.day_sin || 0).toFixed(3)}</td>
+                                        <td class="feature-columns">${(features.day_cos || 0).toFixed(3)}</td>
+                                        <td class="feature-columns">${(features.month_sin || 0).toFixed(3)}</td>
+                                        <td class="feature-columns">${(features.month_cos || 0).toFixed(3)}</td>
+                                        <td class="feature-columns">${(features.is_high_risk_hour || 0).toFixed(3)}</td>
+                                        <td class="feature-columns">${(features.is_holiday_period || 0).toFixed(3)}</td>
+                                        <td class="feature-columns">${(features.hour_deviation || 0).toFixed(3)}</td>
+                                        <td class="feature-columns">${(features.amount_hour_interaction || 0).toFixed(3)}</td>
+                                        <td class="feature-columns">${(features.amount_day_interaction || 0).toFixed(3)}</td>
+                                        <td class="feature-columns">${(features.amount_v1_interaction || 0).toFixed(3)}</td>
+                                        <td class="feature-columns">${(features.amount_v2_interaction || 0).toFixed(3)}</td>
+                                        <td class="feature-columns">${(features.amount_v3_interaction || 0).toFixed(3)}</td>
+                                        <td class="feature-columns">${(features.amount_v4_interaction || 0).toFixed(3)}</td>
+                                        <td class="feature-columns">${(features.amount_v5_interaction || 0).toFixed(3)}</td>
+                                        <td class="feature-columns">${(features.amount_v6_interaction || 0).toFixed(3)}</td>
+                                        <td class="feature-columns">${(features.amount_v7_interaction || 0).toFixed(3)}</td>
+                                        <td class="feature-columns">${(features.amount_v8_interaction || 0).toFixed(3)}</td>
+                                        <td class="feature-columns">${(features.amount_v9_interaction || 0).toFixed(3)}</td>
+                                        <td class="feature-columns">${(features.amount_v10_interaction || 0).toFixed(3)}</td>
+                                        <td class="feature-columns">${(features.hour_v1_interaction || 0).toFixed(3)}</td>
+                                        <td class="feature-columns">${(features.hour_v2_interaction || 0).toFixed(3)}</td>
+                                        <td class="feature-columns">${(features.hour_v3_interaction || 0).toFixed(3)}</td>
+                                        <td class="feature-columns">${(features.hour_v4_interaction || 0).toFixed(3)}</td>
+                                        <td class="feature-columns">${(features.hour_v5_interaction || 0).toFixed(3)}</td>
+                                        <td class="feature-columns">${(features.high_risk_combination || 0).toFixed(3)}</td>
+                                        <td class="feature-columns">${(features.suspicious_time_pattern || 0).toFixed(3)}</td>
+                                        <td class="feature-columns">${(features.weekend_high_value || 0).toFixed(3)}</td>
+                                        <td class="feature-columns">${(features.amount_z_score || 0).toFixed(3)}</td>
+                                        <td class="feature-columns">${(features.amount_outlier || 0).toFixed(3)}</td>
+                                        <td class="feature-columns">${(features.v_features_outlier || 0).toFixed(3)}</td>
+                                        <td class="feature-columns">${(features.high_v_features_risk || 0).toFixed(3)}</td>
+                                        <td class="feature-columns">${(features.rush_hour_high_value || 0).toFixed(3)}</td>
+                                        <td class="feature-columns">${(features.comprehensive_risk_score || 0).toFixed(3)}</td>
+                                        <td class="feature-columns">${(features.low_risk || 0).toFixed(3)}</td>
+                                        <td class="feature-columns">${(features.medium_risk || 0).toFixed(3)}</td>
+                                        <td class="feature-columns">${(features.high_risk || 0).toFixed(3)}</td>
+                                    </tr>
+                                `;
+                            }).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+            
+            resultsContent.innerHTML = tableHtml;
+            
+            // Update pagination info and buttons
+            updatePaginationInfo();
+            updatePaginationButtons();
+        }
+
+        function updatePaginationInfo() {
+            const paginationInfo = document.getElementById('paginationInfo');
+            const startIndex = currentPage * pageSize + 1;
+            const endIndex = Math.min((currentPage + 1) * pageSize, allPredictions.length);
+            paginationInfo.textContent = `Showing ${startIndex}-${endIndex} of ${allPredictions.length} results`;
+        }
+
+        function updatePaginationButtons() {
+            const prevButton = document.getElementById('prevPage');
+            const nextButton = document.getElementById('nextPage');
+            
+            prevButton.disabled = currentPage === 0;
+            nextButton.disabled = (currentPage + 1) * pageSize >= allPredictions.length;
+        }
+
+        function previousPage() {
+            if (currentPage > 0) {
+                currentPage--;
+                displayCurrentPage();
+            }
+        }
+
+        function nextPage() {
+            if ((currentPage + 1) * pageSize < allPredictions.length) {
+                currentPage++;
+                displayCurrentPage();
+            }
+        }
+
+        function changePageSize() {
+            pageSize = parseInt(document.getElementById('pageSize').value);
+            currentPage = 0;
+            displayCurrentPage();
+        }
+    </script>
+</body>
+</html> 
