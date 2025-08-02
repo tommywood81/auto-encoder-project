@@ -345,8 +345,17 @@ def main():
         
         # Save engineered test features for inference
         os.makedirs('data/engineered', exist_ok=True)
-        df_test_features.to_csv('data/engineered/test_features.csv', index=False)
+        df_test_features.to_csv('data/engineered/test_features.csv', index=True)
+        
+        # Save corresponding ground truth labels
+        df_test_labels = pd.DataFrame({
+            'index': df_test.index,
+            'is_fraudulent': y_test
+        })
+        df_test_labels.to_csv('data/engineered/test_labels.csv', index=False)
+        
         logger.info("Saved engineered test features to data/engineered/test_features.csv")
+        logger.info("Saved test labels to data/engineered/test_labels.csv")
         
         # Execute mode-specific operations
         if args.mode == "train":

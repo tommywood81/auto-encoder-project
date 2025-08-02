@@ -14,10 +14,17 @@ RUN apt-get update && apt-get install -y \
 # Copy requirements first for better caching
 COPY requirements.txt .
 
-# Install Python dependencies
+# Install Python dependencies with caching
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application code
+# Copy source code (this layer will be cached unless source changes)
+COPY src/ ./src/
+COPY configs/ ./configs/
+COPY templates/ ./templates/
+COPY app.py .
+COPY main.py .
+
+# Copy remaining files
 COPY . .
 
 # Create necessary directories
