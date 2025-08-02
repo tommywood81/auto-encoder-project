@@ -368,9 +368,18 @@ async def get_predictions_with_threshold(threshold: float):
     
     results = classify_anomalies(raw_anomaly_scores, threshold, engineered_test_data, ground_truth_labels)
     
+    # For high thresholds (corresponding to high percentiles), return all flagged transactions
+    # For lower thresholds, limit to first 100 to avoid overwhelming the frontend
+    if len(results) <= 1000:  # If we have 1000 or fewer flagged transactions, return all
+        predictions_to_return = results
+    else:
+        predictions_to_return = results[:100]  # Return top 100
+    
     return {
         "threshold": threshold,
-        "predictions": results[:100],  # Return top 100
+        "predictions": predictions_to_return,
+        "total_predictions": len(results),  # Total number of flagged transactions
+        "returned_predictions": len(predictions_to_return),  # Number of transactions returned
         "summary": {
             "total_transactions": len(results),
             "fraud_detected": sum(1 for r in results if r["predicted_fraud"]),
@@ -436,10 +445,19 @@ async def get_predictions_with_percentile(percentile: int):
     threshold = np.percentile(raw_anomaly_scores, percentile)
     results = classify_anomalies(raw_anomaly_scores, threshold, engineered_test_data, ground_truth_labels)
     
+    # For high percentiles (95+), return all flagged transactions to allow full exploration
+    # For lower percentiles, limit to first 100 to avoid overwhelming the frontend
+    if percentile >= 95:
+        predictions_to_return = results  # Return all transactions
+    else:
+        predictions_to_return = results[:100]  # Return top 100
+    
     return {
         "threshold": threshold,
         "percentile": percentile,
-        "predictions": results[:100],  # Return top 100
+        "predictions": predictions_to_return,
+        "total_predictions": len(results),  # Total number of flagged transactions
+        "returned_predictions": len(predictions_to_return),  # Number of transactions returned
         "summary": {
             "total_transactions": len(results),
             "fraud_detected": sum(1 for r in results if r["predicted_fraud"]),
