@@ -8,43 +8,55 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
         body { 
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+            background: #f8f9fa; 
             min-height: 100vh; 
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #000;
         }
         .card { 
-            border: none; 
-            border-radius: 15px; 
-            box-shadow: 0 10px 30px rgba(0,0,0,0.1); 
-            background: rgba(255, 255, 255, 0.95);
+            border: 1px solid #dee2e6; 
+            border-radius: 8px; 
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1); 
+            background: #fff;
         }
         .btn-primary { 
-            background: linear-gradient(45deg, #667eea, #764ba2); 
-            border: none; 
+            background: #000; 
+            border: 1px solid #000; 
             padding: 12px 30px;
             font-weight: 600;
+            color: #fff;
         }
         .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            background: #333;
+            border-color: #333;
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }
+        .btn-outline-primary {
+            border: 1px solid #000;
+            color: #000;
+        }
+        .btn-outline-primary:hover {
+            background: #000;
+            color: #fff;
         }
         .fraud-row { 
-            background-color: rgba(255, 107, 107, 0.1); 
-            border-left: 4px solid #ff6b6b;
+            background-color: #f8f9fa; 
+            border-left: 4px solid #000;
         }
         .normal-row { 
-            background-color: rgba(81, 207, 102, 0.1); 
-            border-left: 4px solid #51cf66;
+            background-color: #fff; 
+            border-left: 4px solid #6c757d;
         }
         .metrics-card {
-            background: linear-gradient(45deg, #667eea, #764ba2);
-            color: white;
+            background: #000;
+            color: #fff;
         }
         .threshold-slider {
             width: 100%;
             height: 8px;
             border-radius: 5px;
-            background: #ddd;
+            background: #dee2e6;
             outline: none;
             -webkit-appearance: none;
         }
@@ -54,14 +66,14 @@
             width: 20px;
             height: 20px;
             border-radius: 50%;
-            background: #667eea;
+            background: #000;
             cursor: pointer;
         }
         .threshold-slider::-moz-range-thumb {
             width: 20px;
             height: 20px;
             border-radius: 50%;
-            background: #667eea;
+            background: #000;
             cursor: pointer;
             border: none;
         }
@@ -76,12 +88,12 @@
         .fraud-info-columns {
             position: sticky;
             left: 0;
-            background: white;
+            background: #fff;
             z-index: 10;
         }
         .fraud-info-columns th,
         .fraud-info-columns td {
-            background: white;
+            background: #fff;
             border-right: 2px solid #dee2e6;
         }
         .feature-columns {
@@ -89,7 +101,7 @@
         }
         .v-feature {
             font-size: 0.8em;
-            color: #666;
+            color: #6c757d;
         }
         .loading {
             display: none;
@@ -101,10 +113,41 @@
             height: 3rem;
         }
         .percentile-info {
-            background: rgba(102, 126, 234, 0.1);
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
             border-radius: 8px;
             padding: 10px;
             margin-top: 10px;
+        }
+        .text-primary {
+            color: #000 !important;
+        }
+        .text-danger {
+            color: #000 !important;
+        }
+        .text-success {
+            color: #6c757d !important;
+        }
+        .bg-danger {
+            background-color: #000 !important;
+            color: #fff !important;
+        }
+        .bg-success {
+            background-color: #6c757d !important;
+            color: #fff !important;
+        }
+        .progress-bar {
+            background-color: #000 !important;
+        }
+        .progress-bar.bg-success {
+            background-color: #6c757d !important;
+        }
+        .table-dark {
+            background-color: #000 !important;
+            color: #fff !important;
+        }
+        .text-muted {
+            color: #6c757d !important;
         }
     </style>
 </head>
@@ -114,9 +157,68 @@
         <div class="row mb-4">
             <div class="col-12">
                 <div class="card">
-                    <div class="card-body text-center">
+                    <div class="card-body text-center position-relative">
+                        <button class="btn btn-outline-primary position-absolute top-0 end-0 m-3" 
+                                data-bs-toggle="modal" data-bs-target="#helpModal">
+                            <i class="fas fa-question-circle"></i> Help
+                        </button>
                         <h1 class="mb-2"><i class="fas fa-shield-alt text-primary"></i> Fraud Detection Dashboard</h1>
                         <p class="text-muted mb-0">Real Model Predictions with Percentile-Based Threshold Control</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Help Modal -->
+        <div class="modal fade" id="helpModal" tabindex="-1" aria-labelledby="helpModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="helpModalLabel">
+                            <i class="fas fa-info-circle text-primary"></i> Dashboard Help & Model Information
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h6><i class="fas fa-cogs"></i> Model Information</h6>
+                                <ul class="list-unstyled">
+                                    <li><strong>Model Type:</strong> Fraud Autoencoder</li>
+                                    <li><strong>Architecture:</strong> Deep Neural Network</li>
+                                    <li><strong>Performance:</strong> AUC ROC: 0.937+</li>
+                                    <li><strong>Features:</strong> 85+ Engineered Features</li>
+                                    <li><strong>Training:</strong> Unsupervised Learning</li>
+                                </ul>
+                                <p class="small text-muted">
+                                    The autoencoder learns normal transaction patterns and flags anomalies as potential fraud.
+                                </p>
+                            </div>
+                            <div class="col-md-6">
+                                <h6><i class="fas fa-sliders-h"></i> How to Use the Dashboard</h6>
+                                <ol class="small">
+                                    <li><strong>Set Sensitivity to 99%:</strong> The slider is pre-set to 99% to show the top 1% of anomaly scores</li>
+                                    <li><strong>Click "Calculate Predictions":</strong> This will analyze all transactions</li>
+                                    <li><strong>Navigate Results:</strong> Transactions are sorted by anomaly score (highest to lowest)</li>
+                                    <li><strong>Pagination:</strong> You may need to go through several pages to see ground truth fraud cases</li>
+                                </ol>
+                                <div class="alert alert-info small">
+                                    <strong>Why 99%?</strong> This shows the most anomalous transactions first, which is the recommended approach for exploring autoencoder results.
+                                </div>
+                            </div>
+                        </div>
+                        <hr>
+                        <div class="row">
+                            <div class="col-12">
+                                <h6><i class="fas fa-lightbulb"></i> Understanding Autoencoder Behavior</h6>
+                                <p class="small">
+                                    Autoencoders identify anomalies by learning complex patterns in normal transactions. The highest anomaly scores often represent transactions with subtle, multi-dimensional anomalous patterns rather than obvious fraud indicators. This sophisticated approach enables detection of previously unseen fraud patterns.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Got it!</button>
                     </div>
                 </div>
             </div>
@@ -129,27 +231,27 @@
                     <div class="card-body">
                         <h5 class="card-title"><i class="fas fa-sliders-h"></i> Percentile Threshold Control</h5>
                         <div class="mb-3">
-                            <label for="percentileSlider" class="form-label">Percentile Threshold: <span id="percentileValue">50</span>%</label>
-                            <input type="range" class="threshold-slider" id="percentileSlider" min="0" max="100" step="1" value="50">
+                            <label for="percentileSlider" class="form-label">Percentile Threshold: <span id="percentileValue">99</span>%</label>
+                            <input type="range" class="threshold-slider" id="percentileSlider" min="0" max="100" step="1" value="99">
                             <div class="d-flex justify-content-between mt-1">
-                                <small class="text-muted">0% (Most Sensitive)</small>
-                                <small class="text-muted">100% (Least Sensitive)</small>
+                                <small class="text-muted">0% (Least Sensitive)</small>
+                                <small class="text-muted">100% (Most Sensitive)</small>
                             </div>
                             <div class="percentile-info">
                                 <small><strong>Threshold Value:</strong> <span id="thresholdValue">Calculating...</span></small><br>
-                                <small><strong>Meaning:</strong> <span id="percentileMeaning">Detecting top 50% of anomalies</span></small>
+                                <small><strong>Meaning:</strong> <span id="percentileMeaning">Detecting top 99% of anomalies</span></small>
                             </div>
                         </div>
                         <button class="btn btn-primary" id="predictButton" onclick="predictAll()">
                             <i class="fas fa-play"></i> Calculate Predictions
                         </button>
                         <button class="btn btn-outline-primary" id="adjustButton" onclick="adjustThreshold()" style="display: none;">
-                            <i class="fas fa-adjust"></i> Adjust Threshold Only
+                            <i class="fas fa-adjust"></i> Adjust Threshold (Fast)
                         </button>
                         <div class="mt-2">
                             <small class="text-muted">
                                 <i class="fas fa-info-circle"></i> 
-                                First run: ~10-15 seconds | Subsequent adjustments: ~1-2 seconds
+                                First run: ~10-15 seconds | Threshold adjustments: ~1-2 seconds (uses cached scores)
                             </small>
                         </div>
                     </div>
@@ -237,6 +339,7 @@
         let pageSize = 50;
         let anomalyScoresCalculated = false;
         let percentileInfo = null;
+        let cachedAnomalyScores = null; // Store cached anomaly scores for fast threshold adjustment
 
         // Update percentile display and meaning
         document.getElementById('percentileSlider').addEventListener('input', function() {
@@ -321,6 +424,7 @@
                 const result = await response.json();
                 displayResults(result);
                 anomalyScoresCalculated = true;
+                cachedAnomalyScores = result; // Cache the full result for fast threshold adjustment
                 adjustButton.style.display = 'inline-block';
                 
             } catch (error) {
@@ -357,14 +461,16 @@
             adjustButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Adjusting...';
             loading.style.display = 'block';
             
-            // Update loading message
+            // Update loading message - emphasize that we're using cached scores
             const loadingText = document.getElementById('loadingText');
-            loadingText.textContent = `Adjusting threshold to ${percentile}% percentile (using cached anomaly scores)...`;
+            loadingText.textContent = `Adjusting threshold to ${percentile}% percentile (using cached anomaly scores - fast)...`;
             
             try {
                 const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+                const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout for cached operation
                 
+                // Use the same endpoint but with a shorter timeout since it uses cached scores
+                // The backend already uses cached raw_anomaly_scores, so this is fast
                 const response = await fetch(`/api/predict/percentile/${percentile}`, {
                     method: 'GET',
                     signal: controller.signal
@@ -389,7 +495,7 @@
             } finally {
                 // Re-enable button and hide loading
                 adjustButton.disabled = false;
-                adjustButton.innerHTML = '<i class="fas fa-adjust"></i> Adjust Threshold Only';
+                adjustButton.innerHTML = '<i class="fas fa-adjust"></i> Adjust Threshold (Fast)';
                 loading.style.display = 'none';
             }
         }

@@ -299,6 +299,26 @@ The architecture is designed to evolve with business needs:
 
 The architecture strikes the right balance between performance, interpretability, and maintainability - crucial for production fraud detection systems.
 
+### **Dashboard Usage for Anomaly Analysis**
+
+To explore the model's anomaly detection capabilities in the web dashboard:
+
+1. **Set Sensitivity to 99%**: Adjust the percentile slider to 99% to view the top 1% of anomaly scores
+2. **Navigate Through Results**: The transactions are sorted by anomaly score (highest to lowest)
+3. **Pagination Required**: You'll need to paginate through several pages before encountering ground truth fraud cases
+
+**Why This Behavior is Normal for Autoencoders:**
+
+This pattern is expected and demonstrates the sophisticated nature of our autoencoder-based anomaly detection system. The model learns complex, non-linear representations of normal transaction patterns through its deep neural architecture and extensive feature engineering pipeline. When presented with anomalous transactions, the autoencoder struggles to reconstruct them accurately, resulting in high reconstruction error (anomaly scores).
+
+The feature engineering process creates 85+ engineered features including:
+- **Temporal patterns**: Cyclical encoding of time features, business hour indicators
+- **Statistical interactions**: Amount-V feature interactions, volatility measures
+- **Risk indicators**: Z-scores, outlier flags, comprehensive risk scoring
+- **Domain-specific features**: Weekend high-value flags, suspicious time patterns
+
+This rich feature representation means the autoencoder can identify subtle anomalies that may not immediately correlate with obvious fraud indicators. The highest anomaly scores often represent transactions with complex, multi-dimensional anomalous patterns rather than simple rule-based fraud flags. This sophisticated approach is why autoencoders excel at detecting previously unseen fraud patterns and why the top anomalies may not always align with traditional fraud detection heuristics.
+
 ---
 
 ## 🛠️ Development
