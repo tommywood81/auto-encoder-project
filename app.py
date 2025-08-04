@@ -78,6 +78,14 @@ def load_engineered_test_data(config: Dict) -> pd.DataFrame:
     # Load the engineered test data with index column
     df_engineered = pd.read_csv(engineered_data_path, index_col=0)
     
+    # Apply sampling if configured for faster dashboard response
+    sample_size = config['inference'].get('test_data_sample_size', 1.0)
+    if sample_size < 1.0:
+        original_size = len(df_engineered)
+        sample_count = int(original_size * sample_size)
+        df_engineered = df_engineered.sample(n=sample_count, random_state=42)
+        logger.info(f"Sampled {sample_count} transactions ({sample_size*100:.1f}% of {original_size} total)")
+    
     logger.info(f"Loaded engineered test data: {df_engineered.shape}")
     logger.info(f"Columns: {list(df_engineered.columns)}")
     

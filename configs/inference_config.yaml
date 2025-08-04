@@ -1,26 +1,15 @@
-# Inference Configuration for Fraud Detection Dashboard
-# This config specifies all paths and settings for serving the trained model
-
 inference:
-  # Paths to trained model components
-  model_path: "models/fraud_autoencoder.keras"
-  scaler_path: "models/fraud_autoencoder_scaler.pkl"
-  threshold_path: "models/fraud_autoencoder_threshold.pkl"
-  feature_engineer_path: "models/fraud_autoencoder_features.pkl"
-  
-  # Paths to data
-  raw_data_path: "data/raw/creditcard.csv"
-  engineered_test_data_path: "data/engineered/test_features.csv"
-  
-  # Model settings
-  anomaly_threshold_percentile: 95.0  # Default threshold percentile
+  model_path: models/fraud_autoencoder.keras
+  scaler_path: models/fraud_autoencoder_scaler.pkl
+  threshold_path: models/fraud_autoencoder_threshold.pkl
+  feature_engineer_path: models/fraud_autoencoder_features.pkl
+  raw_data_path: data/raw/creditcard.csv
+  engineered_test_data_path: data/engineered/test_features_90_10.csv
+  test_data_sample_size: 1.0
+  anomaly_threshold_percentile: 95.0
   cache_anomaly_scores: true
-  
-  # Output settings
-  predictions_output_path: "predictions/dashboard_predictions.csv"
-  logs_path: "logs/dashboard.log"
-
-# Feature engineering config (should match training config)
+  predictions_output_path: predictions/dashboard_predictions.csv
+  logs_path: logs/dashboard.log
 features:
   threshold_percentile: 85
   use_amount_features: true
@@ -30,10 +19,8 @@ features:
   use_behavioral_features: true
   use_velocity_features: true
   use_interaction_features: true
-
-# Dashboard settings
 dashboard:
-  host: "0.0.0.0"
+  host: 0.0.0.0
   port: 8000
   debug: false
-  reload: false 
+  reload: false
