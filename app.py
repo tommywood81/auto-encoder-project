@@ -511,30 +511,21 @@ async def get_predictions_with_percentile(percentile: int):
     max_results = 1000 if percentile >= 95 else 100
     selected_indices = sorted_fraud_indices[:max_results]
     
-    # Define business-relevant features for display
-    business_features = [
+    # Define PCA and professional features for display
+    display_features = [
         # Core transaction features
         'amount', 'time',
         
-        # Amount-based features (business logic)
+        # PCA features (V1-V28)
+        'v1', 'v2', 'v3', 'v4', 'v5', 'v6', 'v7', 'v8', 'v9', 'v10',
+        'v11', 'v12', 'v13', 'v14', 'v15', 'v16', 'v17', 'v18', 'v19', 'v20',
+        'v21', 'v22', 'v23', 'v24', 'v25', 'v26', 'v27', 'v28',
+        
+        # Professional business features
         'amount_log', 'amount_sqrt', 'amount_scaled',
-        'amount_above_50', 'amount_above_75', 'amount_above_90', 'amount_above_95',
-        'amount_ratio_to_median', 'amount_ratio_to_95th', 'amount_volatility',
-        
-        # Temporal features (business logic)
-        'hour', 'day_of_week', 'day_of_month', 'month', 'quarter',
-        'is_weekend', 'is_late_night', 'is_business_hours', 'is_rush_hour',
-        'is_high_risk_hour', 'is_holiday_period',
-        
-        # V-features statistics (aggregated for business sense)
-        'v_features_mean', 'v_features_std', 'v_features_max', 'v_features_min',
-        'v_features_range', 'v_features_abs_mean',
-        
-        # Risk indicators (business logic)
-        'high_risk_combination', 'suspicious_time_pattern', 'weekend_high_value',
-        'amount_z_score', 'amount_outlier', 'v_features_outlier',
-        'high_v_features_risk', 'rush_hour_high_value',
-        'comprehensive_risk_score', 'low_risk', 'medium_risk', 'high_risk'
+        'amount_above_95', 'amount_ratio_to_median',
+        'hour', 'day_of_week', 'is_weekend', 'is_business_hours',
+        'comprehensive_risk_score', 'high_risk'
     ]
     
     # Create results for selected transactions only
@@ -543,9 +534,9 @@ async def get_predictions_with_percentile(percentile: int):
         row = engineered_test_data.iloc[i]
         raw_anomaly_score = float(raw_anomaly_scores[i])
         
-        # Get only business-relevant engineered features
+        # Get only PCA and professional features
         engineered_features = {}
-        for col in business_features:
+        for col in display_features:
             if col in engineered_test_data.columns:
                 engineered_features[col] = float(row.get(col, 0))
         
