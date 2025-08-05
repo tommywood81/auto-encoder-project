@@ -476,14 +476,17 @@ async def get_predictions_with_percentile(percentile: int):
     if percentile < 0 or percentile > 100:
         return {"error": "Percentile must be between 0 and 100"}
     
+    # Calculate threshold based on percentile
     threshold = np.percentile(raw_anomaly_scores, percentile)
     
-    # Optimize: Only process transactions that are above the threshold
-    # This is much faster than processing all transactions
-    above_threshold_indices = np.where(raw_anomaly_scores > threshold)[0]
+    # Make predictions: transactions above threshold are flagged as fraud
+    predictions = (raw_anomaly_scores > threshold).astype(int)
     
-    if len(above_threshold_indices) == 0:
-        # No transactions above threshold
+    # Get indices of transactions flagged as fraud (above threshold)
+    fraud_indices = np.where(predictions == 1)[0]
+    
+    if len(fraud_indices) == 0:
+        # No transactions flagged as fraud
         return {
             "threshold": threshold,
             "percentile": percentile,
@@ -501,12 +504,38 @@ async def get_predictions_with_percentile(percentile: int):
             }
         }
     
-    # Sort by anomaly score (highest first) and take top results
-    sorted_indices = above_threshold_indices[np.argsort(raw_anomaly_scores[above_threshold_indices])[::-1]]
+    # Sort fraud indices by anomaly score (highest first)
+    sorted_fraud_indices = fraud_indices[np.argsort(raw_anomaly_scores[fraud_indices])[::-1]]
     
     # Limit results for performance
     max_results = 1000 if percentile >= 95 else 100
-    selected_indices = sorted_indices[:max_results]
+    selected_indices = sorted_fraud_indices[:max_results]
+    
+    # Define business-relevant features for display
+    business_features = [
+        # Core transaction features
+        'amount', 'time',
+        
+        # Amount-based features (business logic)
+        'amount_log', 'amount_sqrt', 'amount_scaled',
+        'amount_above_50', 'amount_above_75', 'amount_above_90', 'amount_above_95',
+        'amount_ratio_to_median', 'amount_ratio_to_95th', 'amount_volatility',
+        
+        # Temporal features (business logic)
+        'hour', 'day_of_week', 'day_of_month', 'month', 'quarter',
+        'is_weekend', 'is_late_night', 'is_business_hours', 'is_rush_hour',
+        'is_high_risk_hour', 'is_holiday_period',
+        
+        # V-features statistics (aggregated for business sense)
+        'v_features_mean', 'v_features_std', 'v_features_max', 'v_features_min',
+        'v_features_range', 'v_features_abs_mean',
+        
+        # Risk indicators (business logic)
+        'high_risk_combination', 'suspicious_time_pattern', 'weekend_high_value',
+        'amount_z_score', 'amount_outlier', 'v_features_outlier',
+        'high_v_features_risk', 'rush_hour_high_value',
+        'comprehensive_risk_score', 'low_risk', 'medium_risk', 'high_risk'
+    ]
     
     # Create results for selected transactions only
     results = []
@@ -514,10 +543,10 @@ async def get_predictions_with_percentile(percentile: int):
         row = engineered_test_data.iloc[i]
         raw_anomaly_score = float(raw_anomaly_scores[i])
         
-        # Get engineered features for this transaction
+        # Get only business-relevant engineered features
         engineered_features = {}
-        for col in engineered_test_data.columns:
-            if col not in ['transaction_id', 'amount', 'time', 'is_fraudulent', 'Class']:
+        for col in business_features:
+            if col in engineered_test_data.columns:
                 engineered_features[col] = float(row.get(col, 0))
         
         # Get ground truth label if available
@@ -531,7 +560,7 @@ async def get_predictions_with_percentile(percentile: int):
             "transaction_id": str(row.get('transaction_id', f"TXN_{i}")),
             "reconstruction_error": raw_anomaly_score,
             "anomaly_score": raw_anomaly_score,
-            "predicted_fraud": True,  # All transactions above threshold are predicted as fraud
+            "predicted_fraud": bool(predictions[i]),  # Use actual prediction
             "actual_fraud": actual_fraud,
             "fraud_probability": raw_anomaly_score,
             "amount": float(row.get('amount', 0)),
@@ -542,7 +571,7 @@ async def get_predictions_with_percentile(percentile: int):
     
     # Calculate summary statistics
     total_transactions = len(raw_anomaly_scores)
-    fraud_detected = len(above_threshold_indices)
+    fraud_detected = len(fraud_indices)
     
     # Calculate actual fraud count if ground truth is available
     actual_fraud_count = 0
@@ -556,7 +585,7 @@ async def get_predictions_with_percentile(percentile: int):
         
         # Calculate confusion matrix
         for i in range(len(raw_anomaly_scores)):
-            predicted_fraud = raw_anomaly_scores[i] > threshold
+            predicted_fraud = predictions[i] == 1
             original_index = engineered_test_data.index[i]
             actual_fraud = ground_truth_labels.get(original_index, False)
             

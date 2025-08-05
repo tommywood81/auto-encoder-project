@@ -524,7 +524,7 @@
         function displayMetrics(summary, percentile, threshold) {
             const metricsContent = document.getElementById('metricsContent');
             const normal_transactions = summary.total_transactions - summary.fraud_detected;
-            const fraud_rate = summary.fraud_detected / summary.total_transactions;
+            const flagged_rate = summary.fraud_detected / summary.total_transactions;
             
             // Get fraud rates from stats API
             fetch('/api/stats')
@@ -541,17 +541,17 @@
                             </div>
                             <div class="col-6">
                                 <h3 class="text-danger">${summary.fraud_detected}</h3>
-                                <small>Fraud Detected</small>
+                                <small>Flagged as Fraud</small>
                             </div>
                         </div>
                         <div class="row text-center mt-3">
                             <div class="col-6">
                                 <h3 class="text-success">${normal_transactions}</h3>
-                                <small>Normal Transactions</small>
+                                <small>Flagged as Normal</small>
                             </div>
                             <div class="col-6">
-                                <h3>${(fraud_rate * 100).toFixed(1)}%</h3>
-                                <small>Fraud Rate</small>
+                                <h3>${(flagged_rate * 100).toFixed(1)}%</h3>
+                                <small>Flagged Rate</small>
                             </div>
                         </div>
                         <div class="row text-center mt-3">
@@ -563,9 +563,9 @@
                         </div>
                         <div class="row text-center mt-3">
                             <div class="col-12">
-                                <small><strong>Dataset Fraud Rates:</strong></small><br>
-                                <small>Total Dataset: ${totalFraudPercent ? totalFraudPercent.toFixed(3) : 'N/A'}%</small><br>
-                                <small>Test Set: ${testFraudPercent ? testFraudPercent.toFixed(3) : 'N/A'}%</small>
+                                <small><strong>Actual Fraud Rate:</strong></small><br>
+                                <small>Test Set: ${testFraudPercent ? testFraudPercent.toFixed(3) : 'N/A'}%</small><br>
+                                <small>Total Dataset: ${totalFraudPercent ? totalFraudPercent.toFixed(3) : 'N/A'}%</small>
                             </div>
                         </div>
                     `;
@@ -683,100 +683,46 @@
                                 <th class="fraud-info-columns">Fraud Probability</th>
                                 <th class="fraud-info-columns">Predicted</th>
                                 <th class="fraud-info-columns">Actual</th>
-                                <!-- Feature Columns (Scrollable Right) -->
-                                <th class="feature-columns">v1</th>
-                                <th class="feature-columns">v2</th>
-                                <th class="feature-columns">v3</th>
-                                <th class="feature-columns">v4</th>
-                                <th class="feature-columns">v5</th>
-                                <th class="feature-columns">v6</th>
-                                <th class="feature-columns">v7</th>
-                                <th class="feature-columns">v8</th>
-                                <th class="feature-columns">v9</th>
-                                <th class="feature-columns">v10</th>
-                                <th class="feature-columns">v11</th>
-                                <th class="feature-columns">v12</th>
-                                <th class="feature-columns">v13</th>
-                                <th class="feature-columns">v14</th>
-                                <th class="feature-columns">v15</th>
-                                <th class="feature-columns">v16</th>
-                                <th class="feature-columns">v17</th>
-                                <th class="feature-columns">v18</th>
-                                <th class="feature-columns">v19</th>
-                                <th class="feature-columns">v20</th>
-                                <th class="feature-columns">v21</th>
-                                <th class="feature-columns">v22</th>
-                                <th class="feature-columns">v23</th>
-                                <th class="feature-columns">v24</th>
-                                <th class="feature-columns">v25</th>
-                                <th class="feature-columns">v26</th>
-                                <th class="feature-columns">v27</th>
-                                <th class="feature-columns">v28</th>
-                                <th class="feature-columns">amount_log</th>
-                                <th class="feature-columns">amount_sqrt</th>
-                                <th class="feature-columns">amount_scaled</th>
-                                <th class="feature-columns">amount_above_50</th>
-                                <th class="feature-columns">amount_above_75</th>
-                                <th class="feature-columns">amount_above_90</th>
-                                <th class="feature-columns">amount_above_95</th>
-                                <th class="feature-columns">amount_ratio_to_median</th>
-                                <th class="feature-columns">amount_ratio_to_95th</th>
-                                <th class="feature-columns">amount_volatility</th>
-                                <th class="feature-columns">v_features_mean</th>
-                                <th class="feature-columns">v_features_std</th>
-                                <th class="feature-columns">v_features_max</th>
-                                <th class="feature-columns">v_features_min</th>
-                                <th class="feature-columns">v_features_range</th>
-                                <th class="feature-columns">v_features_abs_mean</th>
-                                <th class="feature-columns">amount_v_mean_interaction</th>
-                                <th class="feature-columns">amount_v_std_interaction</th>
-                                <th class="feature-columns">hour</th>
-                                <th class="feature-columns">day_of_week</th>
-                                <th class="feature-columns">day_of_month</th>
-                                <th class="feature-columns">month</th>
-                                <th class="feature-columns">quarter</th>
-                                <th class="feature-columns">is_weekend</th>
-                                <th class="feature-columns">is_late_night</th>
-                                <th class="feature-columns">is_business_hours</th>
-                                <th class="feature-columns">is_rush_hour</th>
-                                <th class="feature-columns">hour_sin</th>
-                                <th class="feature-columns">hour_cos</th>
-                                <th class="feature-columns">day_sin</th>
-                                <th class="feature-columns">day_cos</th>
-                                <th class="feature-columns">month_sin</th>
-                                <th class="feature-columns">month_cos</th>
-                                <th class="feature-columns">is_high_risk_hour</th>
-                                <th class="feature-columns">is_holiday_period</th>
-                                <th class="feature-columns">hour_deviation</th>
-                                <th class="feature-columns">amount_hour_interaction</th>
-                                <th class="feature-columns">amount_day_interaction</th>
-                                <th class="feature-columns">amount_v1_interaction</th>
-                                <th class="feature-columns">amount_v2_interaction</th>
-                                <th class="feature-columns">amount_v3_interaction</th>
-                                <th class="feature-columns">amount_v4_interaction</th>
-                                <th class="feature-columns">amount_v5_interaction</th>
-                                <th class="feature-columns">amount_v6_interaction</th>
-                                <th class="feature-columns">amount_v7_interaction</th>
-                                <th class="feature-columns">amount_v8_interaction</th>
-                                <th class="feature-columns">amount_v9_interaction</th>
-                                <th class="feature-columns">amount_v10_interaction</th>
-                                <th class="feature-columns">hour_v1_interaction</th>
-                                <th class="feature-columns">hour_v2_interaction</th>
-                                <th class="feature-columns">hour_v3_interaction</th>
-                                <th class="feature-columns">hour_v4_interaction</th>
-                                <th class="feature-columns">hour_v5_interaction</th>
-                                <th class="feature-columns">high_risk_combination</th>
-                                <th class="feature-columns">suspicious_time_pattern</th>
-                                <th class="feature-columns">weekend_high_value</th>
-                                <th class="feature-columns">amount_z_score</th>
-                                <th class="feature-columns">amount_outlier</th>
-                                <th class="feature-columns">v_features_outlier</th>
-                                <th class="feature-columns">high_v_features_risk</th>
-                                <th class="feature-columns">rush_hour_high_value</th>
-                                <th class="feature-columns">comprehensive_risk_score</th>
-                                <th class="feature-columns">low_risk</th>
-                                <th class="feature-columns">medium_risk</th>
-                                <th class="feature-columns">high_risk</th>
+                                <!-- Business-Relevant Feature Columns (Scrollable Right) -->
+                                <th class="feature-columns">Amount (Log)</th>
+                                <th class="feature-columns">Amount (Sqrt)</th>
+                                <th class="feature-columns">Amount (Scaled)</th>
+                                <th class="feature-columns">Above 50th %</th>
+                                <th class="feature-columns">Above 75th %</th>
+                                <th class="feature-columns">Above 90th %</th>
+                                <th class="feature-columns">Above 95th %</th>
+                                <th class="feature-columns">Ratio to Median</th>
+                                <th class="feature-columns">Ratio to 95th %</th>
+                                <th class="feature-columns">Amount Volatility</th>
+                                <th class="feature-columns">V-Features Mean</th>
+                                <th class="feature-columns">V-Features Std</th>
+                                <th class="feature-columns">V-Features Max</th>
+                                <th class="feature-columns">V-Features Min</th>
+                                <th class="feature-columns">V-Features Range</th>
+                                <th class="feature-columns">V-Features Abs Mean</th>
+                                <th class="feature-columns">Hour</th>
+                                <th class="feature-columns">Day of Week</th>
+                                <th class="feature-columns">Day of Month</th>
+                                <th class="feature-columns">Month</th>
+                                <th class="feature-columns">Quarter</th>
+                                <th class="feature-columns">Weekend</th>
+                                <th class="feature-columns">Late Night</th>
+                                <th class="feature-columns">Business Hours</th>
+                                <th class="feature-columns">Rush Hour</th>
+                                <th class="feature-columns">High Risk Hour</th>
+                                <th class="feature-columns">Holiday Period</th>
+                                <th class="feature-columns">High Risk Combo</th>
+                                <th class="feature-columns">Suspicious Time</th>
+                                <th class="feature-columns">Weekend High Value</th>
+                                <th class="feature-columns">Amount Z-Score</th>
+                                <th class="feature-columns">Amount Outlier</th>
+                                <th class="feature-columns">V-Features Outlier</th>
+                                <th class="feature-columns">High V-Risk</th>
+                                <th class="feature-columns">Rush Hour High Value</th>
+                                <th class="feature-columns">Risk Score</th>
+                                <th class="feature-columns">Low Risk</th>
+                                <th class="feature-columns">Medium Risk</th>
+                                <th class="feature-columns">High Risk</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -816,35 +762,7 @@
                                         </td>
                                         <td class="fraud-info-columns"><span class="badge ${predictedBadgeClass}">${predictedBadgeText}</span></td>
                                         <td class="fraud-info-columns"><span class="badge ${actualBadgeClass}">${actualBadgeText}</span></td>
-                                        <!-- Feature Columns (Scrollable Right) -->
-                                        <td class="feature-columns v-feature">${getFeatureValue('v1').toFixed(3)}</td>
-                                        <td class="feature-columns v-feature">${getFeatureValue('v2').toFixed(3)}</td>
-                                        <td class="feature-columns v-feature">${getFeatureValue('v3').toFixed(3)}</td>
-                                        <td class="feature-columns v-feature">${getFeatureValue('v4').toFixed(3)}</td>
-                                        <td class="feature-columns v-feature">${getFeatureValue('v5').toFixed(3)}</td>
-                                        <td class="feature-columns v-feature">${getFeatureValue('v6').toFixed(3)}</td>
-                                        <td class="feature-columns v-feature">${getFeatureValue('v7').toFixed(3)}</td>
-                                        <td class="feature-columns v-feature">${getFeatureValue('v8').toFixed(3)}</td>
-                                        <td class="feature-columns v-feature">${getFeatureValue('v9').toFixed(3)}</td>
-                                        <td class="feature-columns v-feature">${getFeatureValue('v10').toFixed(3)}</td>
-                                        <td class="feature-columns v-feature">${getFeatureValue('v11').toFixed(3)}</td>
-                                        <td class="feature-columns v-feature">${getFeatureValue('v12').toFixed(3)}</td>
-                                        <td class="feature-columns v-feature">${getFeatureValue('v13').toFixed(3)}</td>
-                                        <td class="feature-columns v-feature">${getFeatureValue('v14').toFixed(3)}</td>
-                                        <td class="feature-columns v-feature">${getFeatureValue('v15').toFixed(3)}</td>
-                                        <td class="feature-columns v-feature">${getFeatureValue('v16').toFixed(3)}</td>
-                                        <td class="feature-columns v-feature">${getFeatureValue('v17').toFixed(3)}</td>
-                                        <td class="feature-columns v-feature">${getFeatureValue('v18').toFixed(3)}</td>
-                                        <td class="feature-columns v-feature">${getFeatureValue('v19').toFixed(3)}</td>
-                                        <td class="feature-columns v-feature">${getFeatureValue('v20').toFixed(3)}</td>
-                                        <td class="feature-columns v-feature">${getFeatureValue('v21').toFixed(3)}</td>
-                                        <td class="feature-columns v-feature">${getFeatureValue('v22').toFixed(3)}</td>
-                                        <td class="feature-columns v-feature">${getFeatureValue('v23').toFixed(3)}</td>
-                                        <td class="feature-columns v-feature">${getFeatureValue('v24').toFixed(3)}</td>
-                                        <td class="feature-columns v-feature">${getFeatureValue('v25').toFixed(3)}</td>
-                                        <td class="feature-columns v-feature">${getFeatureValue('v26').toFixed(3)}</td>
-                                        <td class="feature-columns v-feature">${getFeatureValue('v27').toFixed(3)}</td>
-                                        <td class="feature-columns v-feature">${getFeatureValue('v28').toFixed(3)}</td>
+                                        <!-- Business-Relevant Feature Columns (Scrollable Right) -->
                                         <td class="feature-columns">${getFeatureValue('amount_log').toFixed(3)}</td>
                                         <td class="feature-columns">${getFeatureValue('amount_sqrt').toFixed(3)}</td>
                                         <td class="feature-columns">${getFeatureValue('amount_scaled').toFixed(3)}</td>
@@ -861,8 +779,6 @@
                                         <td class="feature-columns">${getFeatureValue('v_features_min').toFixed(3)}</td>
                                         <td class="feature-columns">${getFeatureValue('v_features_range').toFixed(3)}</td>
                                         <td class="feature-columns">${getFeatureValue('v_features_abs_mean').toFixed(3)}</td>
-                                        <td class="feature-columns">${getFeatureValue('amount_v_mean_interaction').toFixed(3)}</td>
-                                        <td class="feature-columns">${getFeatureValue('amount_v_std_interaction').toFixed(3)}</td>
                                         <td class="feature-columns">${getFeatureValue('hour').toFixed(3)}</td>
                                         <td class="feature-columns">${getFeatureValue('day_of_week').toFixed(3)}</td>
                                         <td class="feature-columns">${getFeatureValue('day_of_month').toFixed(3)}</td>
@@ -872,32 +788,8 @@
                                         <td class="feature-columns">${getFeatureValue('is_late_night').toFixed(3)}</td>
                                         <td class="feature-columns">${getFeatureValue('is_business_hours').toFixed(3)}</td>
                                         <td class="feature-columns">${getFeatureValue('is_rush_hour').toFixed(3)}</td>
-                                        <td class="feature-columns">${getFeatureValue('hour_sin').toFixed(3)}</td>
-                                        <td class="feature-columns">${getFeatureValue('hour_cos').toFixed(3)}</td>
-                                        <td class="feature-columns">${getFeatureValue('day_sin').toFixed(3)}</td>
-                                        <td class="feature-columns">${getFeatureValue('day_cos').toFixed(3)}</td>
-                                        <td class="feature-columns">${getFeatureValue('month_sin').toFixed(3)}</td>
-                                        <td class="feature-columns">${getFeatureValue('month_cos').toFixed(3)}</td>
                                         <td class="feature-columns">${getFeatureValue('is_high_risk_hour').toFixed(3)}</td>
                                         <td class="feature-columns">${getFeatureValue('is_holiday_period').toFixed(3)}</td>
-                                        <td class="feature-columns">${getFeatureValue('hour_deviation').toFixed(3)}</td>
-                                        <td class="feature-columns">${getFeatureValue('amount_hour_interaction').toFixed(3)}</td>
-                                        <td class="feature-columns">${getFeatureValue('amount_day_interaction').toFixed(3)}</td>
-                                        <td class="feature-columns">${getFeatureValue('amount_v1_interaction').toFixed(3)}</td>
-                                        <td class="feature-columns">${getFeatureValue('amount_v2_interaction').toFixed(3)}</td>
-                                        <td class="feature-columns">${getFeatureValue('amount_v3_interaction').toFixed(3)}</td>
-                                        <td class="feature-columns">${getFeatureValue('amount_v4_interaction').toFixed(3)}</td>
-                                        <td class="feature-columns">${getFeatureValue('amount_v5_interaction').toFixed(3)}</td>
-                                        <td class="feature-columns">${getFeatureValue('amount_v6_interaction').toFixed(3)}</td>
-                                        <td class="feature-columns">${getFeatureValue('amount_v7_interaction').toFixed(3)}</td>
-                                        <td class="feature-columns">${getFeatureValue('amount_v8_interaction').toFixed(3)}</td>
-                                        <td class="feature-columns">${getFeatureValue('amount_v9_interaction').toFixed(3)}</td>
-                                        <td class="feature-columns">${getFeatureValue('amount_v10_interaction').toFixed(3)}</td>
-                                        <td class="feature-columns">${getFeatureValue('hour_v1_interaction').toFixed(3)}</td>
-                                        <td class="feature-columns">${getFeatureValue('hour_v2_interaction').toFixed(3)}</td>
-                                        <td class="feature-columns">${getFeatureValue('hour_v3_interaction').toFixed(3)}</td>
-                                        <td class="feature-columns">${getFeatureValue('hour_v4_interaction').toFixed(3)}</td>
-                                        <td class="feature-columns">${getFeatureValue('hour_v5_interaction').toFixed(3)}</td>
                                         <td class="feature-columns">${getFeatureValue('high_risk_combination').toFixed(3)}</td>
                                         <td class="feature-columns">${getFeatureValue('suspicious_time_pattern').toFixed(3)}</td>
                                         <td class="feature-columns">${getFeatureValue('weekend_high_value').toFixed(3)}</td>
