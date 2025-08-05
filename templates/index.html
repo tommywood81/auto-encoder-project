@@ -52,38 +52,13 @@
             background: #000;
             color: #fff;
         }
-        .threshold-slider {
-            width: 100%;
-            height: 8px;
-            border-radius: 5px;
-            background: #dee2e6;
-            outline: none;
-            -webkit-appearance: none;
-        }
-        .threshold-slider::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            appearance: none;
-            width: 20px;
-            height: 20px;
-            border-radius: 50%;
-            background: #000;
-            cursor: pointer;
-        }
-        .threshold-slider::-moz-range-thumb {
-            width: 20px;
-            height: 20px;
-            border-radius: 50%;
-            background: #000;
-            cursor: pointer;
-            border: none;
-        }
         .table-container {
             max-height: 600px;
             overflow-y: auto;
             overflow-x: auto;
         }
         .table {
-            min-width: 15000px; /* Wide enough for all 96 columns */
+            min-width: 15000px; /* Wide enough for all columns */
             table-layout: fixed;
         }
         .table td, .table th {
@@ -122,13 +97,6 @@
             width: 3rem;
             height: 3rem;
         }
-        .percentile-info {
-            background: #f8f9fa;
-            border: 1px solid #dee2e6;
-            border-radius: 8px;
-            padding: 10px;
-            margin-top: 10px;
-        }
         .text-primary {
             color: #000 !important;
         }
@@ -159,6 +127,20 @@
         .text-muted {
             color: #6c757d !important;
         }
+        .model-info-box {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        .performance-highlight {
+            background: #e8f5e8;
+            border: 1px solid #28a745;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
     </style>
 </head>
 <body>
@@ -173,7 +155,7 @@
                             <i class="fas fa-question-circle"></i> Help
                         </button>
                         <h1 class="mb-2"><i class="fas fa-shield-alt text-primary"></i> Fraud Detection Dashboard</h1>
-                        <p class="text-muted mb-0">Real Model Predictions with Percentile-Based Threshold Control</p>
+                        <p class="text-muted mb-0">Autoencoder-Based Anomaly Detection System</p>
                     </div>
                 </div>
             </div>
@@ -194,26 +176,26 @@
                             <div class="col-md-6">
                                 <h6><i class="fas fa-cogs"></i> Model Information</h6>
                                 <ul class="list-unstyled">
-                                    <li><strong>Model Type:</strong> Fraud Autoencoder</li>
+                                    <li><strong>Model Type:</strong> Unsupervised Autoencoder</li>
                                     <li><strong>Architecture:</strong> Deep Neural Network</li>
-                                    <li><strong>Performance:</strong> AUC ROC: 0.937+</li>
+                                    <li><strong>Training:</strong> Only on Normal Transactions</li>
                                     <li><strong>Features:</strong> 85+ Engineered Features</li>
-                                    <li><strong>Training:</strong> Unsupervised Learning</li>
+                                    <li><strong>Detection Method:</strong> Reconstruction Error</li>
                                 </ul>
                                 <p class="small text-muted">
                                     The autoencoder learns normal transaction patterns and flags anomalies as potential fraud.
                                 </p>
                             </div>
                             <div class="col-md-6">
-                                <h6><i class="fas fa-sliders-h"></i> How to Use the Dashboard</h6>
+                                <h6><i class="fas fa-chart-line"></i> How to Use the Dashboard</h6>
                                 <ol class="small">
-                                    <li><strong>Set Sensitivity to 99%:</strong> The slider is pre-set to 99% to show the top 1% of anomaly scores</li>
-                                    <li><strong>Click "Calculate Predictions":</strong> This will analyze all transactions</li>
-                                    <li><strong>Navigate Results:</strong> Transactions are sorted by anomaly score (highest to lowest)</li>
-                                    <li><strong>Pagination:</strong> You may need to go through several pages to see ground truth fraud cases</li>
+                                    <li><strong>Click "Analyze Transactions":</strong> This will process all transactions</li>
+                                    <li><strong>Review Results:</strong> Transactions are sorted by anomaly score (highest to lowest)</li>
+                                    <li><strong>Navigate Results:</strong> Use pagination to explore flagged transactions</li>
+                                    <li><strong>Focus on Top 1%:</strong> Most anomalous transactions appear first</li>
                                 </ol>
                                 <div class="alert alert-info small">
-                                    <strong>Why 99%?</strong> This shows the most anomalous transactions first, which is the recommended approach for exploring autoencoder results.
+                                    <strong>Key Insight:</strong> The model detects subtle, multi-dimensional patterns that traditional rule-based systems might miss.
                                 </div>
                             </div>
                         </div>
@@ -234,6 +216,23 @@
             </div>
         </div>
 
+        <!-- Model Information Box -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="model-info-box">
+                    <h5><i class="fas fa-brain"></i> Autoencoder Model Overview</h5>
+                    <p class="mb-2">
+                        This fraud detection system uses an <strong>unsupervised autoencoder</strong> that was trained exclusively on normal (non-fraudulent) transactions. 
+                        The model learns to reconstruct normal transaction patterns and identifies anomalies based on reconstruction error.
+                    </p>
+                    <p class="mb-0">
+                        <strong>Key Advantage:</strong> Unlike supervised models that require labeled fraud data, this approach can detect novel fraud patterns 
+                        that weren't present in the training data, making it highly effective for real-world fraud detection scenarios.
+                    </p>
+                </div>
+            </div>
+        </div>
+
         <!-- Controls and Model Info -->
         <div class="row mb-4">
             <div class="col-md-4">
@@ -242,26 +241,23 @@
                         <h5 class="card-title"><i class="fas fa-sliders-h"></i> Percentile Threshold Control</h5>
                         <div class="mb-3">
                             <label for="percentileSlider" class="form-label">Percentile Threshold: <span id="percentileValue">99</span>%</label>
-                            <input type="range" class="threshold-slider" id="percentileSlider" min="0" max="100" step="1" value="99">
+                            <input type="range" class="form-range" id="percentileSlider" min="50" max="99" step="1" value="99">
                             <div class="d-flex justify-content-between mt-1">
-                                <small class="text-muted">0% (Least Sensitive)</small>
-                                <small class="text-muted">100% (Most Sensitive)</small>
+                                <small class="text-muted">50% (Less Sensitive)</small>
+                                <small class="text-muted">99% (Most Sensitive)</small>
                             </div>
-                            <div class="percentile-info">
+                            <div class="mt-2 p-2 bg-light rounded">
                                 <small><strong>Threshold Value:</strong> <span id="thresholdValue">Calculating...</span></small><br>
                                 <small><strong>Meaning:</strong> <span id="percentileMeaning">Detecting top 99% of anomalies</span></small>
                             </div>
                         </div>
                         <button class="btn btn-primary" id="predictButton" onclick="predictAll()">
-                            <i class="fas fa-play"></i> Calculate Predictions
-                        </button>
-                        <button class="btn btn-outline-primary" id="adjustButton" onclick="adjustThreshold()" style="display: none;">
-                            <i class="fas fa-adjust"></i> Adjust Threshold (Fast)
+                            <i class="fas fa-play"></i> Analyze Transactions
                         </button>
                         <div class="mt-2">
                             <small class="text-muted">
                                 <i class="fas fa-info-circle"></i> 
-                                First run: ~10-15 seconds | Threshold adjustments: ~1-2 seconds (uses cached scores)
+                                Processing time: ~10-15 seconds for complete analysis
                             </small>
                         </div>
                     </div>
@@ -271,9 +267,9 @@
             <div class="col-md-4">
                 <div class="card metrics-card">
                     <div class="card-body">
-                        <h5 class="card-title"><i class="fas fa-chart-bar"></i> Metrics</h5>
+                        <h5 class="card-title"><i class="fas fa-chart-bar"></i> Performance Metrics</h5>
                         <div id="metricsContent">
-                            <p class="text-center text-muted">Click "Calculate Predictions" to see metrics</p>
+                            <p class="text-center text-muted">Click "Analyze Transactions" to see metrics</p>
                         </div>
                     </div>
                 </div>
@@ -284,8 +280,20 @@
                     <div class="card-body">
                         <h5 class="card-title"><i class="fas fa-cogs"></i> Model Details</h5>
                         <div id="modelInfoContent">
-                            <p class="text-center text-muted">Click "Calculate Predictions" to see model details</p>
+                            <p class="text-center text-muted">Click "Analyze Transactions" to see model details</p>
                         </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Performance Highlight -->
+        <div class="row mb-4" id="performanceHighlight" style="display: none;">
+            <div class="col-12">
+                <div class="performance-highlight">
+                    <h5><i class="fas fa-trophy"></i> Model Performance Summary</h5>
+                    <div id="performanceContent">
+                        <!-- Performance content will be populated by JavaScript -->
                     </div>
                 </div>
             </div>
@@ -296,7 +304,7 @@
             <div class="spinner-border text-primary" role="status">
                 <span class="visually-hidden">Loading...</span>
             </div>
-            <p class="mt-3" id="loadingText">Processing complete test set with real model...</p>
+            <p class="mt-3" id="loadingText">Processing complete test set with autoencoder model...</p>
             <div class="progress mt-3" style="height: 10px;">
                 <div class="progress-bar progress-bar-striped progress-bar-animated" 
                      role="progressbar" style="width: 100%"></div>
@@ -315,7 +323,7 @@
                     </div>
                     <div class="card-body">
                         <div id="resultsContent">
-                            <p class="text-center text-muted">Click "Calculate Predictions" to see transaction results</p>
+                            <p class="text-center text-muted">Click "Analyze Transactions" to see transaction results</p>
                         </div>
                         <div class="d-flex justify-content-between align-items-center mt-3">
                             <div>
@@ -347,9 +355,7 @@
         let allPredictions = [];
         let currentPage = 0;
         let pageSize = 50;
-        let anomalyScoresCalculated = false;
         let percentileInfo = null;
-        let cachedAnomalyScores = null; // Store cached anomaly scores for fast threshold adjustment
 
         // Update percentile display and meaning
         document.getElementById('percentileSlider').addEventListener('input', function() {
@@ -358,20 +364,18 @@
             
             // Update meaning
             let meaning = '';
-            if (percentile === 0) {
-                meaning = 'Detecting all transactions as potential fraud';
-            } else if (percentile === 100) {
-                meaning = 'Detecting no transactions as fraud';
+            if (percentile === 50) {
+                meaning = 'Detecting top 50% of anomalies';
+            } else if (percentile === 99) {
+                meaning = 'Detecting top 99% of anomalies (most sensitive)';
             } else {
                 meaning = `Detecting top ${percentile}% of anomalies`;
             }
             document.getElementById('percentileMeaning').textContent = meaning;
             
-            // Show adjust button if anomaly scores are already calculated
-            console.log('Slider changed, anomalyScoresCalculated:', anomalyScoresCalculated);
-            if (anomalyScoresCalculated) {
-                console.log('Showing adjust button');
-                document.getElementById('adjustButton').style.display = 'inline-block';
+            // Update threshold value if available
+            if (percentileInfo && percentileInfo.thresholds[percentile]) {
+                document.getElementById('thresholdValue').textContent = percentileInfo.thresholds[percentile].toFixed(6);
             }
         });
 
@@ -392,7 +396,6 @@
             if (!percentileInfo) return;
             
             const percentile = parseInt(document.getElementById('percentileSlider').value);
-            // Fix the property access - use 'thresholds' instead of 'percentile_thresholds'
             const threshold = percentileInfo.thresholds[percentile] || 'Calculating...';
             document.getElementById('thresholdValue').textContent = threshold;
         }
@@ -404,11 +407,9 @@
             const metricsContent = document.getElementById('metricsContent');
             const modelInfoContent = document.getElementById('modelInfoContent');
             const predictButton = document.getElementById('predictButton');
-            const adjustButton = document.getElementById('adjustButton');
             
-            // Disable buttons and show loading
+            // Disable button and show loading
             predictButton.disabled = true;
-            adjustButton.disabled = true;
             predictButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
             loading.style.display = 'block';
             resultsContent.innerHTML = '';
@@ -417,7 +418,7 @@
             
             // Update loading message
             const loadingText = document.getElementById('loadingText');
-            loadingText.textContent = `Calculating anomaly scores for all transactions (this may take 10-15 seconds)...`;
+            loadingText.textContent = `Analyzing transactions with ${percentile}% percentile threshold (this may take 10-15 seconds)...`;
             
             try {
                 const controller = new AbortController();
@@ -436,9 +437,6 @@
                 
                 const result = await response.json();
                 displayResults(result);
-                anomalyScoresCalculated = true;
-                cachedAnomalyScores = result; // Cache the full result for fast threshold adjustment
-                adjustButton.style.display = 'inline-block';
                 
             } catch (error) {
                 console.error('Error:', error);
@@ -448,80 +446,21 @@
                     alert('Error analyzing transactions: ' + error.message);
                 }
             } finally {
-                // Re-enable buttons and hide loading
-                predictButton.disabled = false;
-                adjustButton.disabled = false;
-                predictButton.innerHTML = '<i class="fas fa-play"></i> Calculate Predictions';
-                loading.style.display = 'none';
-            }
-        }
-
-        async function adjustThreshold() {
-            console.log('adjustThreshold function called');
-            console.log('anomalyScoresCalculated:', anomalyScoresCalculated);
-            
-            if (!anomalyScoresCalculated) {
-                alert('Please calculate predictions first before adjusting threshold.');
-                return;
-            }
-            
-            const percentile = parseInt(document.getElementById('percentileSlider').value);
-            const loading = document.getElementById('loading');
-            const resultsContent = document.getElementById('resultsContent');
-            const metricsContent = document.getElementById('metricsContent');
-            const modelInfoContent = document.getElementById('modelInfoContent');
-            const adjustButton = document.getElementById('adjustButton');
-            
-            // Disable button and show loading
-            adjustButton.disabled = true;
-            adjustButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Adjusting...';
-            loading.style.display = 'block';
-            
-            // Update loading message - emphasize that we're using cached scores
-            const loadingText = document.getElementById('loadingText');
-            loadingText.textContent = `Adjusting threshold to ${percentile}% percentile (processing large dataset - may take 15-20 seconds)...`;
-            
-            try {
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 30000); // Increase timeout to 30 seconds
-                
-                // Use the same endpoint but with a longer timeout since the data is large
-                const response = await fetch(`/api/predict/percentile/${percentile}`, {
-                    method: 'GET',
-                    signal: controller.signal
-                });
-                
-                clearTimeout(timeoutId);
-                
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                
-                const result = await response.json();
-                displayResults(result);
-                
-            } catch (error) {
-                console.error('Error:', error);
-                if (error.name === 'AbortError') {
-                    alert('Request timed out. Please try again.');
-                } else {
-                    alert('Error adjusting threshold: ' + error.message);
-                }
-            } finally {
                 // Re-enable button and hide loading
-                adjustButton.disabled = false;
-                adjustButton.innerHTML = '<i class="fas fa-adjust"></i> Adjust Threshold (Fast)';
+                predictButton.disabled = false;
+                predictButton.innerHTML = '<i class="fas fa-play"></i> Analyze Transactions';
                 loading.style.display = 'none';
             }
         }
 
         function displayResults(result) {
-            displayMetrics(result.summary, result.percentile, result.threshold);
+            displayMetrics(result.summary, result.threshold, result.percentile);
             displayModelInfo(result);
+            displayPerformanceSummary();
             displayTransactions(result.predictions);
         }
 
-        function displayMetrics(summary, percentile, threshold) {
+        function displayMetrics(summary, threshold, percentile) {
             const metricsContent = document.getElementById('metricsContent');
             const normal_transactions = summary.total_transactions - summary.fraud_detected;
             const flagged_rate = summary.fraud_detected / summary.total_transactions;
@@ -532,21 +471,22 @@
                 .then(stats => {
                     const totalFraudPercent = stats.fraud_rates?.total_dataset_fraud_percent;
                     const testFraudPercent = stats.fraud_rates?.test_set_fraud_percent;
+                    const top1Percent = stats.top_1_percent_performance;
                     
                     metricsContent.innerHTML = `
                         <div class="row text-center">
                             <div class="col-6">
-                                <h3>${summary.total_transactions}</h3>
+                                <h3>${summary.total_transactions.toLocaleString()}</h3>
                                 <small>Total Transactions</small>
                             </div>
                             <div class="col-6">
-                                <h3 class="text-danger">${summary.fraud_detected}</h3>
+                                <h3 class="text-danger">${summary.fraud_detected.toLocaleString()}</h3>
                                 <small>Flagged as Fraud</small>
                             </div>
                         </div>
                         <div class="row text-center mt-3">
                             <div class="col-6">
-                                <h3 class="text-success">${normal_transactions}</h3>
+                                <h3 class="text-success">${normal_transactions.toLocaleString()}</h3>
                                 <small>Flagged as Normal</small>
                             </div>
                             <div class="col-6">
@@ -556,9 +496,11 @@
                         </div>
                         <div class="row text-center mt-3">
                             <div class="col-12">
-                                <small>Percentile: ${percentile}%</small><br>
-                                <small>Threshold: ${threshold.toFixed(6)}</small><br>
-                                <small>Accuracy: ${((summary.true_positives + summary.true_negatives) / summary.total_transactions * 100).toFixed(1)}%</small>
+                                <small><strong>Percentile:</strong> ${percentile}%</small><br>
+                                <small><strong>Threshold:</strong> ${threshold.toFixed(6)}</small><br>
+                                <small><strong>Accuracy:</strong> ${((summary.true_positives + summary.true_negatives) / summary.total_transactions * 100).toFixed(1)}%</small><br>
+                                <small><strong>Precision:</strong> ${(top1Percent.precision * 100).toFixed(1)}%</small><br>
+                                <small><strong>Recall:</strong> ${(top1Percent.recall * 100).toFixed(1)}%</small>
                             </div>
                         </div>
                         <div class="row text-center mt-3">
@@ -576,29 +518,29 @@
                     metricsContent.innerHTML = `
                         <div class="row text-center">
                             <div class="col-6">
-                                <h3>${summary.total_transactions}</h3>
+                                <h3>${summary.total_transactions.toLocaleString()}</h3>
                                 <small>Total Transactions</small>
                             </div>
                             <div class="col-6">
-                                <h3 class="text-danger">${summary.fraud_detected}</h3>
+                                <h3 class="text-danger">${summary.fraud_detected.toLocaleString()}</h3>
                                 <small>Fraud Detected</small>
                             </div>
                         </div>
                         <div class="row text-center mt-3">
                             <div class="col-6">
-                                <h3 class="text-success">${normal_transactions}</h3>
+                                <h3 class="text-success">${normal_transactions.toLocaleString()}</h3>
                                 <small>Normal Transactions</small>
                             </div>
                             <div class="col-6">
-                                <h3>${(fraud_rate * 100).toFixed(1)}%</h3>
-                                <small>Fraud Rate</small>
+                                <h3>${(flagged_rate * 100).toFixed(1)}%</h3>
+                                <small>Flagged Rate</small>
                             </div>
                         </div>
                         <div class="row text-center mt-3">
                             <div class="col-12">
-                                <small>Percentile: ${percentile}%</small><br>
-                                <small>Threshold: ${threshold.toFixed(6)}</small><br>
-                                <small>Accuracy: ${((summary.true_positives + summary.true_negatives) / summary.total_transactions * 100).toFixed(1)}%</small>
+                                <small><strong>Percentile:</strong> ${percentile}%</small><br>
+                                <small><strong>Threshold:</strong> ${threshold.toFixed(6)}</small><br>
+                                <small><strong>Accuracy:</strong> ${((summary.true_positives + summary.true_negatives) / summary.total_transactions * 100).toFixed(1)}%</small>
                             </div>
                         </div>
                     `;
@@ -611,8 +553,8 @@
             modelInfoContent.innerHTML = `
                 <div class="row text-center">
                     <div class="col-12">
-                        <h6 class="text-primary">Fraud Autoencoder</h6>
-                        <small class="text-muted">Trained Model</small>
+                        <h6 class="text-primary">Unsupervised Autoencoder</h6>
+                        <small class="text-muted">Trained on Normal Transactions Only</small>
                     </div>
                 </div>
                 <div class="row text-center mt-2">
@@ -642,6 +584,39 @@
             `;
         }
 
+        function displayPerformanceSummary() {
+            fetch('/api/stats')
+                .then(response => response.json())
+                .then(stats => {
+                    const top1Percent = stats.top_1_percent_performance;
+                    const testFraudPercent = stats.fraud_rates?.test_set_fraud_percent;
+                    
+                    const performanceContent = document.getElementById('performanceContent');
+                    const performanceHighlight = document.getElementById('performanceHighlight');
+                    
+                    performanceContent.innerHTML = `
+                        <p class="mb-2">
+                            <strong>In the test set of ${stats.total_transactions ? stats.total_transactions.toLocaleString() : '28,000+'} rows, 
+                            we caught ${top1Percent.true_positives} fraud cases and missed ${top1Percent.false_negatives} fraud cases. 
+                            This was achieved by looking at the top 1% of anomaly scores from the autoencoder model.</strong>
+                        </p>
+                        <p class="mb-2">
+                            There were ${top1Percent.false_positives} false positives in the top 1% flagged transactions. 
+                            With proper dataset-specific, subject matter expert-driven feature engineering, this performance could be enhanced even further.
+                        </p>
+                        <p class="mb-0">
+                            <strong>Key Insight:</strong> The autoencoder model was trained without any fraud rows (unsupervised learning), 
+                            making it capable of detecting novel fraud patterns that weren't present in the training data.
+                        </p>
+                    `;
+                    
+                    performanceHighlight.style.display = 'block';
+                })
+                .catch(error => {
+                    console.error('Error fetching performance stats:', error);
+                });
+        }
+
         function displayTransactions(predictions) {
             const resultsContent = document.getElementById('resultsContent');
             
@@ -649,11 +624,6 @@
                 resultsContent.innerHTML = '<p class="text-center text-muted">No transactions to display</p>';
                 return;
             }
-            
-            // Debug: Log the first prediction to see what data we're getting
-            console.log('First prediction data:', predictions[0]);
-            console.log('Engineered features keys:', Object.keys(predictions[0].engineered_features || {}));
-            console.log('Number of engineered features:', Object.keys(predictions[0].engineered_features || {}).length);
             
             // Store all predictions globally and reset pagination
             allPredictions = predictions;
@@ -683,7 +653,7 @@
                                 <th class="fraud-info-columns">Fraud Probability</th>
                                 <th class="fraud-info-columns">Predicted</th>
                                 <th class="fraud-info-columns">Actual</th>
-                                <!-- PCA and Professional Feature Columns (Scrollable Right) -->
+                                <!-- PCA Features (V1-V28) -->
                                 <th class="feature-columns">V1</th>
                                 <th class="feature-columns">V2</th>
                                 <th class="feature-columns">V3</th>
@@ -712,6 +682,7 @@
                                 <th class="feature-columns">V26</th>
                                 <th class="feature-columns">V27</th>
                                 <th class="feature-columns">V28</th>
+                                <!-- Professional Business Features -->
                                 <th class="feature-columns">Amount (Log)</th>
                                 <th class="feature-columns">Amount (Sqrt)</th>
                                 <th class="feature-columns">Amount (Scaled)</th>
@@ -762,7 +733,7 @@
                                         </td>
                                         <td class="fraud-info-columns"><span class="badge ${predictedBadgeClass}">${predictedBadgeText}</span></td>
                                         <td class="fraud-info-columns"><span class="badge ${actualBadgeClass}">${actualBadgeText}</span></td>
-                                        <!-- PCA and Professional Feature Columns (Scrollable Right) -->
+                                        <!-- PCA Features (V1-V28) -->
                                         <td class="feature-columns v-feature">${getFeatureValue('v1').toFixed(3)}</td>
                                         <td class="feature-columns v-feature">${getFeatureValue('v2').toFixed(3)}</td>
                                         <td class="feature-columns v-feature">${getFeatureValue('v3').toFixed(3)}</td>
@@ -791,6 +762,7 @@
                                         <td class="feature-columns v-feature">${getFeatureValue('v26').toFixed(3)}</td>
                                         <td class="feature-columns v-feature">${getFeatureValue('v27').toFixed(3)}</td>
                                         <td class="feature-columns v-feature">${getFeatureValue('v28').toFixed(3)}</td>
+                                        <!-- Professional Business Features -->
                                         <td class="feature-columns">${getFeatureValue('amount_log').toFixed(3)}</td>
                                         <td class="feature-columns">${getFeatureValue('amount_sqrt').toFixed(3)}</td>
                                         <td class="feature-columns">${getFeatureValue('amount_scaled').toFixed(3)}</td>

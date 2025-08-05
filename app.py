@@ -202,7 +202,7 @@ def calculate_raw_reconstruction_errors(X_scaled: np.ndarray, reconstructions: n
 
 def get_anomaly_threshold(config: Dict, reconstruction_errors: np.ndarray) -> float:
     """Get anomaly threshold from config or calculate from errors."""
-    threshold_percentile = config['inference'].get('anomaly_threshold_percentile', 95.0)
+    threshold_percentile = config['inference'].get('anomaly_threshold_percentile', 99.0)
     threshold = np.percentile(reconstruction_errors, threshold_percentile)
     
     logger.info(f"Anomaly threshold ({threshold_percentile}th percentile): {threshold:.6f}")
@@ -217,16 +217,33 @@ def classify_anomalies(reconstruction_errors: np.ndarray, threshold: float,
     # Classify based on threshold
     predictions = (reconstruction_errors > threshold).astype(int)
     
+    # Define professional display features
+    display_features = [
+        # Core transaction features
+        'amount', 'time',
+        
+        # PCA features (V1-V28)
+        'v1', 'v2', 'v3', 'v4', 'v5', 'v6', 'v7', 'v8', 'v9', 'v10',
+        'v11', 'v12', 'v13', 'v14', 'v15', 'v16', 'v17', 'v18', 'v19', 'v20',
+        'v21', 'v22', 'v23', 'v24', 'v25', 'v26', 'v27', 'v28',
+        
+        # Professional business features
+        'amount_log', 'amount_sqrt', 'amount_scaled',
+        'amount_above_95', 'amount_ratio_to_median',
+        'hour', 'day_of_week', 'is_weekend', 'is_business_hours',
+        'comprehensive_risk_score', 'high_risk'
+    ]
+    
     # Create results
     results = []
     for i, (_, row) in enumerate(df_engineered.iterrows()):
         # Use raw reconstruction error as anomaly score
         raw_anomaly_score = float(reconstruction_errors[i])
         
-        # Get engineered features for this transaction
+        # Get only professional features for display
         engineered_features = {}
-        for col in df_engineered.columns:
-            if col not in ['transaction_id', 'amount', 'time', 'is_fraudulent', 'Class']:
+        for col in display_features:
+            if col in df_engineered.columns:
                 engineered_features[col] = float(row.get(col, 0))
         
         # Get ground truth label if available
@@ -346,15 +363,17 @@ async def health_check():
 
 @app.get("/api/predict")
 async def get_predictions():
-    """Get all predictions with default threshold."""
+    """Get all predictions with default threshold (99th percentile)."""
     if raw_anomaly_scores is None or engineered_test_data is None:
         return {"error": "Model not loaded"}
     
-    threshold = get_anomaly_threshold(inference_config, raw_anomaly_scores)
+    # Default to 99th percentile
+    threshold = np.percentile(raw_anomaly_scores, 99.0)
     results = classify_anomalies(raw_anomaly_scores, threshold, engineered_test_data, ground_truth_labels)
     
     return {
         "threshold": threshold,
+        "percentile": 99.0,
         "predictions": results[:100],  # Return top 100
         "summary": {
             "total_transactions": len(results),
@@ -368,107 +387,8 @@ async def get_predictions():
     }
 
 
-@app.get("/api/predict/threshold/{threshold}")
-async def get_predictions_with_threshold(threshold: float):
-    """Get predictions with custom threshold."""
-    if raw_anomaly_scores is None or engineered_test_data is None:
-        return {"error": "Model not loaded"}
-    
-    results = classify_anomalies(raw_anomaly_scores, threshold, engineered_test_data, ground_truth_labels)
-    
-    # For high thresholds (corresponding to high percentiles), return all flagged transactions
-    # For lower thresholds, limit to first 100 to avoid overwhelming the frontend
-    if len(results) <= 1000:  # If we have 1000 or fewer flagged transactions, return all
-        predictions_to_return = results
-    else:
-        predictions_to_return = results[:100]  # Return top 100
-    
-    return {
-        "threshold": threshold,
-        "predictions": predictions_to_return,
-        "total_predictions": len(results),  # Total number of flagged transactions
-        "returned_predictions": len(predictions_to_return),  # Number of transactions returned
-        "summary": {
-            "total_transactions": len(results),
-            "fraud_detected": sum(1 for r in results if r["predicted_fraud"]),
-            "actual_fraud": sum(1 for r in results if r["actual_fraud"]) if ground_truth_labels is not None else None,
-            "true_positives": sum(1 for r in results if r["predicted_fraud"] and r["actual_fraud"]) if ground_truth_labels is not None else None,
-            "false_positives": sum(1 for r in results if r["predicted_fraud"] and not r["actual_fraud"]) if ground_truth_labels is not None else None,
-            "true_negatives": sum(1 for r in results if not r["predicted_fraud"] and not r["actual_fraud"]) if ground_truth_labels is not None else None,
-            "false_negatives": sum(1 for r in results if not r["predicted_fraud"] and r["actual_fraud"]) if ground_truth_labels is not None else None
-        }
-    }
-
-
-@app.get("/api/stats")
-async def get_statistics():
-    """Get anomaly score statistics."""
-    if raw_anomaly_scores is None:
-        return {"error": "Anomaly scores not loaded"}
-    
-    # Calculate fraud percentages
-    total_fraud_rate = None
-    test_fraud_rate = None
-    
-    if ground_truth_labels is not None:
-        # Calculate fraud rate in test set
-        test_fraud_count = sum(ground_truth_labels.values())
-        test_total_count = len(ground_truth_labels)
-        test_fraud_rate = (test_fraud_count / test_total_count) * 100 if test_total_count > 0 else 0
-        
-        # Try to get total dataset fraud rate from cleaned data
-        try:
-            cleaned_data_path = "data/cleaned/creditcard_cleaned.csv"
-            if os.path.exists(cleaned_data_path):
-                df_cleaned = pd.read_csv(cleaned_data_path)
-                if 'is_fraudulent' in df_cleaned.columns:
-                    total_fraud_count = df_cleaned['is_fraudulent'].sum()
-                    total_count = len(df_cleaned)
-                    total_fraud_rate = (total_fraud_count / total_count) * 100 if total_count > 0 else 0
-        except Exception as e:
-            logger.warning(f"Could not calculate total fraud rate: {e}")
-    
-    return {
-        "min_score": float(np.min(raw_anomaly_scores)),
-        "max_score": float(np.max(raw_anomaly_scores)),
-        "mean_score": float(np.mean(raw_anomaly_scores)),
-        "median_score": float(np.median(raw_anomaly_scores)),
-        "std_score": float(np.std(raw_anomaly_scores)),
-        "percentiles": {
-            "25th": float(np.percentile(raw_anomaly_scores, 25)),
-            "50th": float(np.percentile(raw_anomaly_scores, 50)),
-            "75th": float(np.percentile(raw_anomaly_scores, 75)),
-            "90th": float(np.percentile(raw_anomaly_scores, 90)),
-            "95th": float(np.percentile(raw_anomaly_scores, 95)),
-            "99th": float(np.percentile(raw_anomaly_scores, 99))
-        },
-        "fraud_rates": {
-            "total_dataset_fraud_percent": total_fraud_rate,
-            "test_set_fraud_percent": test_fraud_rate
-        }
-    }
-
-
-@app.get("/api/percentiles")
-async def get_percentiles():
-    """Get available percentiles for threshold selection."""
-    if raw_anomaly_scores is None:
-        return {"error": "Anomaly scores not loaded"}
-    
-    percentiles = [50, 75, 80, 85, 90, 92, 94, 95, 96, 97, 98, 99]
-    thresholds = {}
-    
-    for p in percentiles:
-        thresholds[p] = float(np.percentile(raw_anomaly_scores, p))
-    
-    return {
-        "percentiles": percentiles,
-        "thresholds": thresholds
-    }
-
-
 @app.get("/api/predict/percentile/{percentile}")
-async def get_predictions_with_percentile(percentile: int):
+async def get_predictions_with_percentile(percentile: float):
     """Get predictions using percentile-based threshold."""
     if raw_anomaly_scores is None or engineered_test_data is None:
         return {"error": "Model not loaded"}
@@ -511,7 +431,7 @@ async def get_predictions_with_percentile(percentile: int):
     max_results = 1000 if percentile >= 95 else 100
     selected_indices = sorted_fraud_indices[:max_results]
     
-    # Define PCA and professional features for display
+    # Define professional display features
     display_features = [
         # Core transaction features
         'amount', 'time',
@@ -534,7 +454,7 @@ async def get_predictions_with_percentile(percentile: int):
         row = engineered_test_data.iloc[i]
         raw_anomaly_score = float(raw_anomaly_scores[i])
         
-        # Get only PCA and professional features
+        # Get only professional features
         engineered_features = {}
         for col in display_features:
             if col in engineered_test_data.columns:
@@ -603,6 +523,104 @@ async def get_predictions_with_percentile(percentile: int):
             "false_positives": false_positives if ground_truth_labels is not None else None,
             "true_negatives": true_negatives if ground_truth_labels is not None else None,
             "false_negatives": false_negatives if ground_truth_labels is not None else None
+        }
+    }
+
+
+@app.get("/api/percentiles")
+async def get_percentiles():
+    """Get available percentiles for threshold selection."""
+    if raw_anomaly_scores is None:
+        return {"error": "Anomaly scores not loaded"}
+    
+    percentiles = [50, 75, 80, 85, 90, 92, 94, 95, 96, 97, 98, 99]
+    thresholds = {}
+    
+    for p in percentiles:
+        thresholds[p] = float(np.percentile(raw_anomaly_scores, p))
+    
+    return {
+        "percentiles": percentiles,
+        "thresholds": thresholds
+    }
+
+
+@app.get("/api/stats")
+async def get_statistics():
+    """Get anomaly score statistics and model information."""
+    if raw_anomaly_scores is None:
+        return {"error": "Anomaly scores not loaded"}
+    
+    # Calculate fraud percentages
+    total_fraud_rate = None
+    test_fraud_rate = None
+    
+    if ground_truth_labels is not None:
+        # Calculate fraud rate in test set
+        test_fraud_count = sum(ground_truth_labels.values())
+        test_total_count = len(ground_truth_labels)
+        test_fraud_rate = (test_fraud_count / test_total_count) * 100 if test_total_count > 0 else 0
+        
+        # Try to get total dataset fraud rate from cleaned data
+        try:
+            cleaned_data_path = "data/cleaned/creditcard_cleaned.csv"
+            if os.path.exists(cleaned_data_path):
+                df_cleaned = pd.read_csv(cleaned_data_path)
+                if 'is_fraudulent' in df_cleaned.columns:
+                    total_fraud_count = df_cleaned['is_fraudulent'].sum()
+                    total_count = len(df_cleaned)
+                    total_fraud_rate = (total_fraud_count / total_count) * 100 if total_count > 0 else 0
+        except Exception as e:
+            logger.warning(f"Could not calculate total fraud rate: {e}")
+    
+    # Calculate performance metrics for top 1% threshold
+    threshold_99 = np.percentile(raw_anomaly_scores, 99)
+    predictions_99 = (raw_anomaly_scores > threshold_99).astype(int)
+    
+    # Calculate confusion matrix for top 1%
+    true_positives_99 = 0
+    false_positives_99 = 0
+    false_negatives_99 = 0
+    
+    if ground_truth_labels is not None:
+        for i, score in enumerate(raw_anomaly_scores):
+            predicted_fraud = score > threshold_99
+            original_index = engineered_test_data.index[i]
+            actual_fraud = ground_truth_labels.get(original_index, False)
+            
+            if predicted_fraud and actual_fraud:
+                true_positives_99 += 1
+            elif predicted_fraud and not actual_fraud:
+                false_positives_99 += 1
+            elif not predicted_fraud and actual_fraud:
+                false_negatives_99 += 1
+    
+    return {
+        "min_score": float(np.min(raw_anomaly_scores)),
+        "max_score": float(np.max(raw_anomaly_scores)),
+        "mean_score": float(np.mean(raw_anomaly_scores)),
+        "median_score": float(np.median(raw_anomaly_scores)),
+        "std_score": float(np.std(raw_anomaly_scores)),
+        "percentiles": {
+            "25th": float(np.percentile(raw_anomaly_scores, 25)),
+            "50th": float(np.percentile(raw_anomaly_scores, 50)),
+            "75th": float(np.percentile(raw_anomaly_scores, 75)),
+            "90th": float(np.percentile(raw_anomaly_scores, 90)),
+            "95th": float(np.percentile(raw_anomaly_scores, 95)),
+            "99th": float(np.percentile(raw_anomaly_scores, 99))
+        },
+        "fraud_rates": {
+            "total_dataset_fraud_percent": total_fraud_rate,
+            "test_set_fraud_percent": test_fraud_rate
+        },
+        "top_1_percent_performance": {
+            "threshold": float(threshold_99),
+            "transactions_flagged": int(np.sum(predictions_99)),
+            "true_positives": true_positives_99,
+            "false_positives": false_positives_99,
+            "false_negatives": false_negatives_99,
+            "precision": true_positives_99 / (true_positives_99 + false_positives_99) if (true_positives_99 + false_positives_99) > 0 else 0,
+            "recall": true_positives_99 / (true_positives_99 + false_negatives_99) if (true_positives_99 + false_negatives_99) > 0 else 0
         }
     }
 
