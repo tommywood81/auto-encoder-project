@@ -406,6 +406,28 @@ async def get_statistics():
     if raw_anomaly_scores is None:
         return {"error": "Anomaly scores not loaded"}
     
+    # Calculate fraud percentages
+    total_fraud_rate = None
+    test_fraud_rate = None
+    
+    if ground_truth_labels is not None:
+        # Calculate fraud rate in test set
+        test_fraud_count = sum(ground_truth_labels.values())
+        test_total_count = len(ground_truth_labels)
+        test_fraud_rate = (test_fraud_count / test_total_count) * 100 if test_total_count > 0 else 0
+        
+        # Try to get total dataset fraud rate from cleaned data
+        try:
+            cleaned_data_path = "data/cleaned/creditcard_cleaned.csv"
+            if os.path.exists(cleaned_data_path):
+                df_cleaned = pd.read_csv(cleaned_data_path)
+                if 'is_fraudulent' in df_cleaned.columns:
+                    total_fraud_count = df_cleaned['is_fraudulent'].sum()
+                    total_count = len(df_cleaned)
+                    total_fraud_rate = (total_fraud_count / total_count) * 100 if total_count > 0 else 0
+        except Exception as e:
+            logger.warning(f"Could not calculate total fraud rate: {e}")
+    
     return {
         "min_score": float(np.min(raw_anomaly_scores)),
         "max_score": float(np.max(raw_anomaly_scores)),
@@ -419,6 +441,10 @@ async def get_statistics():
             "90th": float(np.percentile(raw_anomaly_scores, 90)),
             "95th": float(np.percentile(raw_anomaly_scores, 95)),
             "99th": float(np.percentile(raw_anomaly_scores, 99))
+        },
+        "fraud_rates": {
+            "total_dataset_fraud_percent": total_fraud_rate,
+            "test_set_fraud_percent": test_fraud_rate
         }
     }
 

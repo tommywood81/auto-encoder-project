@@ -83,13 +83,22 @@
             overflow-x: auto;
         }
         .table {
-            min-width: 2000px;
+            min-width: 15000px; /* Wide enough for all 96 columns */
+            table-layout: fixed;
+        }
+        .table td, .table th {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 120px;
+            min-width: 100px;
         }
         .fraud-info-columns {
             position: sticky;
             left: 0;
-            background: #fff;
+            background: #343a40;
             z-index: 10;
+            min-width: 120px;
         }
         .fraud-info-columns th,
         .fraud-info-columns td {
@@ -97,7 +106,8 @@
             border-right: 2px solid #dee2e6;
         }
         .feature-columns {
-            min-width: 1500px;
+            min-width: 100px;
+            white-space: nowrap;
         }
         .v-feature {
             font-size: 0.8em;
@@ -511,35 +521,83 @@
             const normal_transactions = summary.total_transactions - summary.fraud_detected;
             const fraud_rate = summary.fraud_detected / summary.total_transactions;
             
-            metricsContent.innerHTML = `
-                <div class="row text-center">
-                    <div class="col-6">
-                        <h3>${summary.total_transactions}</h3>
-                        <small>Total Transactions</small>
-                    </div>
-                    <div class="col-6">
-                        <h3 class="text-danger">${summary.fraud_detected}</h3>
-                        <small>Fraud Detected</small>
-                    </div>
-                </div>
-                <div class="row text-center mt-3">
-                    <div class="col-6">
-                        <h3 class="text-success">${normal_transactions}</h3>
-                        <small>Normal Transactions</small>
-                    </div>
-                    <div class="col-6">
-                        <h3>${(fraud_rate * 100).toFixed(1)}%</h3>
-                        <small>Fraud Rate</small>
-                    </div>
-                </div>
-                <div class="row text-center mt-3">
-                    <div class="col-12">
-                        <small>Percentile: ${percentile}%</small><br>
-                        <small>Threshold: ${threshold.toFixed(6)}</small><br>
-                        <small>Accuracy: ${((summary.true_positives + summary.true_negatives) / summary.total_transactions * 100).toFixed(1)}%</small>
-                    </div>
-                </div>
-            `;
+            // Get fraud rates from stats API
+            fetch('/api/stats')
+                .then(response => response.json())
+                .then(stats => {
+                    const totalFraudPercent = stats.fraud_rates?.total_dataset_fraud_percent;
+                    const testFraudPercent = stats.fraud_rates?.test_set_fraud_percent;
+                    
+                    metricsContent.innerHTML = `
+                        <div class="row text-center">
+                            <div class="col-6">
+                                <h3>${summary.total_transactions}</h3>
+                                <small>Total Transactions</small>
+                            </div>
+                            <div class="col-6">
+                                <h3 class="text-danger">${summary.fraud_detected}</h3>
+                                <small>Fraud Detected</small>
+                            </div>
+                        </div>
+                        <div class="row text-center mt-3">
+                            <div class="col-6">
+                                <h3 class="text-success">${normal_transactions}</h3>
+                                <small>Normal Transactions</small>
+                            </div>
+                            <div class="col-6">
+                                <h3>${(fraud_rate * 100).toFixed(1)}%</h3>
+                                <small>Fraud Rate</small>
+                            </div>
+                        </div>
+                        <div class="row text-center mt-3">
+                            <div class="col-12">
+                                <small>Percentile: ${percentile}%</small><br>
+                                <small>Threshold: ${threshold.toFixed(6)}</small><br>
+                                <small>Accuracy: ${((summary.true_positives + summary.true_negatives) / summary.total_transactions * 100).toFixed(1)}%</small>
+                            </div>
+                        </div>
+                        <div class="row text-center mt-3">
+                            <div class="col-12">
+                                <small><strong>Dataset Fraud Rates:</strong></small><br>
+                                <small>Total Dataset: ${totalFraudPercent ? totalFraudPercent.toFixed(3) : 'N/A'}%</small><br>
+                                <small>Test Set: ${testFraudPercent ? testFraudPercent.toFixed(3) : 'N/A'}%</small>
+                            </div>
+                        </div>
+                    `;
+                })
+                .catch(error => {
+                    console.error('Error fetching fraud rates:', error);
+                    // Fallback without fraud rates
+                    metricsContent.innerHTML = `
+                        <div class="row text-center">
+                            <div class="col-6">
+                                <h3>${summary.total_transactions}</h3>
+                                <small>Total Transactions</small>
+                            </div>
+                            <div class="col-6">
+                                <h3 class="text-danger">${summary.fraud_detected}</h3>
+                                <small>Fraud Detected</small>
+                            </div>
+                        </div>
+                        <div class="row text-center mt-3">
+                            <div class="col-6">
+                                <h3 class="text-success">${normal_transactions}</h3>
+                                <small>Normal Transactions</small>
+                            </div>
+                            <div class="col-6">
+                                <h3>${(fraud_rate * 100).toFixed(1)}%</h3>
+                                <small>Fraud Rate</small>
+                            </div>
+                        </div>
+                        <div class="row text-center mt-3">
+                            <div class="col-12">
+                                <small>Percentile: ${percentile}%</small><br>
+                                <small>Threshold: ${threshold.toFixed(6)}</small><br>
+                                <small>Accuracy: ${((summary.true_positives + summary.true_negatives) / summary.total_transactions * 100).toFixed(1)}%</small>
+                            </div>
+                        </div>
+                    `;
+                });
         }
 
         function displayModelInfo(result) {
@@ -586,6 +644,11 @@
                 resultsContent.innerHTML = '<p class="text-center text-muted">No transactions to display</p>';
                 return;
             }
+            
+            // Debug: Log the first prediction to see what data we're getting
+            console.log('First prediction data:', predictions[0]);
+            console.log('Engineered features keys:', Object.keys(predictions[0].engineered_features || {}));
+            console.log('Number of engineered features:', Object.keys(predictions[0].engineered_features || {}).length);
             
             // Store all predictions globally and reset pagination
             allPredictions = predictions;
@@ -720,8 +783,15 @@
                                 const actualBadgeText = pred.actual_fraud ? 'FRAUD' : 'NORMAL';
                                 const rank = startIndex + index + 1;
                                 
-                                // Get engineered features
+                                // Get engineered features - ensure we get all features from the prediction
                                 const features = pred.engineered_features || {};
+                                
+                                // Helper function to safely get feature value
+                                const getFeatureValue = (featureName) => {
+                                    const value = features[featureName];
+                                    if (value === undefined || value === null) return 0;
+                                    return parseFloat(value) || 0;
+                                };
                                 
                                 return `
                                     <tr class="${rowClass}">
@@ -734,7 +804,7 @@
                                         <td class="fraud-info-columns">
                                             <div class="progress" style="height: 20px;">
                                                 <div class="progress-bar ${pred.predicted_fraud ? 'bg-danger' : 'bg-success'}" 
-                                                     style="width: ${pred.fraud_probability}%">
+                                                     style="width: ${Math.min(pred.fraud_probability, 100)}%">
                                                     ${pred.fraud_probability.toFixed(1)}%
                                                 </div>
                                             </div>
@@ -742,99 +812,99 @@
                                         <td class="fraud-info-columns"><span class="badge ${predictedBadgeClass}">${predictedBadgeText}</span></td>
                                         <td class="fraud-info-columns"><span class="badge ${actualBadgeClass}">${actualBadgeText}</span></td>
                                         <!-- Feature Columns (Scrollable Right) -->
-                                        <td class="feature-columns v-feature">${(features.v1 || 0).toFixed(3)}</td>
-                                        <td class="feature-columns v-feature">${(features.v2 || 0).toFixed(3)}</td>
-                                        <td class="feature-columns v-feature">${(features.v3 || 0).toFixed(3)}</td>
-                                        <td class="feature-columns v-feature">${(features.v4 || 0).toFixed(3)}</td>
-                                        <td class="feature-columns v-feature">${(features.v5 || 0).toFixed(3)}</td>
-                                        <td class="feature-columns v-feature">${(features.v6 || 0).toFixed(3)}</td>
-                                        <td class="feature-columns v-feature">${(features.v7 || 0).toFixed(3)}</td>
-                                        <td class="feature-columns v-feature">${(features.v8 || 0).toFixed(3)}</td>
-                                        <td class="feature-columns v-feature">${(features.v9 || 0).toFixed(3)}</td>
-                                        <td class="feature-columns v-feature">${(features.v10 || 0).toFixed(3)}</td>
-                                        <td class="feature-columns v-feature">${(features.v11 || 0).toFixed(3)}</td>
-                                        <td class="feature-columns v-feature">${(features.v12 || 0).toFixed(3)}</td>
-                                        <td class="feature-columns v-feature">${(features.v13 || 0).toFixed(3)}</td>
-                                        <td class="feature-columns v-feature">${(features.v14 || 0).toFixed(3)}</td>
-                                        <td class="feature-columns v-feature">${(features.v15 || 0).toFixed(3)}</td>
-                                        <td class="feature-columns v-feature">${(features.v16 || 0).toFixed(3)}</td>
-                                        <td class="feature-columns v-feature">${(features.v17 || 0).toFixed(3)}</td>
-                                        <td class="feature-columns v-feature">${(features.v18 || 0).toFixed(3)}</td>
-                                        <td class="feature-columns v-feature">${(features.v19 || 0).toFixed(3)}</td>
-                                        <td class="feature-columns v-feature">${(features.v20 || 0).toFixed(3)}</td>
-                                        <td class="feature-columns v-feature">${(features.v21 || 0).toFixed(3)}</td>
-                                        <td class="feature-columns v-feature">${(features.v22 || 0).toFixed(3)}</td>
-                                        <td class="feature-columns v-feature">${(features.v23 || 0).toFixed(3)}</td>
-                                        <td class="feature-columns v-feature">${(features.v24 || 0).toFixed(3)}</td>
-                                        <td class="feature-columns v-feature">${(features.v25 || 0).toFixed(3)}</td>
-                                        <td class="feature-columns v-feature">${(features.v26 || 0).toFixed(3)}</td>
-                                        <td class="feature-columns v-feature">${(features.v27 || 0).toFixed(3)}</td>
-                                        <td class="feature-columns v-feature">${(features.v28 || 0).toFixed(3)}</td>
-                                        <td class="feature-columns">${(features.amount_log || 0).toFixed(3)}</td>
-                                        <td class="feature-columns">${(features.amount_sqrt || 0).toFixed(3)}</td>
-                                        <td class="feature-columns">${(features.amount_scaled || 0).toFixed(3)}</td>
-                                        <td class="feature-columns">${(features.amount_above_50 || 0).toFixed(3)}</td>
-                                        <td class="feature-columns">${(features.amount_above_75 || 0).toFixed(3)}</td>
-                                        <td class="feature-columns">${(features.amount_above_90 || 0).toFixed(3)}</td>
-                                        <td class="feature-columns">${(features.amount_above_95 || 0).toFixed(3)}</td>
-                                        <td class="feature-columns">${(features.amount_ratio_to_median || 0).toFixed(3)}</td>
-                                        <td class="feature-columns">${(features.amount_ratio_to_95th || 0).toFixed(3)}</td>
-                                        <td class="feature-columns">${(features.amount_volatility || 0).toFixed(3)}</td>
-                                        <td class="feature-columns">${(features.v_features_mean || 0).toFixed(3)}</td>
-                                        <td class="feature-columns">${(features.v_features_std || 0).toFixed(3)}</td>
-                                        <td class="feature-columns">${(features.v_features_max || 0).toFixed(3)}</td>
-                                        <td class="feature-columns">${(features.v_features_min || 0).toFixed(3)}</td>
-                                        <td class="feature-columns">${(features.v_features_range || 0).toFixed(3)}</td>
-                                        <td class="feature-columns">${(features.v_features_abs_mean || 0).toFixed(3)}</td>
-                                        <td class="feature-columns">${(features.amount_v_mean_interaction || 0).toFixed(3)}</td>
-                                        <td class="feature-columns">${(features.amount_v_std_interaction || 0).toFixed(3)}</td>
-                                        <td class="feature-columns">${(features.hour || 0).toFixed(3)}</td>
-                                        <td class="feature-columns">${(features.day_of_week || 0).toFixed(3)}</td>
-                                        <td class="feature-columns">${(features.day_of_month || 0).toFixed(3)}</td>
-                                        <td class="feature-columns">${(features.month || 0).toFixed(3)}</td>
-                                        <td class="feature-columns">${(features.quarter || 0).toFixed(3)}</td>
-                                        <td class="feature-columns">${(features.is_weekend || 0).toFixed(3)}</td>
-                                        <td class="feature-columns">${(features.is_late_night || 0).toFixed(3)}</td>
-                                        <td class="feature-columns">${(features.is_business_hours || 0).toFixed(3)}</td>
-                                        <td class="feature-columns">${(features.is_rush_hour || 0).toFixed(3)}</td>
-                                        <td class="feature-columns">${(features.hour_sin || 0).toFixed(3)}</td>
-                                        <td class="feature-columns">${(features.hour_cos || 0).toFixed(3)}</td>
-                                        <td class="feature-columns">${(features.day_sin || 0).toFixed(3)}</td>
-                                        <td class="feature-columns">${(features.day_cos || 0).toFixed(3)}</td>
-                                        <td class="feature-columns">${(features.month_sin || 0).toFixed(3)}</td>
-                                        <td class="feature-columns">${(features.month_cos || 0).toFixed(3)}</td>
-                                        <td class="feature-columns">${(features.is_high_risk_hour || 0).toFixed(3)}</td>
-                                        <td class="feature-columns">${(features.is_holiday_period || 0).toFixed(3)}</td>
-                                        <td class="feature-columns">${(features.hour_deviation || 0).toFixed(3)}</td>
-                                        <td class="feature-columns">${(features.amount_hour_interaction || 0).toFixed(3)}</td>
-                                        <td class="feature-columns">${(features.amount_day_interaction || 0).toFixed(3)}</td>
-                                        <td class="feature-columns">${(features.amount_v1_interaction || 0).toFixed(3)}</td>
-                                        <td class="feature-columns">${(features.amount_v2_interaction || 0).toFixed(3)}</td>
-                                        <td class="feature-columns">${(features.amount_v3_interaction || 0).toFixed(3)}</td>
-                                        <td class="feature-columns">${(features.amount_v4_interaction || 0).toFixed(3)}</td>
-                                        <td class="feature-columns">${(features.amount_v5_interaction || 0).toFixed(3)}</td>
-                                        <td class="feature-columns">${(features.amount_v6_interaction || 0).toFixed(3)}</td>
-                                        <td class="feature-columns">${(features.amount_v7_interaction || 0).toFixed(3)}</td>
-                                        <td class="feature-columns">${(features.amount_v8_interaction || 0).toFixed(3)}</td>
-                                        <td class="feature-columns">${(features.amount_v9_interaction || 0).toFixed(3)}</td>
-                                        <td class="feature-columns">${(features.amount_v10_interaction || 0).toFixed(3)}</td>
-                                        <td class="feature-columns">${(features.hour_v1_interaction || 0).toFixed(3)}</td>
-                                        <td class="feature-columns">${(features.hour_v2_interaction || 0).toFixed(3)}</td>
-                                        <td class="feature-columns">${(features.hour_v3_interaction || 0).toFixed(3)}</td>
-                                        <td class="feature-columns">${(features.hour_v4_interaction || 0).toFixed(3)}</td>
-                                        <td class="feature-columns">${(features.hour_v5_interaction || 0).toFixed(3)}</td>
-                                        <td class="feature-columns">${(features.high_risk_combination || 0).toFixed(3)}</td>
-                                        <td class="feature-columns">${(features.suspicious_time_pattern || 0).toFixed(3)}</td>
-                                        <td class="feature-columns">${(features.weekend_high_value || 0).toFixed(3)}</td>
-                                        <td class="feature-columns">${(features.amount_z_score || 0).toFixed(3)}</td>
-                                        <td class="feature-columns">${(features.amount_outlier || 0).toFixed(3)}</td>
-                                        <td class="feature-columns">${(features.v_features_outlier || 0).toFixed(3)}</td>
-                                        <td class="feature-columns">${(features.high_v_features_risk || 0).toFixed(3)}</td>
-                                        <td class="feature-columns">${(features.rush_hour_high_value || 0).toFixed(3)}</td>
-                                        <td class="feature-columns">${(features.comprehensive_risk_score || 0).toFixed(3)}</td>
-                                        <td class="feature-columns">${(features.low_risk || 0).toFixed(3)}</td>
-                                        <td class="feature-columns">${(features.medium_risk || 0).toFixed(3)}</td>
-                                        <td class="feature-columns">${(features.high_risk || 0).toFixed(3)}</td>
+                                        <td class="feature-columns v-feature">${getFeatureValue('v1').toFixed(3)}</td>
+                                        <td class="feature-columns v-feature">${getFeatureValue('v2').toFixed(3)}</td>
+                                        <td class="feature-columns v-feature">${getFeatureValue('v3').toFixed(3)}</td>
+                                        <td class="feature-columns v-feature">${getFeatureValue('v4').toFixed(3)}</td>
+                                        <td class="feature-columns v-feature">${getFeatureValue('v5').toFixed(3)}</td>
+                                        <td class="feature-columns v-feature">${getFeatureValue('v6').toFixed(3)}</td>
+                                        <td class="feature-columns v-feature">${getFeatureValue('v7').toFixed(3)}</td>
+                                        <td class="feature-columns v-feature">${getFeatureValue('v8').toFixed(3)}</td>
+                                        <td class="feature-columns v-feature">${getFeatureValue('v9').toFixed(3)}</td>
+                                        <td class="feature-columns v-feature">${getFeatureValue('v10').toFixed(3)}</td>
+                                        <td class="feature-columns v-feature">${getFeatureValue('v11').toFixed(3)}</td>
+                                        <td class="feature-columns v-feature">${getFeatureValue('v12').toFixed(3)}</td>
+                                        <td class="feature-columns v-feature">${getFeatureValue('v13').toFixed(3)}</td>
+                                        <td class="feature-columns v-feature">${getFeatureValue('v14').toFixed(3)}</td>
+                                        <td class="feature-columns v-feature">${getFeatureValue('v15').toFixed(3)}</td>
+                                        <td class="feature-columns v-feature">${getFeatureValue('v16').toFixed(3)}</td>
+                                        <td class="feature-columns v-feature">${getFeatureValue('v17').toFixed(3)}</td>
+                                        <td class="feature-columns v-feature">${getFeatureValue('v18').toFixed(3)}</td>
+                                        <td class="feature-columns v-feature">${getFeatureValue('v19').toFixed(3)}</td>
+                                        <td class="feature-columns v-feature">${getFeatureValue('v20').toFixed(3)}</td>
+                                        <td class="feature-columns v-feature">${getFeatureValue('v21').toFixed(3)}</td>
+                                        <td class="feature-columns v-feature">${getFeatureValue('v22').toFixed(3)}</td>
+                                        <td class="feature-columns v-feature">${getFeatureValue('v23').toFixed(3)}</td>
+                                        <td class="feature-columns v-feature">${getFeatureValue('v24').toFixed(3)}</td>
+                                        <td class="feature-columns v-feature">${getFeatureValue('v25').toFixed(3)}</td>
+                                        <td class="feature-columns v-feature">${getFeatureValue('v26').toFixed(3)}</td>
+                                        <td class="feature-columns v-feature">${getFeatureValue('v27').toFixed(3)}</td>
+                                        <td class="feature-columns v-feature">${getFeatureValue('v28').toFixed(3)}</td>
+                                        <td class="feature-columns">${getFeatureValue('amount_log').toFixed(3)}</td>
+                                        <td class="feature-columns">${getFeatureValue('amount_sqrt').toFixed(3)}</td>
+                                        <td class="feature-columns">${getFeatureValue('amount_scaled').toFixed(3)}</td>
+                                        <td class="feature-columns">${getFeatureValue('amount_above_50').toFixed(3)}</td>
+                                        <td class="feature-columns">${getFeatureValue('amount_above_75').toFixed(3)}</td>
+                                        <td class="feature-columns">${getFeatureValue('amount_above_90').toFixed(3)}</td>
+                                        <td class="feature-columns">${getFeatureValue('amount_above_95').toFixed(3)}</td>
+                                        <td class="feature-columns">${getFeatureValue('amount_ratio_to_median').toFixed(3)}</td>
+                                        <td class="feature-columns">${getFeatureValue('amount_ratio_to_95th').toFixed(3)}</td>
+                                        <td class="feature-columns">${getFeatureValue('amount_volatility').toFixed(3)}</td>
+                                        <td class="feature-columns">${getFeatureValue('v_features_mean').toFixed(3)}</td>
+                                        <td class="feature-columns">${getFeatureValue('v_features_std').toFixed(3)}</td>
+                                        <td class="feature-columns">${getFeatureValue('v_features_max').toFixed(3)}</td>
+                                        <td class="feature-columns">${getFeatureValue('v_features_min').toFixed(3)}</td>
+                                        <td class="feature-columns">${getFeatureValue('v_features_range').toFixed(3)}</td>
+                                        <td class="feature-columns">${getFeatureValue('v_features_abs_mean').toFixed(3)}</td>
+                                        <td class="feature-columns">${getFeatureValue('amount_v_mean_interaction').toFixed(3)}</td>
+                                        <td class="feature-columns">${getFeatureValue('amount_v_std_interaction').toFixed(3)}</td>
+                                        <td class="feature-columns">${getFeatureValue('hour').toFixed(3)}</td>
+                                        <td class="feature-columns">${getFeatureValue('day_of_week').toFixed(3)}</td>
+                                        <td class="feature-columns">${getFeatureValue('day_of_month').toFixed(3)}</td>
+                                        <td class="feature-columns">${getFeatureValue('month').toFixed(3)}</td>
+                                        <td class="feature-columns">${getFeatureValue('quarter').toFixed(3)}</td>
+                                        <td class="feature-columns">${getFeatureValue('is_weekend').toFixed(3)}</td>
+                                        <td class="feature-columns">${getFeatureValue('is_late_night').toFixed(3)}</td>
+                                        <td class="feature-columns">${getFeatureValue('is_business_hours').toFixed(3)}</td>
+                                        <td class="feature-columns">${getFeatureValue('is_rush_hour').toFixed(3)}</td>
+                                        <td class="feature-columns">${getFeatureValue('hour_sin').toFixed(3)}</td>
+                                        <td class="feature-columns">${getFeatureValue('hour_cos').toFixed(3)}</td>
+                                        <td class="feature-columns">${getFeatureValue('day_sin').toFixed(3)}</td>
+                                        <td class="feature-columns">${getFeatureValue('day_cos').toFixed(3)}</td>
+                                        <td class="feature-columns">${getFeatureValue('month_sin').toFixed(3)}</td>
+                                        <td class="feature-columns">${getFeatureValue('month_cos').toFixed(3)}</td>
+                                        <td class="feature-columns">${getFeatureValue('is_high_risk_hour').toFixed(3)}</td>
+                                        <td class="feature-columns">${getFeatureValue('is_holiday_period').toFixed(3)}</td>
+                                        <td class="feature-columns">${getFeatureValue('hour_deviation').toFixed(3)}</td>
+                                        <td class="feature-columns">${getFeatureValue('amount_hour_interaction').toFixed(3)}</td>
+                                        <td class="feature-columns">${getFeatureValue('amount_day_interaction').toFixed(3)}</td>
+                                        <td class="feature-columns">${getFeatureValue('amount_v1_interaction').toFixed(3)}</td>
+                                        <td class="feature-columns">${getFeatureValue('amount_v2_interaction').toFixed(3)}</td>
+                                        <td class="feature-columns">${getFeatureValue('amount_v3_interaction').toFixed(3)}</td>
+                                        <td class="feature-columns">${getFeatureValue('amount_v4_interaction').toFixed(3)}</td>
+                                        <td class="feature-columns">${getFeatureValue('amount_v5_interaction').toFixed(3)}</td>
+                                        <td class="feature-columns">${getFeatureValue('amount_v6_interaction').toFixed(3)}</td>
+                                        <td class="feature-columns">${getFeatureValue('amount_v7_interaction').toFixed(3)}</td>
+                                        <td class="feature-columns">${getFeatureValue('amount_v8_interaction').toFixed(3)}</td>
+                                        <td class="feature-columns">${getFeatureValue('amount_v9_interaction').toFixed(3)}</td>
+                                        <td class="feature-columns">${getFeatureValue('amount_v10_interaction').toFixed(3)}</td>
+                                        <td class="feature-columns">${getFeatureValue('hour_v1_interaction').toFixed(3)}</td>
+                                        <td class="feature-columns">${getFeatureValue('hour_v2_interaction').toFixed(3)}</td>
+                                        <td class="feature-columns">${getFeatureValue('hour_v3_interaction').toFixed(3)}</td>
+                                        <td class="feature-columns">${getFeatureValue('hour_v4_interaction').toFixed(3)}</td>
+                                        <td class="feature-columns">${getFeatureValue('hour_v5_interaction').toFixed(3)}</td>
+                                        <td class="feature-columns">${getFeatureValue('high_risk_combination').toFixed(3)}</td>
+                                        <td class="feature-columns">${getFeatureValue('suspicious_time_pattern').toFixed(3)}</td>
+                                        <td class="feature-columns">${getFeatureValue('weekend_high_value').toFixed(3)}</td>
+                                        <td class="feature-columns">${getFeatureValue('amount_z_score').toFixed(3)}</td>
+                                        <td class="feature-columns">${getFeatureValue('amount_outlier').toFixed(3)}</td>
+                                        <td class="feature-columns">${getFeatureValue('v_features_outlier').toFixed(3)}</td>
+                                        <td class="feature-columns">${getFeatureValue('high_v_features_risk').toFixed(3)}</td>
+                                        <td class="feature-columns">${getFeatureValue('rush_hour_high_value').toFixed(3)}</td>
+                                        <td class="feature-columns">${getFeatureValue('comprehensive_risk_score').toFixed(3)}</td>
+                                        <td class="feature-columns">${getFeatureValue('low_risk').toFixed(3)}</td>
+                                        <td class="feature-columns">${getFeatureValue('medium_risk').toFixed(3)}</td>
+                                        <td class="feature-columns">${getFeatureValue('high_risk').toFixed(3)}</td>
                                     </tr>
                                 `;
                             }).join('')}
