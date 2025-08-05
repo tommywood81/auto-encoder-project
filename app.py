@@ -477,29 +477,112 @@ async def get_predictions_with_percentile(percentile: int):
         return {"error": "Percentile must be between 0 and 100"}
     
     threshold = np.percentile(raw_anomaly_scores, percentile)
-    results = classify_anomalies(raw_anomaly_scores, threshold, engineered_test_data, ground_truth_labels)
     
-    # For high percentiles (95+), return all flagged transactions to allow full exploration
-    # For lower percentiles, limit to first 100 to avoid overwhelming the frontend
-    if percentile >= 95:
-        predictions_to_return = results  # Return all transactions
-    else:
-        predictions_to_return = results[:100]  # Return top 100
+    # Optimize: Only process transactions that are above the threshold
+    # This is much faster than processing all transactions
+    above_threshold_indices = np.where(raw_anomaly_scores > threshold)[0]
+    
+    if len(above_threshold_indices) == 0:
+        # No transactions above threshold
+        return {
+            "threshold": threshold,
+            "percentile": percentile,
+            "predictions": [],
+            "total_predictions": 0,
+            "returned_predictions": 0,
+            "summary": {
+                "total_transactions": len(raw_anomaly_scores),
+                "fraud_detected": 0,
+                "actual_fraud": 0 if ground_truth_labels is not None else None,
+                "true_positives": 0 if ground_truth_labels is not None else None,
+                "false_positives": 0 if ground_truth_labels is not None else None,
+                "true_negatives": len(raw_anomaly_scores) if ground_truth_labels is not None else None,
+                "false_negatives": 0 if ground_truth_labels is not None else None
+            }
+        }
+    
+    # Sort by anomaly score (highest first) and take top results
+    sorted_indices = above_threshold_indices[np.argsort(raw_anomaly_scores[above_threshold_indices])[::-1]]
+    
+    # Limit results for performance
+    max_results = 1000 if percentile >= 95 else 100
+    selected_indices = sorted_indices[:max_results]
+    
+    # Create results for selected transactions only
+    results = []
+    for i in selected_indices:
+        row = engineered_test_data.iloc[i]
+        raw_anomaly_score = float(raw_anomaly_scores[i])
+        
+        # Get engineered features for this transaction
+        engineered_features = {}
+        for col in engineered_test_data.columns:
+            if col not in ['transaction_id', 'amount', 'time', 'is_fraudulent', 'Class']:
+                engineered_features[col] = float(row.get(col, 0))
+        
+        # Get ground truth label if available
+        actual_fraud = None
+        if ground_truth_labels is not None:
+            original_index = engineered_test_data.index[i]
+            if original_index in ground_truth_labels:
+                actual_fraud = bool(ground_truth_labels[original_index])
+        
+        result = {
+            "transaction_id": str(row.get('transaction_id', f"TXN_{i}")),
+            "reconstruction_error": raw_anomaly_score,
+            "anomaly_score": raw_anomaly_score,
+            "predicted_fraud": True,  # All transactions above threshold are predicted as fraud
+            "actual_fraud": actual_fraud,
+            "fraud_probability": raw_anomaly_score,
+            "amount": float(row.get('amount', 0)),
+            "time": float(row.get('time', 0)),
+            "engineered_features": engineered_features
+        }
+        results.append(result)
+    
+    # Calculate summary statistics
+    total_transactions = len(raw_anomaly_scores)
+    fraud_detected = len(above_threshold_indices)
+    
+    # Calculate actual fraud count if ground truth is available
+    actual_fraud_count = 0
+    true_positives = 0
+    false_positives = 0
+    true_negatives = 0
+    false_negatives = 0
+    
+    if ground_truth_labels is not None:
+        actual_fraud_count = sum(ground_truth_labels.values())
+        
+        # Calculate confusion matrix
+        for i in range(len(raw_anomaly_scores)):
+            predicted_fraud = raw_anomaly_scores[i] > threshold
+            original_index = engineered_test_data.index[i]
+            actual_fraud = ground_truth_labels.get(original_index, False)
+            
+            if predicted_fraud and actual_fraud:
+                true_positives += 1
+            elif predicted_fraud and not actual_fraud:
+                false_positives += 1
+            elif not predicted_fraud and not actual_fraud:
+                true_negatives += 1
+            elif not predicted_fraud and actual_fraud:
+                false_negatives += 1
     
     return {
         "threshold": threshold,
         "percentile": percentile,
-        "predictions": predictions_to_return,
-        "total_predictions": len(results),  # Total number of flagged transactions
-        "returned_predictions": len(predictions_to_return),  # Number of transactions returned
+        "predictions": results,
+        "total_predictions": fraud_detected,
+        "returned_predictions": len(results),
         "summary": {
-            "total_transactions": len(results),
-            "fraud_detected": sum(1 for r in results if r["predicted_fraud"]),
-            "actual_fraud": sum(1 for r in results if r["actual_fraud"]) if ground_truth_labels is not None else None,
-            "true_positives": sum(1 for r in results if r["predicted_fraud"] and r["actual_fraud"]) if ground_truth_labels is not None else None,
-            "false_positives": sum(1 for r in results if r["predicted_fraud"] and not r["actual_fraud"]) if ground_truth_labels is not None else None,
-            "true_negatives": sum(1 for r in results if not r["predicted_fraud"] and not r["actual_fraud"]) if ground_truth_labels is not None else None,
-            "false_negatives": sum(1 for r in results if not r["predicted_fraud"] and r["actual_fraud"]) if ground_truth_labels is not None else None
+            "total_transactions": total_transactions,
+            "fraud_detected": fraud_detected,
+            "actual_fraud": actual_fraud_count if ground_truth_labels is not None else None,
+            "true_positives": true_positives if ground_truth_labels is not None else None,
+            "false_positives": false_positives if ground_truth_labels is not None else None,
+            "true_negatives": true_negatives if ground_truth_labels is not None else None,
+            "false_negatives": false_negatives if ground_truth_labels is not None else None
         }
     }
 

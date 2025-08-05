@@ -368,7 +368,9 @@
             document.getElementById('percentileMeaning').textContent = meaning;
             
             // Show adjust button if anomaly scores are already calculated
+            console.log('Slider changed, anomalyScoresCalculated:', anomalyScoresCalculated);
             if (anomalyScoresCalculated) {
+                console.log('Showing adjust button');
                 document.getElementById('adjustButton').style.display = 'inline-block';
             }
         });
@@ -390,7 +392,8 @@
             if (!percentileInfo) return;
             
             const percentile = parseInt(document.getElementById('percentileSlider').value);
-            const threshold = percentileInfo.percentile_thresholds[percentile] || 'Calculating...';
+            // Fix the property access - use 'thresholds' instead of 'percentile_thresholds'
+            const threshold = percentileInfo.thresholds[percentile] || 'Calculating...';
             document.getElementById('thresholdValue').textContent = threshold;
         }
 
@@ -454,6 +457,9 @@
         }
 
         async function adjustThreshold() {
+            console.log('adjustThreshold function called');
+            console.log('anomalyScoresCalculated:', anomalyScoresCalculated);
+            
             if (!anomalyScoresCalculated) {
                 alert('Please calculate predictions first before adjusting threshold.');
                 return;
@@ -473,14 +479,13 @@
             
             // Update loading message - emphasize that we're using cached scores
             const loadingText = document.getElementById('loadingText');
-            loadingText.textContent = `Adjusting threshold to ${percentile}% percentile (using cached anomaly scores - fast)...`;
+            loadingText.textContent = `Adjusting threshold to ${percentile}% percentile (processing large dataset - may take 15-20 seconds)...`;
             
             try {
                 const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout for cached operation
+                const timeoutId = setTimeout(() => controller.abort(), 30000); // Increase timeout to 30 seconds
                 
-                // Use the same endpoint but with a shorter timeout since it uses cached scores
-                // The backend already uses cached raw_anomaly_scores, so this is fast
+                // Use the same endpoint but with a longer timeout since the data is large
                 const response = await fetch(`/api/predict/percentile/${percentile}`, {
                     method: 'GET',
                     signal: controller.signal
