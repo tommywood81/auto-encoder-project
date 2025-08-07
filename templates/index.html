@@ -148,9 +148,9 @@
                     <div class="card-body text-center position-relative">
                         <button class="btn btn-outline-primary position-absolute top-0 end-0 m-3" 
                                 data-bs-toggle="modal" data-bs-target="#helpModal">
-                            <i class="fas fa-question-circle"></i> Help
+                            Help
                         </button>
-                        <h1 class="mb-2"><i class="fas fa-shield-alt text-primary"></i> Fraud Detection Dashboard</h1>
+                        <h1 class="mb-2">Fraud Detection Dashboard</h1>
                         <p class="text-muted mb-0">Autoencoder-Based Anomaly Detection System</p>
                     </div>
                 </div>
@@ -163,14 +163,14 @@
                 <div class="modal-content">
                     <div class="modal-header">
                         <h5 class="modal-title" id="helpModalLabel">
-                            <i class="fas fa-info-circle text-primary"></i> Dashboard Help & Model Information
+                            Dashboard Help & Model Information
                         </h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
                     <div class="modal-body">
                         <div class="row">
                             <div class="col-md-6">
-                                <h6><i class="fas fa-cogs"></i> Model Information</h6>
+                                <h6>Model Information</h6>
                                 <ul class="list-unstyled">
                                     <li><strong>Model Type:</strong> Unsupervised Autoencoder</li>
                                     <li><strong>Architecture:</strong> Deep Neural Network</li>
@@ -183,9 +183,9 @@
                                 </p>
                             </div>
                             <div class="col-md-6">
-                                <h6><i class="fas fa-chart-line"></i> How to Use the Dashboard</h6>
+                                <h6>How to Use the Dashboard</h6>
                                 <ol class="small">
-                                    <li><strong>Click "Analyze Transactions":</strong> This will process all transactions</li>
+                                    <li><strong>Click "Analyse Transactions":</strong> This will process all transactions</li>
                                     <li><strong>Review Results:</strong> Transactions are sorted by anomaly score (highest to lowest)</li>
                                     <li><strong>Navigate Results:</strong> Use pagination to explore flagged transactions</li>
                                     <li><strong>Focus on Top 1%:</strong> Most anomalous transactions appear first</li>
@@ -198,7 +198,7 @@
                         <hr>
                         <div class="row">
                             <div class="col-12">
-                                <h6><i class="fas fa-lightbulb"></i> Understanding Autoencoder Behavior</h6>
+                                <h6>Understanding Autoencoder Behavior</h6>
                                 <p class="small">
                                     Autoencoders identify anomalies by learning complex patterns in normal transactions. The highest anomaly scores often represent transactions with subtle, multi-dimensional anomalous patterns rather than obvious fraud indicators. This sophisticated approach enables detection of previously unseen fraud patterns.
                                 </p>
@@ -206,7 +206,7 @@
                         </div>
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Got it!</button>
+                        <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Got it</button>
                     </div>
                 </div>
             </div>
@@ -216,7 +216,7 @@
         <div class="row mb-4">
             <div class="col-12">
                 <div class="model-info-box">
-                    <h5><i class="fas fa-brain"></i> Autoencoder Model Overview</h5>
+                    <h5>Autoencoder Model Overview</h5>
                     <p class="mb-2">
                         This fraud detection system uses an <strong>unsupervised autoencoder</strong> that was trained exclusively on normal (non-fraudulent) transactions. 
                         The model learns to reconstruct normal transaction patterns and identifies anomalies based on reconstruction error.
@@ -234,7 +234,7 @@
             <div class="col-md-4">
                 <div class="card">
                     <div class="card-body">
-                        <h5 class="card-title"><i class="fas fa-sliders-h"></i> Percentile Threshold Control</h5>
+                        <h5 class="card-title">Percentile Threshold Control</h5>
                         <div class="mb-3">
                             <label for="percentileSlider" class="form-label">Percentile Threshold: <span id="percentileValue">99</span>%</label>
                             <input type="range" class="form-range" id="percentileSlider" min="50" max="99" step="1" value="99">
@@ -248,11 +248,10 @@
                             </div>
                         </div>
                         <button class="btn btn-primary" id="predictButton" onclick="predictAll()">
-                            <i class="fas fa-play"></i> Analyse Transactions
+                            Analyse Transactions
                         </button>
                         <div class="mt-2">
                             <small class="text-muted">
-                                <i class="fas fa-info-circle"></i> 
                                 Processing time: ~10-15 seconds for complete analysis
                             </small>
                         </div>
@@ -263,9 +262,9 @@
             <div class="col-md-4">
                 <div class="card metrics-card">
                     <div class="card-body">
-                        <h5 class="card-title"><i class="fas fa-chart-bar"></i> Performance Metrics</h5>
+                        <h5 class="card-title">Performance Metrics</h5>
                         <div id="metricsContent">
-                            <p class="text-center text-muted">Click "Analyze Transactions" to see metrics</p>
+                            <p class="text-center text-muted">Click "Analyse Transactions" to see metrics</p>
                         </div>
                     </div>
                 </div>
@@ -274,9 +273,9 @@
             <div class="col-md-4">
                 <div class="card">
                     <div class="card-body">
-                        <h5 class="card-title"><i class="fas fa-cogs"></i> Model Details</h5>
+                        <h5 class="card-title">Model Details</h5>
                         <div id="modelInfoContent">
-                            <p class="text-center text-muted">Click "Analyze Transactions" to see model details</p>
+                            <p class="text-center text-muted">Click "Analyse Transactions" to see model details</p>
                         </div>
                     </div>
                 </div>
@@ -287,7 +286,7 @@
         <div class="row mb-4" id="performanceHighlight" style="display: none;">
             <div class="col-12">
                 <div class="performance-highlight">
-                    <h5><i class="fas fa-trophy"></i> Model Performance Summary</h5>
+                    <h5>Model Performance Summary</h5>
                     <div id="performanceContent">
                         <!-- Performance content will be populated by JavaScript -->
                     </div>
@@ -312,22 +311,22 @@
             <div class="col-12">
                 <div class="card">
                     <div class="card-header d-flex justify-content-between align-items-center">
-                        <h5 class="mb-0"><i class="fas fa-table"></i> Transaction Results (Sorted by Anomaly Score)</h5>
+                        <h5 class="mb-0">Transaction Results (Sorted by Anomaly Score)</h5>
                         <div class="pagination-info">
                             <span id="paginationInfo">Showing 0 of 0 results</span>
                         </div>
                     </div>
                     <div class="card-body">
                         <div id="resultsContent">
-                            <p class="text-center text-muted">Click "Analyze Transactions" to see transaction results</p>
+                            <p class="text-center text-muted">Click "Analyse Transactions" to see transaction results</p>
                         </div>
                         <div class="d-flex justify-content-between align-items-center mt-3">
                             <div>
                                 <button class="btn btn-outline-primary btn-sm" id="prevPage" onclick="previousPage()" disabled>
-                                    <i class="fas fa-chevron-left"></i> Previous
+                                    Previous
                                 </button>
                                 <button class="btn btn-outline-primary btn-sm" id="nextPage" onclick="nextPage()" disabled>
-                                    Next <i class="fas fa-chevron-right"></i>
+                                    Next
                                 </button>
                             </div>
                             <div>
@@ -406,7 +405,7 @@
             
             // Disable button and show loading
             predictButton.disabled = true;
-            predictButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+            predictButton.innerHTML = 'Processing...';
             loading.style.display = 'block';
             resultsContent.innerHTML = '';
             metricsContent.innerHTML = '';
@@ -444,7 +443,7 @@
             } finally {
                 // Re-enable button and hide loading
                 predictButton.disabled = false;
-                predictButton.innerHTML = '<i class="fas fa-play"></i> Analyse Transactions';
+                predictButton.innerHTML = 'Analyse Transactions';
                 loading.style.display = 'none';
             }
         }
