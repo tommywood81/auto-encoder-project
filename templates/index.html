@@ -69,10 +69,6 @@
             min-width: 100px;
         }
         .fraud-info-columns {
-            position: sticky;
-            left: 0;
-            background: #343a40;
-            z-index: 10;
             min-width: 120px;
         }
         .fraud-info-columns th,
@@ -252,7 +248,7 @@
                             </div>
                         </div>
                         <button class="btn btn-primary" id="predictButton" onclick="predictAll()">
-                            <i class="fas fa-play"></i> Analyze Transactions
+                            <i class="fas fa-play"></i> Analyse Transactions
                         </button>
                         <div class="mt-2">
                             <small class="text-muted">
@@ -448,7 +444,7 @@
             } finally {
                 // Re-enable button and hide loading
                 predictButton.disabled = false;
-                predictButton.innerHTML = '<i class="fas fa-play"></i> Analyze Transactions';
+                predictButton.innerHTML = '<i class="fas fa-play"></i> Analyse Transactions';
                 loading.style.display = 'none';
             }
         }
@@ -597,16 +593,20 @@
                     performanceContent.innerHTML = `
                         <p class="mb-2">
                             <strong>In the test set of ${stats.total_transactions ? stats.total_transactions.toLocaleString() : '28,000+'} rows, 
-                            we caught ${top1Percent.true_positives} fraud cases and missed ${top1Percent.false_negatives} fraud cases. 
-                            This was achieved by looking at the top 1% of anomaly scores from the autoencoder model.</strong>
+                            if we look at the top 1 percent of anomaly scores we catch ${top1Percent.true_positives} fraud cases and missed ${top1Percent.false_negatives} fraud cases.</strong>
+                        </p>
+                        <p class="mb-2">
+                            Fraud cases are extremely rare in this synthetic Kaggle dataset, there is about 1.3 ground truth frauds per 1000 rows (0.13%).
                         </p>
                         <p class="mb-2">
                             There were ${top1Percent.false_positives} false positives in the top 1% flagged transactions. 
                             With proper dataset-specific, subject matter expert-driven feature engineering, this performance could be enhanced even further.
                         </p>
+                        <p class="mb-2">
+                            The 99th percentile is selected by default in the slider. Click on analyse transaction then paginate with the next button at the bottom of the screen a few times and you will start to see the ground truth frauds. The rows with high anomaly scores that are not actually frauds is a classic problem with autoencoders if the feature engineering isn't perfect.
+                        </p>
                         <p class="mb-0">
-                            <strong>Key Insight:</strong> The autoencoder model was trained without any fraud rows (unsupervised learning), 
-                            making it capable of detecting novel fraud patterns that weren't present in the training data.
+                            The focus of this project was on modular design, production readiness, and deployment, rather than feature engineering - which is more applicable to real world datasets.
                         </p>
                     `;
                     
