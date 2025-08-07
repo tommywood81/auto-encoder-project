@@ -1,0 +1,48 @@
+# Production Deployment Configuration for Fraud Detection Dashboard
+# Edit this file with your actual deployment settings
+
+docker:
+  # Docker Hub settings
+  image_name: "fraud-detection-dashboard"
+  username: "tommyboy777"  # Your Docker Hub username
+  tag: "latest"  # or use version tags like "v1.0.0"
+
+droplet:
+  # Droplet connection settings
+  ip: "209.38.89.159"  # Your droplet's IP address
+  ssh_user: "root"  # Usually "root" for DigitalOcean, "ubuntu" for AWS
+  app_port: "80"  # Port to expose the application (80 for HTTP, 443 for HTTPS)
+  container_name: "fraud-dashboard"  # Name for the Docker container
+
+# Optional: Advanced settings
+advanced:
+  # Health check settings
+  health_check_timeout: 300  # seconds
+  health_check_interval: 10  # seconds
+  
+  # Container settings
+  restart_policy: "unless-stopped"
+  memory_limit: "2g"  # Optional memory limit
+  cpu_limit: "1.0"    # Optional CPU limit
+  
+  # Volume mounts
+  volumes:
+    logs: "/var/log/fraud-dashboard:/app/logs"
+    # Add more volumes as needed:
+    # data: "/host/data:/app/data"
+    # models: "/host/models:/app/models"
+  
+  # Environment variables
+  environment:
+    PYTHONPATH: "/app"
+    PYTHONUNBUFFERED: "1"
+    # Add more environment variables as needed:
+    # DEBUG: "false"
+    # LOG_LEVEL: "INFO"
+
+# SSL/HTTPS settings (for production)
+ssl:
+  enabled: false  # Set to true when SSL is configured
+  certificate_path: "/etc/ssl/certs/dashboard.crt"
+  private_key_path: "/etc/ssl/private/dashboard.key"
+  redirect_http: true  # Redirect HTTP to HTTPS
